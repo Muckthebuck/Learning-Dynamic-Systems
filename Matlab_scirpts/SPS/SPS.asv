@@ -67,10 +67,9 @@ classdef SPS
             y_pred = X * theta_hat;
         end
         
-        function is_in_conf_region = sps_indicator(obj, y,u, theta_hat, controller, createFeatureMatrix)
+        function is_in_conf_region = sps_indicator(obj, X, y, theta_hat)
             % Make predictions with new data
-            X = createFeatureMatrix(y,u);
-            y_pred = obj.predictor(X, theta_hat);
+            y_pred = sps.predictor(X, theta_hat);
             % PE
             y_errors = y-y_pred;
             % build m-1 sequences of sign perturbed prediction errors
@@ -82,39 +81,42 @@ classdef SPS
             D_star = 0;
 
             % Create an instance of ARMAXGenerator
-            armaxGen_bar = ARMAXGenerator(A_star, B_star, C_star, D_star, controller);
+            armaxGen_bar = ARMAXGenerator(A_star, B_star, C_star, D_star, @custom_past_y);
 
-            y_bar = zeros(obj.m, obj.n);
-            u_bar = zeros(obj.m, obj.n);
+            y_bar = zeros(m, n);
+            u_bar = zeros(m, n);
             x_size = size(X);
-            S = zeros(1,obj.m);
+            S = zeros(1,m);
 
             y_bar(1,:) = y;
             u_bar(1,:) = u;
+            X_bar = X;
 
-            R = X' * X / obj.n;
-            S(1) = norm(R^(-1/2) * X'*y_errors/obj.n);
+            R = X' * X / n;
+            S(1) = norm(R^(-1/2) * X'*sp_errors(1,:)');
 
 
-            for k = 2:obj.m 
-                [y_bar(k,:), u_bar(k,:), ~] = armaxGen_bar.generateData(obj.n,sp_errors(k-1,:)');
+            for k = 2:m 
+                [y_bar(k,:), u_bar(k,:), ~] = armaxGen.generateData(n,sp_errors(k-1,:)');
                 X_bar =  createFeatureMatrix(y_bar(k,:),u_bar(k,:));
-                R =  X_bar'* X_bar /obj.n;
-                S(k) = norm(R^(-1/2) * X_bar'*sp_errors(k-1,:)'/obj.n);
+                R =  X_bar'* X_bar /n;
+                S(k) = norm(R^(-1/2) * X_bar'*sp_errors(k-1,:)');
                 %armaxGen.plotData(y_bar(k,:), u_bar(k,:), sp_errors(k,:)');
             end
 
             % Combine S and Pi into a matrix
 
-            SP = [S(:), obj.pi(:)];
+            SP = [S(:), sps.pi(:)];
 
             % Sort SM based on S with Pi as a tiebreaker and keep track of original indices
-            [~, sort_order] = sortrows(SP, [1, 2]);
+            [a, sort_order] = sortrows(SP, [1, 2]);
 
             % Find the new index of the first element of the original S
             new_index = find(sort_order == 1);
 
-            is_in_conf_region = new_index<=obj.m-obj.q;
+            new_index<=m-q
+
+
 
             
         end
