@@ -49,14 +49,14 @@ classdef ARMAXGenerator
                 
                 % MA part
                 ma_sum = 0;
-                for k = 2:length(obj.C)
+                for k = 1:length(obj.C)
                     if t - k + 1 > 0
                         ma_sum = ma_sum + obj.C(k) * e(t - k + 1);
                     end
                 end
                 
                 % Compute the output
-                y(t) = (-ar_sum + exo_sum + ma_sum + obj.D + obj.C(1) * e(t)) / obj.A(1);
+                y(t) = (-ar_sum + exo_sum + ma_sum + obj.D) / obj.A(1);
                 u(t) = obj.input_controller(y,u,t);
             end
         end
