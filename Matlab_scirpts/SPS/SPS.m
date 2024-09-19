@@ -109,28 +109,22 @@ classdef SPS
             nt_theta = filter(1, C_star, diff_AB);
             % build m-1 sequences of sign perturbed prediction errors
             sp_errors = obj.alpha.*nt_theta';
-
           
             
             % Create an instance of ARMAXGenerator
             armaxGen_bar = ARMAXGenerator(A_star, B_star, C_star, D_star, controller);
             
-
-            y_bar = zeros(obj.m, obj.n);
-            u_bar = zeros(obj.m, obj.n);
-  
             S = zeros(1,obj.m);
-            [y_bar(1,:), u_bar(1,:), ~] = armaxGen_bar.generateData(obj.n,nt_theta');
+            %[y_bar, u_bar, ~] = armaxGen_bar.generateData(obj.n,nt_theta');
             % Make predictions with new data
-            X = createFeatureMatrix(y_bar(1,:), u_bar(1,:), nt_theta);
 
+            X = createFeatureMatrix(y, u, nt_theta);
             R = X' * X / obj.n;
             S(1) = norm(R^(-1/2) * X'*nt_theta/obj.n);
 
-
             for k = 2:obj.m 
-                [y_bar(k,:), u_bar(k,:), ~] = armaxGen_bar.generateData(obj.n,sp_errors(k-1,:)');
-                X_bar =  createFeatureMatrix(y_bar(k,:),u_bar(k,:), sp_errors(k-1,:));
+                [y_bar, u_bar, ~] = armaxGen_bar.generateData(obj.n,sp_errors(k-1,:)');
+                X_bar =  createFeatureMatrix(y_bar,u_bar, sp_errors(k-1,:));
                 R =  X_bar'* X_bar /obj.n;
                 S(k) = norm(R^(-1/2) * X_bar'*sp_errors(k-1,:)'/obj.n);
                 %armaxGen.plotData(y_bar(k,:), u_bar(k,:), sp_errors(k,:)');
@@ -141,7 +135,7 @@ classdef SPS
             SP = [S(:), obj.pi(:)];
 
             % Sort SM based on S with Pi as a tiebreaker and keep track of original indices
-            [~, sort_order] = sortrows(SP, [1, 2], 'ascend');
+            [~, sort_order] = sortrows(SP, [1, 2]);
 
             % Find the new index of the first element of the original S
             new_index = find(sort_order == 1);
