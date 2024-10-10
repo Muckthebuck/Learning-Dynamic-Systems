@@ -19,28 +19,30 @@ close all
 
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ plant parameters
-theta_real = [0.44, 0.33, 0]
+theta_real = [0.4, 0.3, 0]
 A = [1, -theta_real(1)];   % AR coefficients
-% B = [0 theta_real(2)];       % MA coefficients 
-B = [theta_real(2) 0];       % MA coefficients 
+B = [0 theta_real(2)];       % MA coefficients 
+% B = [theta_real(2) 0];       % MA coefficients 
 C = [1, theta_real(3)];       % input coefficients
 D = 0;           % Constant term
 noiseVar = 0.0;  % Variance of the noise
 
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ SPS parameters
-m = 100;   % Integer m
-q = 5;     % Integer q 
+m = 20;   % Integer m
+q = 1;     % Integer q 
 p = 1-q/m    % Confidence probability p = 1 − q/m
 T = 1;
 
 % Define the initial range of a and b, grid resolution
-grid_res = 0.025;
-a_values = 0.1:grid_res:1;
-b_values = 0.1:grid_res:1;
+grid_res = 0.1;
+a_values = grid_res:grid_res:1;
+b_values = grid_res:grid_res:1;
+% a_values = -1:grid_res:1;
+% b_values = -1:grid_res:1;
 % a_values = 0.42:grid_res:0.48;
 % b_values = 0.29:grid_res:0.37;
-% a_values = 0.1:grid_res:0.8;
+% a_values = 0.2:grid_res:0.6;
 % b_values = 0.1:grid_res:0.5;
 
 
@@ -141,6 +143,7 @@ scatter3(theta_real(1), theta_real(2), 0.1*n_iters, 'g+', 'DisplayName', 'True t
 
 %% helper functions
 
+
 function [a_values, b_values] = update_ab_considered(conf_region, grid_res)
 
     % Strategy 1
@@ -155,10 +158,12 @@ function [a_values, b_values] = update_ab_considered(conf_region, grid_res)
 
 end
 
+
 function n = update_n(i)
     % n = i*200; % increase #samples each iteration
-    n = 200; % keep #samples constant for each iteration
+    n = 400; % keep #samples constant for each iteration
 end
+
 
 function conf_region = get_confidence_region(sps, a_values, b_values, y, u, e, K)
 
@@ -178,13 +183,13 @@ function conf_region = get_confidence_region(sps, a_values, b_values, y, u, e, K
         for b = b_values
             c = 0; % Fixed value for c
             A_hat = [1, -a];   % AR coefficients
-            % B_hat = [0, b];    % MA coefficients
-            B_hat = [b, 0];    % MA coefficients
+            B_hat = [0, b];    % MA coefficients
+            % B_hat = [b, 0];    % MA coefficients
             C_hat = [1, c];    % input coefficients
             D_hat = 0;         % Constant term
             
             % Check the condition using the sps_indicator function
-            if abs(a - 0.44) < 1e-5 && abs(b - 0.33) < 1e-5
+            if abs(a - 0.4) < 1e-5 && abs(b - 0.3) < 1e-5
                 if sps.sps_indicator(y, u, A_hat, B_hat, C_hat, D_hat, @step_controller_K, K, @createFeatureMatrix) == 1
                     disp("true theta included")
                 else
@@ -205,18 +210,6 @@ function conf_region = get_confidence_region(sps, a_values, b_values, y, u, e, K
 
 end
 
-function u_out = percussion(y,u,t)
-    u_out = 0.75^t;
-end
-
-function u_out = step_controller(y,u,t)
-    % u_out = randn(1);
-    if t > 10
-        u_out = 1;
-    else
-        u_out = 0;
-    end  
-end
 
 function u_out = step_controller_K(y,u,t,K)
     
@@ -226,15 +219,14 @@ function u_out = step_controller_K(y,u,t,K)
     % chirp?
     % % excitation_signal = amp * (t>10); % step
     % excitation_signal = amp * (mod(t,10) == 0); % impulses
-    % excitation_signal = amp * randn(1); % noise
-    excitation_signal = amp * sign(sin(2*pi*t/100)); % square wave
+    % excitation_signal = amp * sign(sin(2*pi*t/100)); % square wave
+    excitation_signal = randn(1) * 1;
     
     u_out = -K*y(t-1) + excitation_signal;
+    % u_out = excitation_signal;
 
-end
+    % u_out = 0.1 * randn(1); % noise
 
-function u_out = custom_past_y(y,u,t)
-    u_out = 0.4*y(t-1) +  randn(1);
 end
 
 
