@@ -21,10 +21,11 @@ close all
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ plant parameters
 theta_real = [0.44, 0.33, 0]
 A = [1, -theta_real(1)];   % AR coefficients
+% B = [0 theta_real(2)];       % MA coefficients 
 B = [theta_real(2) 0];       % MA coefficients 
 C = [1, theta_real(3)];       % input coefficients
 D = 0;           % Constant term
-noiseVar = 0.00;  % Variance of the noise
+noiseVar = 0.0;  % Variance of the noise
 
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ SPS parameters
@@ -34,10 +35,13 @@ p = 1-q/m    % Confidence probability p = 1 − q/m
 T = 1;
 
 % Define the initial range of a and b, grid resolution
-grid_res = 0.02;
-a_values = 0.05:grid_res:1;
-b_values = 0.05:grid_res:1;
-
+grid_res = 0.025;
+a_values = 0.1:grid_res:1;
+b_values = 0.1:grid_res:1;
+% a_values = 0.42:grid_res:0.48;
+% b_values = 0.29:grid_res:0.37;
+% a_values = 0.1:grid_res:0.8;
+% b_values = 0.1:grid_res:0.5;
 
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ initialize the parallel pool (optional)
@@ -53,7 +57,7 @@ R = 1;
 
 %% iteration 1
 
-n_iters = 5;
+n_iters = 3;
 
 figure(1); clf; hold on
 subplot(3,1,1); hold on; legend
@@ -82,7 +86,7 @@ for i=1:n_iters
         % (no code needed)
     
         % Strategy 1 - rectangle enclosing confidence region
-        [a_values, b_values] = update_ab_considered(conf_region, grid_res);
+        % [a_values, b_values] = update_ab_considered(conf_region, grid_res);
 
     end
 
@@ -101,6 +105,10 @@ for i=1:n_iters
     
     % Get the confidence region
     conf_region = get_confidence_region(sps, a_values, b_values, y, u, e, K);
+    if(isempty(conf_region))
+        disp("No points in confidence region!")
+        return
+    end
     a_in_set = conf_region(:,1);
     b_in_set = conf_region(:,2);
     
@@ -170,11 +178,19 @@ function conf_region = get_confidence_region(sps, a_values, b_values, y, u, e, K
         for b = b_values
             c = 0; % Fixed value for c
             A_hat = [1, -a];   % AR coefficients
-            B_hat = [0, b];    % MA coefficients
+            % B_hat = [0, b];    % MA coefficients
+            B_hat = [b, 0];    % MA coefficients
             C_hat = [1, c];    % input coefficients
             D_hat = 0;         % Constant term
             
             % Check the condition using the sps_indicator function
+            if abs(a - 0.44) < 1e-5 && abs(b - 0.33) < 1e-5
+                if sps.sps_indicator(y, u, A_hat, B_hat, C_hat, D_hat, @step_controller_K, K, @createFeatureMatrix) == 1
+                    disp("true theta included")
+                else
+                    disp("true theta not included")
+                end
+            end
             if sps.sps_indicator(y, u, A_hat, B_hat, C_hat, D_hat, @step_controller_K, K, @createFeatureMatrix) == 1
                 local_conf_region = [local_conf_region; a, b, c];
             end
@@ -212,7 +228,7 @@ function u_out = step_controller_K(y,u,t,K)
     % excitation_signal = amp * (mod(t,10) == 0); % impulses
     % excitation_signal = amp * randn(1); % noise
     excitation_signal = amp * sign(sin(2*pi*t/100)); % square wave
-
+    
     u_out = -K*y(t-1) + excitation_signal;
 
 end
