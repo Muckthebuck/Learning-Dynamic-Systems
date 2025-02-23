@@ -10,12 +10,13 @@ try:
     torch.cuda.current_device()
     import cupy as cp
     from cupyx.scipy.linalg import solve_triangular
-    from cupyx.scipy.signal import lfilter
+    device = 'cuda'
 except:
     # Fall back to unoptimised versions
     import numpy as cp
     from scipy.linalg import solve_triangular
     from scipy import signal
+    device = None
 
 class SPS_direct_model:
     def __init__(self, m, q, N=50):
@@ -126,6 +127,9 @@ class SPS_direct_model:
         
 
 if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+
+
     # Example usage
     A = [1, -0.33]  # A(z^-1) = 1 - 0.33z^-1
     B = [0.22]      # B(z^-1) = 0.22z^-1
@@ -133,15 +137,14 @@ if __name__ == "__main__":
     F = [0.31, 0.23] # F(z^-1) = 0.31 + 0.23z^-1
     L = [1]        # L(z^-1) = 1
 
+    N_SAMPLES = 100
     armax_model = ARMAX(A, B, C, F, L)
 
-    n_samples = 100
     # square wave reference signal
-    R = signal.square(cp.linspace(0, 10*cp.pi, n_samples))
+    R = signal.square(cp.linspace(0, 10*cp.pi, N_SAMPLES))
 
-    Y, U, N, R = armax_model.simulate(n_samples, R, noise_std=0.2)
+    Y, U, N, R = armax_model.simulate(N_SAMPLES, R, noise_std=0.2)
 
-    N_SAMPLES = 50
     
 
     G = (B, A)
@@ -158,16 +161,64 @@ if __name__ == "__main__":
 
     direct_model = SPS_direct_model(m, q)
 
+    C = cp.array([1, 0.15])         # C(z^-1) = 1 + 0.15z^-1
+    F = (cp.array([0.31, 0.23]), cp.array([1]))  # F(z^-1) = 0.31 + 0.23z^-1
+    L = (cp.array([1]), cp.array([1]))         # L(z^-1) = 1
 
-    # open loop system is 
-    # Y_t = G_0(z^-1, kappa)U_t + H_0(z^-1, kappa)N_t
-    profiler.enable()
-    in_sps, S1 = direct_model.direct_sps(G, H, F, L, Y, U, 1, 1)
-    # print(f"SPS: {in_sps}")
+    direct_model = SPS_direct_model(m, q)
 
-    profiler.disable()
-    stats = pstats.Stats(profiler).sort_stats('cumtime')
-    stats.print_stats()
-    profiler.clear()
-    
-    armax_model.plot_results(Y, U, N, R)
+    # Create arrays for a and b values
+    a_values = cp.arange(0, 0.6, 0.02)
+    b_values = cp.arange(0, 0.6, 0.02)
+
+    # Create a meshgrid for a and b values
+    a_grid, b_grid = cp.meshgrid(a_values, b_values, indexing='ij')
+
+    # Flatten the grids for iteration
+    a_flat = a_grid.ravel()
+    b_flat = b_grid.ravel()
+
+    # Store results in a list
+    results = []
+
+    # Create torch tensors directly on GPU
+    a_torch = torch.tensor(a_flat, dtype=torch.float32, device=device)
+    b_torch = torch.tensor(b_flat, dtype=torch.float32, device=device)
+
+    # Vectorized operations to minimize Python loops
+    A_torch = torch.stack([torch.ones_like(a_torch), -a_torch], dim=-1)
+    B_torch = torch.stack([torch.zeros_like(b_torch), b_torch], dim=-1)
+
+    # Perform the operations in batch
+    A = cp.from_dlpack(A_torch)
+    B = cp.from_dlpack(B_torch)
+
+    # Assuming 'model' is predefined and contains the necessary methods
+    for i in range(len(a_flat)):
+        G = (B[i], A[i])  # G should be a tuple of arrays
+        H = (C, A[i])  # H should be a tuple of arrays
+
+        # Check the condition and store the result if true
+        in_sps, S1 = direct_model.direct_sps(G, H, F, L, Y, U, 1, 1)
+        if in_sps:
+            results.append((a_flat[i].item(), b_flat[i].item()))
+
+    # Convert the results to a NumPy array
+    results = cp.array(results)
+    # Plot the results
+    fig, ax = plt.subplots()
+    ax.plot(results[:, 0], results[:, 1], 'bo')  # Plot the points as blue dots
+
+    # Labeling the plot
+    ax.set_xlabel('a')
+    ax.set_ylabel('b')
+    # axis limits
+    ax.set_xlim([-0.1, 1])
+    ax.set_ylim([-0.1, 1])
+    ax.set_title('Points for which closed_loop_sps returns True')
+
+    # Plot the true values
+    ax.plot(0.33, 0.22, 'ro')  # Plot the true values as a red dot
+
+    # Show the plot
+    plt.show()
