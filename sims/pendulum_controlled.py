@@ -3,9 +3,9 @@ import cv2
 import time
 import control
 import matplotlib.pyplot as plt
-from InvertedPendulum import InvertedPendulum
 import scipy.signal as signal
-
+from sims.InvertedPendulum import InvertedPendulum
+from indirect_identification.sps_indirect import d_tfs, SPS_indirect_model
 class CartPendulumPlant:
     """
     CartPendulumPlant class models the dynamics of the inverted pendulum system.
@@ -25,6 +25,18 @@ class CartPendulumPlant:
         self.M = 5.0
         self.d1 = 1.0
         self.d2 = 0.5
+        self.ss, self.armax = self.system_matrices()
+
+    def update_params(self, d1=1.0, d2=0.5):
+        """
+        Updates the damping parameters of the system.
+        
+        Args:
+            d1 (float): Damping coefficient for the cart.
+            d2 (float): Damping coefficient for the pendulum.
+        """
+        self.d1 = d1
+        self.d2 = d2
         self.ss, self.armax = self.system_matrices()
     
     def system_matrices(self):
@@ -48,6 +60,7 @@ class CartPendulumPlant:
         ss = signal.StateSpace(A, B, C, D, dt=self.dt)
 
         G = ss.to_tf()
+        print(G)
         H = np.array([1, 0])
         armax = {'G': G, 'H': H}
         return ss, armax
@@ -96,7 +109,7 @@ class Controller:
         self.plant = plant
         self.Q = np.diag([200, 1, 10, 1])
         self.R = np.array([[1]])
-        self.ss_armax, self.K = self.design_lqr()
+        self.armax, self.K = self.design_lqr()
         self.desired = desired
         
     def design_lqr(self):
@@ -111,9 +124,9 @@ class Controller:
     
         # G, H, F, L 
         F = L  = K 
-        ss_armax = {'F': F, 'L': L}
+        armax = {'F': F, 'L': L}
 
-        return ss_armax, K
+        return armax, K
     
     def get_u(self, y):
         """
@@ -213,5 +226,21 @@ class CartPendulumSimulation:
 if __name__ == '__main__':
     plant = CartPendulumPlant(dt=0.02)
     controller = Controller(plant)
+    G, H  = plant.armax['G'], plant.armax['H']
+    F, L = controller.armax['F'], controller.armax['L']
+    print("G: ", G)
+    print("H: ", H)
+    print("F: ", F)
+    print("L: ", L)
+    ss = plant.ss
+    ss_g = G.to_ss()
+    print("A: ", ss.A)
+    print("B: ", ss.B)
+    print("C: ", ss.C)
+    print("D: ", ss.D)
+    print("ss_g.A: ", ss_g.A)
+    print("ss_g.B: ", ss_g.B)
+    print("ss_g.C: ", ss_g.C)
+    print("ss_g.D: ", ss_g.D)
     sim = CartPendulumSimulation(plant, controller, T=20, disturbance=50)
     sim.run()
