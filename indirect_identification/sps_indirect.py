@@ -7,12 +7,10 @@ from typing import Tuple, List, Union
 try:
     torch.cuda.current_device()
     import cupy as cp
-    from cupyx.scipy.linalg import solve_triangular
     from cupyx.scipy.signal import lfilter
 except:
     # Fall back to unoptimised versions
     import numpy as cp
-    from scipy.linalg import solve_triangular
     from scipy.signal import lfilter
 
 cp.random.seed(42)
