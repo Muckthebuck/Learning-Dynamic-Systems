@@ -1,16 +1,19 @@
-import torch
+# import os
+# os.environ['CUPY_ACCELERATORS'] = 'cub'
 from typing import Tuple, List, Union
+import torch
+# try:
+#     torch.cuda.current_device()
+#     import cupy as cp
+#     from cupyx.scipy.signal import lfilter
+# except:
+#     # Fall back to unoptimised versions
+#     # print("Reverting to numpy (CUDA not found)")
+#     import numpy as cp
+#     from scipy.signal import lfilter
 
-try:
-    torch.cuda.current_device()
-    import cupy as cp
-    from cupyx.scipy.signal import lfilter
-except:
-    # Fall back to unoptimised versions
-    # print("Reverting to numpy (CUDA not found)")
-    import numpy as cp
-    from scipy.signal import lfilter
-
+import numpy as cp
+from scipy.signal import lfilter
 # # for some reason, numpy is way faster than cupy, sticking with numpy for now
 # import numpy as cp
 # from scipy.linalg import solve_triangular
