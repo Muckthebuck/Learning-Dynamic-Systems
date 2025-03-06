@@ -1,7 +1,5 @@
-# import os
-# os.environ['CUPY_ACCELERATORS'] = 'cub'
 from typing import Tuple, List, Union
-import torch
+
 # try:
 #     torch.cuda.current_device()
 #     import cupy as cp
@@ -12,12 +10,9 @@ import torch
 #     import numpy as cp
 #     from scipy.signal import lfilter
 
+# for some reason, numpy is way faster than cupy, sticking with numpy for now
 import numpy as cp
 from scipy.signal import lfilter
-# # for some reason, numpy is way faster than cupy, sticking with numpy for now
-# import numpy as cp
-# from scipy.linalg import solve_triangular
-# from scipy.signal import lfilter
 
 class d_tfs:
     """
@@ -35,6 +30,16 @@ class d_tfs:
         self.epsilon = cp.float64(1e-10)
         self.num = cp.asarray(A[0]).astype(self.epsilon.dtype)  # Ensure CuPy array
         self.den = cp.asarray(A[1]).astype(self.epsilon.dtype)   # Ensure CuPy array
+    
+    def is_stable(self) -> bool:
+        """
+        Check if the discrete transfer function is stable.
+
+        Returns:
+        bool: True if stable (all poles inside the unit circle), False otherwise.
+        """
+        poles = cp.roots(self.den)  # Compute poles (roots of denominator)
+        return cp.all(cp.abs(poles) < 1)  # Check if all poles are inside the unit circle
 
     def __mul__(self, other: 'd_tfs') -> 'd_tfs':
         """
@@ -218,6 +223,18 @@ class SPS_indirect_model:
 
         GF_plus_I = (G * F).add_scalar(1)
         i_GF_plus_I = ~GF_plus_I
+        
+        # Check stability conditions
+        stability_conditions = [
+            L.is_stable(),
+            G.is_stable(),
+            H.is_stable(),
+            (~H).is_stable(),
+            i_GF_plus_I.is_stable()
+        ]
+        if not all(stability_conditions):
+            raise ValueError(f"Error transforming to open loop: stability conditions not satisfied.")
+
         G_0 = i_GF_plus_I * G * L
         H_0 = i_GF_plus_I * H
         return G_0, H_0
@@ -253,7 +270,7 @@ class SPS_indirect_model:
             y_bar = G_0.apply_shift_operator(U_t_par)[None, :] + H_0.apply_shift_operator(perturbed_N_hat[:, None]) # Compute y_bar vectorized
             y_bar = y_bar.transpose(1, 0, 2)[0]
 
-            # Calculate the sign perturbed sums and their squared norms
+            # Calculate the sign perturbed sums and their norms
             phi_tilde = self.create_phi_optimized(y_bar, U_t_par, n_a, n_b)
             R = cp.matmul(phi_tilde.transpose(0, 2, 1), phi_tilde) / len(Y_t) # Covariance estimate
             L = cp.linalg.cholesky(R) # Cholesky decomposition to get lower-triangular L
