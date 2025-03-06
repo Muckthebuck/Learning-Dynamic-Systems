@@ -1,20 +1,20 @@
 import torch
 from typing import Tuple, List, Union
 
-try:
-    torch.cuda.current_device()
-    import cupy as cp
-    from cupyx.scipy.signal import lfilter
-except:
-    # Fall back to unoptimised versions
-    # print("Reverting to numpy (CUDA not found)")
-    import numpy as cp
-    from scipy.signal import lfilter
+# try:
+#     torch.cuda.current_device()
+#     import cupy as cp
+#     from cupyx.scipy.signal import lfilter
+# except:
+#     # Fall back to unoptimised versions
+#     # print("Reverting to numpy (CUDA not found)")
+#     import numpy as cp
+#     from scipy.signal import lfilter
 
-# # for some reason, numpy is way faster than cupy, sticking with numpy for now
-# import numpy as cp
-# from scipy.linalg import solve_triangular
-# from scipy.signal import lfilter
+# for some reason, numpy is way faster than cupy, sticking with numpy for now
+import numpy as cp
+from scipy.linalg import solve_triangular
+from scipy.signal import lfilter
 
 class d_tfs:
     """
@@ -32,6 +32,16 @@ class d_tfs:
         self.epsilon = cp.float64(1e-10)
         self.num = cp.asarray(A[0]).astype(self.epsilon.dtype)  # Ensure CuPy array
         self.den = cp.asarray(A[1]).astype(self.epsilon.dtype)   # Ensure CuPy array
+    
+    def is_stable(self) -> bool:
+        """
+        Check if the discrete transfer function is stable.
+
+        Returns:
+        bool: True if stable (all poles inside the unit circle), False otherwise.
+        """
+        poles = cp.roots(self.den)  # Compute poles (roots of denominator)
+        return cp.all(cp.abs(poles) < 1)  # Check if all poles are inside the unit circle
 
     def __mul__(self, other: 'd_tfs') -> 'd_tfs':
         """
