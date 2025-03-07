@@ -4,3 +4,4 @@ scipy
 cupy-cuda12x
 control
 opencv-python
+scikit-learn
