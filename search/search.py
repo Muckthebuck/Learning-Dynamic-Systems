@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.cluster import MeanShift, KMeans
 from sklearn.neighbors import KNeighborsClassifier
 
 
@@ -71,15 +70,21 @@ class SPSSearch:
         self.remaining_coords = set(tuple([tuple(x) for x in self.remaining_coords]))
 
         # Lists of predicted results
-        self.predict_in_confidence_region = []
-        self.predict_out_confidence_region = []
+        self.predict_in = []
+        self.predict_out = []
 
         self.n_random = int(self.INITIALISATION_SIZE * len(self.remaining_coords))
+        self.n_per_epoch = int(self.SEARCH_SIZE * len(self.remaining_coords) / (self.NUM_EPOCHS-1))
 
         # Print some stats
         print("Number of datapoints:", len(self.remaining_coords))
         print("Number of random points:", self.n_random)
         print("Number of points which will be tested:", int(self.SEARCH_SIZE * len(self.remaining_coords)))
+        print("Number of points per epoch:", self.n_per_epoch)
+
+        # TODO: Allow a model with fit() and predict() functions to be passed in?
+        # Otherwise, expose hyperparameters
+        self.knn = KNeighborsClassifier(n_neighbors=7, weights="distance")
 
     def get_random_coordinate(self) -> tuple:
         """Returns an n-tuple random coordinate."""
@@ -103,16 +108,29 @@ class SPSSearch:
             self.remaining_coords.remove(random_coord)
             self.output.append(random_coord, self.results[random_coord])    # Append to secondary structure for convenience.
 
+    def calculate_knn_predictions(self):
+        """Recalculate the KNN predictors"""
+        X = np.array(self.output)[:, 0:2]
+        y = np.array(self.output)[:, 2]
+
+        self.knn.fit(X, y)
+
+        X_test = np.array([list(x) for x in list(self.remaining_coords)])
+        y_pred = self.knn.predict(X_test)
+
+        # Concatenate the results
+        concat = np.concatenate([X_test, np.array([y_pred]).transpose()], axis=1)
+        # TODO: Check this with tuple coords
+        self.pred_in = concat[np.where(concat[:,2] == 1)]
+        self.pred_out = concat[np.where(concat[:,2] == 0)]
 
     def knn_search(self):
+        for _ in range(self.n_per_epoch):
         # Generate random number to determine whether we want to test inside or outside the confidence region
-        is_test_confidence_region = np.random.random() < self.CHANCE_TEST_EXPECTED_POSITIVE
+            is_test_confidence_region = np.random.random() < self.CHANCE_TEST_EXPECTED_POSITIVE
 
         pass
 
-    def calculate_knn(self):
-        """Recalculate the KNN predictors"""
-        pass
 
 
 if __name__ == "__main__":
