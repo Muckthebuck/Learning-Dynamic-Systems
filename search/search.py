@@ -161,6 +161,18 @@ class SPSSearch:
             self.remaining_coords.remove(coord)
             self.output.append([coord, self.results[coord]])
 
+    def go(self):
+        # Perform random search
+        self.random_search()
+
+        for _ in range(1, self.NUM_EPOCHS):
+            # Perform KNN
+            self.calculate_knn_predictions()
+
+            # Search KNN
+            self.knn_search()
+
+        # TODO: return ??
 
 
 if __name__ == "__main__":
