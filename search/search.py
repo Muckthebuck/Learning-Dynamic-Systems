@@ -39,7 +39,10 @@ class SPSSearch:
         self.max = max
         self.n_dimensions = n_dimensions
 
-        self.test_coordinate: callable = lambda _: False if test_cb is None else test_cb
+        if test_cb is None:
+            self.test_coordinate = lambda x : False
+        else:
+            self.test_coordinate = staticmethod(test_cb)
 
         self.results = -1 * np.ones(self.n_dimensions * [self.NUM_POINTS])
         """
@@ -175,5 +178,9 @@ class SPSSearch:
 
 
 if __name__ == "__main__":
-    search = SPSSearch(-1, 1, 3)
+    def test(random_coord):
+        p_success = 0.6
+        return np.random.random() > 1 - p_success
+
+    search = SPSSearch(-1, 1, 3, test_cb=test)
     search.go()
