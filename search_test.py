@@ -1,0 +1,58 @@
+from search.search import SPSSearch
+from indirect_identification.sps_indirect import SPS_indirect_model
+from indirect_identification.armax import ARMAX
+
+import numpy as np
+from scipy import signal
+
+
+# Initialise SPS model
+A = [1, -0.33]  # A(z^-1) = 1 - 0.33z^-1
+B = [0.22]      # B(z^-1) = 0.22z^-1
+C = [1, 0.15]   # C(z^-1) = 1 + 0.15z^-1
+F = [0.31, 0.23] # F(z^-1) = 0.31 + 0.23z^-1
+L = [1]        # L(z^-1) = 1
+
+
+n_samples = 50
+
+m = 100
+q = 5
+T = n_samples
+
+armax_model = ARMAX(A, B, C, F, L)
+
+n_samples = 100
+# square wave reference signal
+R = signal.square(np.linspace(0, 10*np.pi, n_samples))
+
+Y, U, N, R = armax_model.simulate(n_samples, R, noise_std=0.2)
+
+def sps_test_function(params):
+    print("Testing", params)
+    a, b = params
+    A = [1, a]
+    B = [0, b]
+
+    G = (B, A)  # G should be a tuple of arrays
+    H = (C, A)  # H should be a tuple of arrays
+
+    L = ([1], [1])
+
+    # Transform to open loop
+    G_0, H_0 = model.transform_to_open_loop(G, H, F, L)  # Assuming F and L are defined
+
+    # Check the condition and store the result if true
+    in_sps, S1 = model.open_loop_sps(G_0, H_0, Y, R, 1, 1)  # Assuming Y and U are defined
+    return in_sps
+
+
+
+model = SPS_indirect_model(m, q)
+search = SPSSearch(0, 0.4, 2, test_cb=sps_test_function)
+search.go()
+
+search.plot_results()
+
+if __name__ == "__main__":
+    print("helo")

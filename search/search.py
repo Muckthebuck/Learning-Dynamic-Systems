@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from sklearn.neighbors import KNeighborsClassifier
 
 
+
 # TODO: Use meshgrid instead?
 def generate_mesh_coordinates(min, max, n_dimensions, num_points):
     """Generates an n-dimensional meshgrid of coordinates"""
@@ -77,8 +78,8 @@ class SPSSearch:
         self.remaining_coords = set(tuple([tuple(x) for x in self.remaining_coords]))
 
         # Lists of predicted results
-        self.predict_in = []
-        self.predict_out = []
+        self.pred_in = []
+        self.pred_out = []
 
         self.n_random = int(self.INITIALISATION_SIZE * len(self.remaining_coords))
         self.n_per_epoch = int(self.SEARCH_SIZE * len(self.remaining_coords) / (self.NUM_EPOCHS-1))
@@ -92,6 +93,10 @@ class SPSSearch:
         # TODO: Allow a model with fit() and predict() functions to be passed in?
         # Otherwise, expose hyperparameters
         self.knn = KNeighborsClassifier(n_neighbors=7, weights="distance")
+
+        self.is_store_results = True
+        if self.is_store_results:
+            self.plot_data = {}
 
     def get_random_coordinate(self) -> tuple:
         """Returns an n-tuple random coordinate."""
@@ -168,6 +173,47 @@ class SPSSearch:
             self.remaining_coords.remove(coord)
             self.output.append([*coord, self.results[coord]])
 
+    def store_plot_data(self, epoch_number):
+        if self.is_store_results:
+
+            correct = np.where([self.results == 1])
+            correct_x = correct[1]
+            correct_y = correct[2]
+
+            incorrect = np.where([self.results == 0])
+            incorrect_x = incorrect[1]
+            incorrect_y = incorrect[2]
+
+            correct = np.where([self.results == 1])
+            correct_x = correct[1]
+            correct_y = correct[2]
+
+            incorrect = np.where([self.results == 0])
+            incorrect_x = incorrect[1]
+            incorrect_y = incorrect[2]
+            
+            self.plot_data["correct_x_%d" % epoch_number] = correct_x.copy()
+            self.plot_data["correct_y_%d" % epoch_number] = correct_y.copy()
+            self.plot_data["incorrect_x_%d" % epoch_number] = incorrect_x.copy()
+            self.plot_data["incorrect_y_%d" % epoch_number] = incorrect_y.copy()
+            self.plot_data["pred_in_x_%d" % epoch_number] = self.pred_in[:,0].copy()
+            self.plot_data["pred_in_y_%d" % epoch_number] = self.pred_in[:,1].copy()
+            self.plot_data["pred_out_x_%d" % epoch_number] = self.pred_out[:,0].copy()
+            self.plot_data["pred_out_y_%d" % epoch_number] = self.pred_out[:,1].copy()
+
+    def plot_results(self):
+        plt.figure()
+        for n_epoch in range(1, self.NUM_EPOCHS):
+        # Plot the initialised grid
+            plt.subplot(5, 5, n_epoch+1)
+
+            plt.scatter(self.plot_data["pred_in_x_%d" % n_epoch],   self.plot_data["pred_in_y_%d" % n_epoch], color='y')
+            plt.scatter(self.plot_data["pred_out_x_%d" % n_epoch],      self.plot_data["pred_out_y_%d" % n_epoch], color='b')
+            plt.scatter(self.plot_data["correct_x_%d" % n_epoch],        self.plot_data["correct_y_%d" % n_epoch], color='r')
+            plt.scatter(self.plot_data["incorrect_x_%d" % n_epoch],      self.plot_data["incorrect_y_%d" % n_epoch], color='g')
+        plt.legend(['Predicted correct', 'Predicted incorrect', 'Tested correct', 'Tested incorrect'])
+        plt.show()
+
     def go(self):
         # Perform random search
         self.random_search()
@@ -179,6 +225,7 @@ class SPSSearch:
 
             # Search KNN
             self.knn_search()
+            self.store_plot_data(epoch_number=i)
 
         # TODO: return ??
 
