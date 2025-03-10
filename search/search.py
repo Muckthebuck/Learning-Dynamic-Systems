@@ -106,12 +106,12 @@ class SPSSearch:
             # TODO: Convert back to actual meshgrid values from integer coordinates
             self.results[random_coord] = self.test_coordinate(random_coord)
             self.remaining_coords.remove(random_coord)
-            self.output.append(random_coord, self.results[random_coord])    # Append to secondary structure for convenience.
+            self.output.append([*random_coord, self.results[random_coord]])    # Append to secondary structure for convenience.
 
     def calculate_knn_predictions(self):
         """Recalculate the KNN predictors"""
-        X = np.array(self.output)[:, 0:2]
-        y = np.array(self.output)[:, 2]
+        X = np.array(self.output)[:, 0:self.n_dimensions]
+        y = np.array(self.output)[:, self.n_dimensions]
 
         self.knn.fit(X, y)
 
@@ -134,7 +134,7 @@ class SPSSearch:
                     # Test random point from expected confidence region
 
                     index = np.random.randint(0, len(self.pred_in) - 1) if len(self.pred_in) > 1 else 0
-                    coord = self.pred_in[index][:2]
+                    coord = self.pred_in[index][:self.n_dimensions]
                     if index == 0:
                         self.pred_in = self.pred_in[1:]
                     else:
@@ -142,7 +142,7 @@ class SPSSearch:
                 elif len(self.pred_out) > 0:
                     # Test random point from outside expected confidence region
                     index = np.random.randint(0, len(self.pred_out) - 1) if len(self.pred_out) > 1 else 0
-                    coord = self.pred_out[index][:2]
+                    coord = self.pred_out[index][:self.n_dimensions]
                     if index == 0:
                         self.pred_out = self.pred_out[1:]
                     else:
@@ -159,13 +159,14 @@ class SPSSearch:
 
             self.results[coord] = self.test_coordinate(coord)
             self.remaining_coords.remove(coord)
-            self.output.append([coord, self.results[coord]])
+            self.output.append([*coord, self.results[coord]])
 
     def go(self):
         # Perform random search
         self.random_search()
 
-        for _ in range(1, self.NUM_EPOCHS):
+        for i in range(1, self.NUM_EPOCHS):
+            print("Epoch", i)
             # Perform KNN
             self.calculate_knn_predictions()
 
@@ -177,3 +178,4 @@ class SPSSearch:
 
 if __name__ == "__main__":
     search = SPSSearch(-1, 1, 2)
+    search.go()
