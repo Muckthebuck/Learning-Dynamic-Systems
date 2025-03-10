@@ -31,6 +31,26 @@ class d_tfs:
         self.num = cp.asarray(A[0]).astype(self.epsilon.dtype)  # Ensure CuPy array
         self.den = cp.asarray(A[1]).astype(self.epsilon.dtype)   # Ensure CuPy array
 
+    def __add__(self, other: 'd_tfs') -> 'd_tfs':
+        """
+        Add two transfer functions.
+        
+        Parameters:
+        other (d_tfs): Another transfer function to add.
+        
+        Returns:
+        d_tfs: The resulting transfer function after addition.
+        """
+        # Cross multiply to make the denominators the same
+        num_self = cp.convolve(self.num, other.den)
+        num_other = cp.convolve(other.num, self.den)
+        den = cp.convolve(self.den, other.den)
+        num = cp.polyadd(num_self, num_other)
+        gcd = cp.gcd.reduce(cp.concatenate((num, den)))
+        num = cp.divide(num, gcd)
+        den = cp.divide(den, gcd)
+        return d_tfs((num, den))
+    
     def __mul__(self, other: 'd_tfs') -> 'd_tfs':
         """
         Multiply two transfer functions.
@@ -79,6 +99,8 @@ class d_tfs:
         num = cp.convolve(self.num, other.den)
         den = cp.convolve(self.den, other.num)
         return d_tfs((num, den))
+    
+    
 
     def __invert__(self) -> 'd_tfs':
         """
