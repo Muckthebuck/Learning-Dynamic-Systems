@@ -63,6 +63,10 @@ class SPSSearch:
             coords.append(np.arange(self.NUM_POINTS))
         self.search_grid = np.array(np.meshgrid(*coords))
 
+        # Normalise to be span the coordinate mapping
+        coords = np.array(coords) / ((self.NUM_POINTS-1) / 2) - (max - min) / 2
+        self.parameter_map = np.array(np.meshgrid(*coords))
+
         self.remaining_coords = (
             self.search_grid.copy()
             .transpose()
@@ -107,7 +111,8 @@ class SPSSearch:
                 random_coord = self.get_random_coordinate()
 
             # TODO: Convert back to actual meshgrid values from integer coordinates
-            self.results[random_coord] = self.test_coordinate(random_coord)
+            mapped_coord = self.parameter_map[:, *random_coord]
+            self.results[random_coord] = self.test_coordinate(mapped_coord)
             self.remaining_coords.remove(random_coord)
             self.output.append([*random_coord, self.results[random_coord]])    # Append to secondary structure for convenience.
 
@@ -158,7 +163,8 @@ class SPSSearch:
                 coord = tuple(coord.astype(int))
                 is_coord_untested = coord in self.remaining_coords
 
-            self.results[coord] = self.test_coordinate(coord)
+            mapped_coord = self.parameter_map[:, *coord]
+            self.results[coord] = self.test_coordinate(mapped_coord)
             self.remaining_coords.remove(coord)
             self.output.append([*coord, self.results[coord]])
 
