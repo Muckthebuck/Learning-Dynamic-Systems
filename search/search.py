@@ -121,8 +121,8 @@ class SPSSearch:
         # Concatenate the results
         concat = np.concatenate([X_test, np.array([y_pred]).transpose()], axis=1)
         # TODO: Check this with tuple coords
-        self.pred_in = concat[np.where(concat[:,2] == 1)]
-        self.pred_out = concat[np.where(concat[:,2] == 0)]
+        self.pred_in = concat[np.where(concat[:,self.n_dimensions] == 1)]
+        self.pred_out = concat[np.where(concat[:,self.n_dimensions] == 0)]
 
     def knn_search(self):
         for _ in range(self.n_per_epoch):
@@ -153,8 +153,6 @@ class SPSSearch:
                     break
 
                 coord = tuple(coord.astype(int))
-                x = coord[0]
-                y = coord[1]
                 is_coord_untested = coord in self.remaining_coords
 
             self.results[coord] = self.test_coordinate(coord)
@@ -177,5 +175,5 @@ class SPSSearch:
 
 
 if __name__ == "__main__":
-    search = SPSSearch(-1, 1, 2)
+    search = SPSSearch(-1, 1, 3)
     search.go()
