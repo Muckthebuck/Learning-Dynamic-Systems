@@ -53,6 +53,3 @@ search = SPSSearch(0, 0.4, 2, test_cb=sps_test_function)
 search.go()
 
 search.plot_results()
-
-if __name__ == "__main__":
-    print("helo")
