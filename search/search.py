@@ -128,8 +128,38 @@ class SPSSearch:
         for _ in range(self.n_per_epoch):
         # Generate random number to determine whether we want to test inside or outside the confidence region
             is_test_confidence_region = np.random.random() < self.CHANCE_TEST_EXPECTED_POSITIVE
+            is_coord_untested = False
+            while not is_coord_untested:
+                if is_test_confidence_region and len(self.pred_in) > 0:
+                    # Test random point from expected confidence region
 
-        pass
+                    index = np.random.randint(0, len(self.pred_in) - 1) if len(self.pred_in) > 1 else 0
+                    coord = self.pred_in[index][:2]
+                    if index == 0:
+                        self.pred_in = self.pred_in[1:]
+                    else:
+                        self.pred_in = np.concatenate([self.pred_in[:index-1], self.pred_in[index:]])
+                elif len(self.pred_out) > 0:
+                    # Test random point from outside expected confidence region
+                    index = np.random.randint(0, len(self.pred_out) - 1) if len(self.pred_out) > 1 else 0
+                    coord = self.pred_out[index][:2]
+                    if index == 0:
+                        self.pred_out = self.pred_out[1:]
+                    else:
+                        self.pred_out = np.concatenate([self.pred_out[:index-1], self.pred_out[index:]])
+
+                else:
+                    print("Run out of points to test! Stopping")
+                    break
+
+                coord = tuple(coord.astype(int))
+                x = coord[0]
+                y = coord[1]
+                is_coord_untested = coord in self.remaining_coords
+
+            self.results[coord] = self.test_coordinate(coord)
+            self.remaining_coords.remove(coord)
+            self.output.append([coord, self.results[coord]])
 
 
 
