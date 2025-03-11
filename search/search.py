@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import confusion_matrix, f1_score
 
 
 
@@ -97,6 +98,8 @@ class SPSSearch:
         self.is_store_results = True
         if self.is_store_results:
             self.plot_data = {}
+            self.confusion_coords = set()
+            self.confusion_data = []
 
     def get_random_coordinate(self) -> tuple:
         """Returns an n-tuple random coordinate."""
@@ -138,10 +141,14 @@ class SPSSearch:
         self.pred_out = concat[np.where(concat[:,self.n_dimensions] == 0)]
 
     def knn_search(self):
+        confusion_true = []
+        confusion_pred = []
+
         for _ in range(self.n_per_epoch):
         # Generate random number to determine whether we want to test inside or outside the confidence region
             is_test_confidence_region = np.random.random() < self.CHANCE_TEST_EXPECTED_POSITIVE
             is_coord_untested = False
+            
             while not is_coord_untested:
                 if is_test_confidence_region and len(self.pred_in) > 0:
                     # Test random point from expected confidence region
@@ -169,9 +176,17 @@ class SPSSearch:
                 is_coord_untested = coord in self.remaining_coords
 
             mapped_coord = self.parameter_map[:, *coord]
-            self.results[coord] = self.test_coordinate(mapped_coord)
+            self.results[coord] = self.test_coordinate(mapped_coord)    # Use the callback function to get a True/False value
+            if self.is_store_results:
+                # Calculate confusion matrix data for this epoch
+                confusion_true.append(int(self.results[coord]))
+                confusion_pred.append(1 if is_test_confidence_region else 0)
+
             self.remaining_coords.remove(coord)
             self.output.append([*coord, self.results[coord]])
+        self.confusion_data.append( (confusion_true, confusion_pred) )
+            
+
 
     def store_plot_data(self, epoch_number):
         if self.is_store_results:
@@ -197,6 +212,7 @@ class SPSSearch:
             self.plot_data["pred_out_x_%d" % epoch_number]  = mapped_pred_out_x
             self.plot_data["pred_out_y_%d" % epoch_number]  = mapped_pred_out_y
 
+
     def plot_results(self):
         plt.figure()
         for n_epoch in range(1, self.NUM_EPOCHS):
@@ -208,7 +224,21 @@ class SPSSearch:
             plt.scatter(self.plot_data["correct_x_%d" % n_epoch],        self.plot_data["correct_y_%d" % n_epoch], color='r')
             plt.scatter(self.plot_data["incorrect_x_%d" % n_epoch],      self.plot_data["incorrect_y_%d" % n_epoch], color='g')
         plt.legend(['Predicted correct', 'Predicted incorrect', 'Tested correct', 'Tested incorrect'])
+
+        # Plot confusion matrix
+        plt.figure()
+        # plt.subplot(5, 5, n_epoch+1)
+        x_vals = np.arange(1, self.NUM_EPOCHS)
+        f_scores = []
+
+        for n_epoch in range(self.NUM_EPOCHS-1):
+            tn, fp, fn, tp = confusion_matrix(*self.confusion_data[n_epoch]).ravel()
+            f_scores.append(f1_score(*self.confusion_data[n_epoch]))
+
+
+        plt.scatter(x_vals, f_scores)
         plt.show()
+        plt.waitforbuttonpress()
 
     def go(self):
         # Perform random search
