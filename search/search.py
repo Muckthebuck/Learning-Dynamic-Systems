@@ -237,6 +237,9 @@ class SPSSearch:
 
 
         plt.scatter(x_vals, f_scores)
+        plt.title("F Score over epochs of KNN search")
+        plt.xlabel("Epoch Number")
+        plt.ylabel("F Score")
         plt.show()
         plt.waitforbuttonpress()
 
