@@ -50,18 +50,20 @@ class ARMAX:
         plt.tight_layout()
         plt.show()
 
-# Example usage
-A = [1, -0.33]  # A(z^-1) = 1 - 0.33z^-1
-B = [0.22]      # B(z^-1) = 0.22z^-1
-C = [1, 0.15]   # C(z^-1) = 1 + 0.15z^-1
-F = [0.31, 0.23] # F(z^-1) = 0.31 + 0.23z^-1
-L = [1]        # L(z^-1) = 1
 
-armax_model = ARMAX(A, B, C, F, L)
+if __name__ == "__main__":
+    # Example usage
+    A = [1, -0.33]  # A(z^-1) = 1 - 0.33z^-1
+    B = [0.22]      # B(z^-1) = 0.22z^-1
+    C = [1, 0.15]   # C(z^-1) = 1 + 0.15z^-1
+    F = [0.31, 0.23] # F(z^-1) = 0.31 + 0.23z^-1
+    L = [1]        # L(z^-1) = 1
 
-n_samples = 100
-# square wave reference signal
-R = signal.square(np.linspace(0, 10*np.pi, n_samples))
+    armax_model = ARMAX(A, B, C, F, L)
 
-Y, U, N, R = armax_model.simulate(n_samples, R, noise_std=0.2)
-armax_model.plot_results(Y, U, N, R)
+    n_samples = 100
+    # square wave reference signal
+    R = signal.square(np.linspace(0, 10*np.pi, n_samples))
+
+    Y, U, N, R = armax_model.simulate(n_samples, R, noise_std=0.2)
+    armax_model.plot_results(Y, U, N, R)
