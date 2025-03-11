@@ -175,31 +175,27 @@ class SPSSearch:
 
     def store_plot_data(self, epoch_number):
         if self.is_store_results:
+            correct = np.where(self.results == 1)
+            mapped_correct_x = self.parameter_map[0,0,correct[0]]
+            mapped_correct_y = self.parameter_map[1,correct[1],0]
 
-            correct = np.where([self.results == 1])
-            correct_x = correct[1]
-            correct_y = correct[2]
+            incorrect = np.where(self.results == 0)
+            mapped_incorrect_x = self.parameter_map[0,0,incorrect[0]]
+            mapped_incorrect_y = self.parameter_map[1,incorrect[1],0]
 
-            incorrect = np.where([self.results == 0])
-            incorrect_x = incorrect[1]
-            incorrect_y = incorrect[2]
-
-            correct = np.where([self.results == 1])
-            correct_x = correct[1]
-            correct_y = correct[2]
-
-            incorrect = np.where([self.results == 0])
-            incorrect_x = incorrect[1]
-            incorrect_y = incorrect[2]
+            mapped_pred_in_x = self.parameter_map[0,0, self.pred_in[:,0].astype('int')]
+            mapped_pred_in_y = self.parameter_map[0,0, self.pred_in[:,1].astype('int')]
+            mapped_pred_out_x = self.parameter_map[0,0, self.pred_out[:,0].astype('int')]
+            mapped_pred_out_y = self.parameter_map[0,0, self.pred_out[:,1].astype('int')]
             
-            self.plot_data["correct_x_%d" % epoch_number] = correct_x.copy()
-            self.plot_data["correct_y_%d" % epoch_number] = correct_y.copy()
-            self.plot_data["incorrect_x_%d" % epoch_number] = incorrect_x.copy()
-            self.plot_data["incorrect_y_%d" % epoch_number] = incorrect_y.copy()
-            self.plot_data["pred_in_x_%d" % epoch_number] = self.pred_in[:,0].copy()
-            self.plot_data["pred_in_y_%d" % epoch_number] = self.pred_in[:,1].copy()
-            self.plot_data["pred_out_x_%d" % epoch_number] = self.pred_out[:,0].copy()
-            self.plot_data["pred_out_y_%d" % epoch_number] = self.pred_out[:,1].copy()
+            self.plot_data["correct_x_%d" % epoch_number]   = mapped_correct_x
+            self.plot_data["correct_y_%d" % epoch_number]   = mapped_correct_y
+            self.plot_data["incorrect_x_%d" % epoch_number] = mapped_incorrect_x
+            self.plot_data["incorrect_y_%d" % epoch_number] = mapped_incorrect_y
+            self.plot_data["pred_in_x_%d" % epoch_number]   = mapped_pred_in_x
+            self.plot_data["pred_in_y_%d" % epoch_number]   = mapped_pred_in_y
+            self.plot_data["pred_out_x_%d" % epoch_number]  = mapped_pred_out_x
+            self.plot_data["pred_out_y_%d" % epoch_number]  = mapped_pred_out_y
 
     def plot_results(self):
         plt.figure()
