@@ -1,18 +1,19 @@
-import os
-os.environ['CUPY_ACCELERATORS'] = 'cub'
+# import os
+# os.environ['CUPY_ACCELERATORS'] = 'cub'
 
 import os
 import torch
 from typing import Tuple, List, Union
-try:
-    torch.cuda.current_device()
-    import cupy as cp
-    from cupyx.scipy.signal import lfilter
-except:
-    # Fall back to unoptimised versions
-    import numpy as cp
-    from scipy.signal import lfilter
-
+# try:
+#     torch.cuda.current_device()
+#     import cupy as cp
+#     from cupyx.scipy.signal import lfilter
+# except:
+#     # Fall back to unoptimised versions
+import numpy as cp
+from scipy.signal import lfilter
+from sims.db_test import Database, SPSType
+from types import SimpleNamespace
 cp.random.seed(42)
 
 class d_tfs:
@@ -143,7 +144,7 @@ class SPS_indirect_model:
     """
     Indirect Stochastic Process Simulation (SPS) model class.
     """
-    def __init__(self, m: int, q: int, N: int = 50):
+    def __init__(self, m: int, q: int, N: int = 50, db: Database = None):
         """
         Initialize the SPS model.
         
@@ -159,6 +160,44 @@ class SPS_indirect_model:
         self.alpha = cp.sign(self.alpha)
         self.alpha[0, :] = 1
         self.pi_order = cp.random.permutation(cp.arange(m))
+        if db is not None:
+            self.db = db
+            self.db.subscribe("data", self.data_callback)
+
+    def data_callback(self, data):
+        """
+        data attributes: y, u, r, sps_type
+        """
+        self.update_sps_region(data=data)
+        pass
+
+    def update_sps_region(self, data):
+        if data.sps_type == SPSType.OPEN_LOOP:
+            pass
+        if data.sps_type == SPSType.CLOSED_LOOP:
+            pass
+        A=None, B=None, C=None, D=None
+        if self.db is not None:
+            self.write_state_space_to_db(A, B, C, D)
+        pass
+        
+    def write_state_space_to_db(self, A, B, C, D):
+        try:
+            ss = SimpleNamespace(
+                A=A,
+                B=B,
+                C=C,
+                D=D
+            )
+            self.db.write_ss(ss=ss)
+        except Exception as e:
+            print(f"Failed to write state space: {ss}")
+            raise RuntimeError(f"Error writting to database: {e}")
+
+
+
+    def plot_current_sps_region(self):
+        pass
 
     def create_phi_optimized(self, Y: cp.ndarray, U: cp.ndarray, n_a: int, n_b: int) -> cp.ndarray:
         """
