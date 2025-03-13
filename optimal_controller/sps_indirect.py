@@ -225,6 +225,18 @@ class SPS_indirect_model:
 
         GF_plus_I = (G * F).add_scalar(1)
         i_GF_plus_I = ~GF_plus_I
+        
+        # Check stability conditions
+        stability_conditions = [
+            L.is_stable(),
+            G.is_stable(),
+            H.is_stable(),
+            (~H).is_stable(),
+            i_GF_plus_I.is_stable()
+        ]
+        if not all(stability_conditions):
+            raise ValueError(f"Error transforming to open loop: stability conditions not satisfied.")
+
         G_0 = i_GF_plus_I * G * L
         H_0 = i_GF_plus_I * H
         return G_0, H_0
@@ -260,7 +272,7 @@ class SPS_indirect_model:
             y_bar = G_0.apply_shift_operator(U_t_par)[None, :] + H_0.apply_shift_operator(perturbed_N_hat[:, None]) # Compute y_bar vectorized
             y_bar = y_bar.transpose(1, 0, 2)[0]
 
-            # Calculate the sign perturbed sums and their squared norms
+            # Calculate the sign perturbed sums and their norms
             phi_tilde = self.create_phi_optimized(y_bar, U_t_par, n_a, n_b)
             R = cp.matmul(phi_tilde.transpose(0, 2, 1), phi_tilde) / len(Y_t) # Covariance estimate
             L = cp.linalg.cholesky(R) # Cholesky decomposition to get lower-triangular L
