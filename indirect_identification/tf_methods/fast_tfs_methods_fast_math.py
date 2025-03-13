@@ -13,11 +13,12 @@ __all__ = [
     '_mul_tfs', 
     '_mul_scalar', 
     '_div_tfs',
-    '_poly_sub'
+    '_poly_sub', 
+    '_full_reduce_fraction_numpy'
 ]
 
 # Enabling fastmath for improved performance
-_epsilon = 1e-10
+_epsilon = 1e-12
 
 @jit(nopython=True, fastmath=True)
 def _simplify_array(arr: np.ndarray, epsilon: float = _epsilon) -> np.ndarray:
@@ -29,7 +30,10 @@ def _simplify_array(arr: np.ndarray, epsilon: float = _epsilon) -> np.ndarray:
 
 @jit(nopython=True, fastmath=True)
 def _simplify(num, den, epsilon: float = _epsilon) -> Tuple[np.ndarray, np.ndarray]:
-    return _simplify_array(num, epsilon),  _simplify_array(den, epsilon)
+    num_red, den_red = _simplify_array(num, epsilon), _simplify_array(den, epsilon)
+    if num_red.size == 1:
+        num_red[0] = 0 if np.abs(num_red[0])<epsilon else num_red[0]
+    return num_red, den_red
 
 @jit(nopython=True, fastmath=True)
 def _ensure_same_size(p1: np.ndarray, p2: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
@@ -60,7 +64,7 @@ def _add_tfs(num1: np.ndarray, den1: np.ndarray, num2: np.ndarray, den2: np.ndar
 @jit(nopython=True, fastmath=True)
 def _add_scalar(num1: np.ndarray, den1: np.ndarray, scalar: Union[int, np.float32, np.float64]) -> Tuple[np.ndarray, np.ndarray]:
     num, den = _ensure_same_size(num1, scalar * den1)
-    return _reduce_fraction_numpy(num + den, den)
+    return _reduce_fraction_numpy(num + den, den1)
 
 @jit(nopython=True, fastmath=True)
 def _sub_tfs(num1: np.ndarray, den1: np.ndarray, num2: np.ndarray, den2: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
@@ -139,9 +143,22 @@ def _reduce_fraction_numpy(num: np.ndarray, den: np.ndarray, tol: float = _epsil
     gcd, _, _ = _eGCD(num, den)
     if np.all(np.abs(gcd) < tol):  # If GCD is too small, return the original fraction
         return num, den
-    # num_reduced, _ = polydiv(num, gcd)
-    # den_reduced, _ = polydiv(den, gcd)
-    num_reduced, den_reduced = num, den
+    num_reduced, _ = polydiv(num, gcd)
+    den_reduced, _ = polydiv(den, gcd)
+    # num_reduced, den_reduced = num, den
+    gcd = den_reduced[np.argmax(den_reduced != 0)]
+    num_reduced = num_reduced / gcd
+    den_reduced = den_reduced / gcd
+    return _simplify(num_reduced, den_reduced)
+
+@jit(nopython=True, fastmath=True)
+def _full_reduce_fraction_numpy(num: np.ndarray, den: np.ndarray, tol: float = _epsilon):
+    """Reduce a polynomial fraction by dividing by the GCD."""
+    gcd, _, _ = _eGCD(num, den)
+    if np.all(np.abs(gcd) < tol):  # If GCD is too small, return the original fraction
+        return num, den
+    num_reduced, _ = polydiv(num, gcd)
+    den_reduced, _ = polydiv(den, gcd)
     gcd = den_reduced[np.argmax(den != 0)]
     num_reduced = num_reduced / gcd
     den_reduced = den_reduced / gcd

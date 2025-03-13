@@ -12,9 +12,13 @@ D_tf = tf(D, A);
 
 % Create the system matrix
 G = [
-    [B_tf, C_tf];
-    [D_tf, B_tf]
+    [B_tf, C_tf, B_tf];
+    [D_tf, B_tf, D_tf];
+    [B_tf, D_tf, B_tf]
 ]
 
 % Compute the inverse of G
+
+f = @() inv(G);
+timeit(f)
 G_inv = inv(G)

@@ -26,7 +26,7 @@ class TestDTFS(unittest.TestCase):
     def test_addition(self):
         """Test addition of two transfer functions."""
         result = self.tf1 + self.tf2
-        # expected = ctrl.minreal(self.ctrl_tf1 + self.ctrl_tf2)
+        expected = ctrl.minreal(self.ctrl_tf1 + self.ctrl_tf2)
         expected = self.ctrl_tf1 + self.ctrl_tf2
         self.ensure_correct_scaling(expected)
         np.testing.assert_allclose(result.num, expected.num[0][0], atol=1e-6)
@@ -35,7 +35,7 @@ class TestDTFS(unittest.TestCase):
     def test_subtraction(self):
         """Test subtraction of two transfer functions."""
         result = self.tf1 - self.tf2
-        # expected = ctrl.minreal(self.ctrl_tf1 - self.ctrl_tf2)
+        expected = ctrl.minreal(self.ctrl_tf1 - self.ctrl_tf2)
         expected = self.ctrl_tf1 - self.ctrl_tf2
         self.ensure_correct_scaling(expected)
         np.testing.assert_allclose(result.num, expected.num[0][0], atol=1e-6)
@@ -44,7 +44,7 @@ class TestDTFS(unittest.TestCase):
     def test_multiplication(self):
         """Test multiplication of two transfer functions."""
         result = self.tf1 * self.tf2
-        # expected = ctrl.minreal(self.ctrl_tf1 * self.ctrl_tf2)
+        expected = ctrl.minreal(self.ctrl_tf1 * self.ctrl_tf2)
         expected = self.ctrl_tf1 * self.ctrl_tf2
         self.ensure_correct_scaling(expected)
         np.testing.assert_allclose(result.num, expected.num[0][0], atol=1e-6)
@@ -53,7 +53,7 @@ class TestDTFS(unittest.TestCase):
     def test_division(self):
         """Test division of two transfer functions."""
         result = self.tf1 / self.tf2
-        # expected = ctrl.minreal(self.ctrl_tf1 / self.ctrl_tf2)
+        expected = ctrl.minreal(self.ctrl_tf1 / self.ctrl_tf2)
         expected = self.ctrl_tf1 / self.ctrl_tf2
         self.ensure_correct_scaling(expected)
         np.testing.assert_allclose(result.num, expected.num[0][0], atol=1e-6)
