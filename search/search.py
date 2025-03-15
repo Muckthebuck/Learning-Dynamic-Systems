@@ -5,7 +5,6 @@ from sklearn.metrics import confusion_matrix, f1_score
 
 
 
-# TODO: Use meshgrid instead?
 def generate_mesh_coordinates(min, max, n_dimensions, num_points):
     """Generates an n-dimensional meshgrid of coordinates"""
     output = []
@@ -23,19 +22,17 @@ class SPSSearch:
         max: float = 1,
         n_dimensions: int = 2,
         test_cb: callable = None,
+        n_points: int = 31, # Number of values tested for each parameter
+        initialisation_size: float = 0.1, # Ratio of total points to use for random initialisation
+        search_size: float = 0.8, # Proportion of the meshgrid which should be searched after initialisation, inclusive of initialisation.
+        n_epochs: int = 25, # How many epochs to break the search into, e.g. how many times should the results be predicted. Inclusive of initialisation.
+        chance_test_in_region: float = 0.8
     ):
-        self.NUM_POINTS: int = 31  # Number of values tested for each parameter
-        self.INITIALISATION_SIZE: float = (
-            0.1  # Proportion of meshgrid which should be randomly searched at start
-        )
-        self.SEARCH_SIZE: float = (
-            0.8  # Proportion of the meshgrid which should be searched after initialisation, inclusive of initialisation.
-        )
-        self.NUM_EPOCHS: int = (
-            25  # How many epochs to break the search into, e.g. how many times should the results be predicted. Inclusive of initialisation.
-        )
-
-        self.CHANCE_TEST_EXPECTED_POSITIVE = 0.8  # The chance we choose a point from the predicted confidence region to test
+        self.NUM_POINTS = n_points
+        self.INITIALISATION_SIZE = initialisation_size
+        self.SEARCH_SIZE = search_size
+        self.NUM_EPOCHS = n_epochs
+        self.CHANCE_TEST_IN_REGION = chance_test_in_region
 
         self.min = min
         self.max = max
@@ -119,7 +116,6 @@ class SPSSearch:
                 # Assuming clashes will be minimal here
                 random_coord = self.get_random_coordinate()
 
-            # TODO: Convert back to actual meshgrid values from integer coordinates
             mapped_coord = self.parameter_map[:, *random_coord]
             self.results[random_coord] = self.test_coordinate(mapped_coord)
             self.remaining_coords.remove(random_coord)
@@ -147,7 +143,7 @@ class SPSSearch:
 
         for _ in range(self.n_per_epoch):
         # Generate random number to determine whether we want to test inside or outside the confidence region
-            is_test_confidence_region = np.random.random() < self.CHANCE_TEST_EXPECTED_POSITIVE
+            is_test_confidence_region = np.random.random() < self.CHANCE_TEST_IN_REGION
             is_coord_untested = False
             
             while not is_coord_untested:
@@ -189,7 +185,8 @@ class SPSSearch:
             
 
 
-    def store_plot_data(self, epoch_number):
+    def store_plot_data_2d(self, epoch_number):
+        """Preprocess and store data for plots."""
         if self.is_store_results:
             correct = np.where(self.results == 1)
             mapped_correct_x = self.parameter_map[0,0,correct[0]]
@@ -214,7 +211,8 @@ class SPSSearch:
             self.plot_data["pred_out_y_%d" % epoch_number]  = mapped_pred_out_y
 
 
-    def plot_results(self):
+    def plot_results_2d(self):
+        """Plot the data points in a 2-dimensional search."""
         if self.n_dimensions != 2:
             raise "Cannot plot non-2d data"
         
@@ -229,7 +227,8 @@ class SPSSearch:
             plt.scatter(self.plot_data["correct_x_%d" % n_epoch],        self.plot_data["correct_y_%d" % n_epoch], color='r')
         plt.legend(['Predicted correct', 'Predicted incorrect', 'Tested correct', 'Tested incorrect'])
 
-        # Plot confusion matrix
+        # TODO: Plot confusion matrix
+        # Currently plotting f score
         plt.figure()
         # plt.subplot(5, 5, n_epoch+1)
         x_vals = np.arange(1, self.NUM_EPOCHS)
@@ -258,9 +257,9 @@ class SPSSearch:
 
             # Search KNN
             self.knn_search()
-            self.store_plot_data(epoch_number=i)
+            self.store_plot_data_2d(epoch_number=i)
 
-        # TODO: return ??
+        return self.parameter_map, self.results
 
 
 if __name__ == "__main__":

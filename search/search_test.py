@@ -57,4 +57,4 @@ model = SPS_indirect_model(m, q)
 search = SPSSearch(0, 1, 2, test_cb=sps_test_function)
 search.go()
 
-search.plot_results()
+search.plot_results_2d()
