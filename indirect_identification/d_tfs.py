@@ -235,7 +235,14 @@ class d_tfs:
                 return False
         else:
             raise NotImplementedError(f"Division with {type(other)} is not supported")
-
+    
+    def is_stable(self, epsilon: float = 0.001) -> bool:
+        """
+        Check if the discrete transfer function is stable.
+        Returns:
+        bool: True if stable (all poles inside the unit circle), False otherwise.
+        """
+        return _is_stable(self.den, epsilon)
 
     def _apply_shift_operator(self, U_t: Union[List[float], np.ndarray]) -> np.ndarray:
         """

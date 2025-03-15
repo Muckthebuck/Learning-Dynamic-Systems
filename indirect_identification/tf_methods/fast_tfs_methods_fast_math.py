@@ -14,11 +14,22 @@ __all__ = [
     '_mul_scalar', 
     '_div_tfs',
     '_poly_sub', 
-    '_full_reduce_fraction_numpy'
+    '_full_reduce_fraction_numpy',
+    '_is_stable'
 ]
 
 # Enabling fastmath for improved performance
 _epsilon = 1e-12
+
+@jit(nopython=True)
+def _is_stable(den: np.ndarray, epsilon: float = 0.001) -> bool:   
+    """
+    Check if the discrete transfer function is stable.
+    Returns:
+    bool: True if stable (all poles inside the unit circle), False otherwise.
+    """
+    poles = np.roots(den)  # Compute poles (roots of denominator)
+    return np.all(np.abs(poles) < 1-epsilon)  # Check if all poles are inside the unit circle
 
 @jit(nopython=True, fastmath=True)
 def _simplify_array(arr: np.ndarray, epsilon: float = _epsilon) -> np.ndarray:

@@ -118,6 +118,10 @@ class SPS_indirect_model:
 
         GF_plus_I = (G * F) + 1
         i_GF_plus_I = 1/GF_plus_I
+
+        if not all(tf.is_stable() for tf in [L, G, H, i_GF_plus_I] if isinstance(tf, d_tfs)):
+            raise ValueError(f"Error transforming to open loop: stability conditions not satisfied.")
+        
         G_0 = i_GF_plus_I * G * L
         H_0 = i_GF_plus_I * H
         return G_0, H_0
