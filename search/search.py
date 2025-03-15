@@ -66,8 +66,9 @@ class SPSSearch:
         self.search_grid = np.array(np.meshgrid(*coords))
 
         # Normalise to be span the coordinate mapping
-        coords = np.array(coords) / ((self.NUM_POINTS-1) / 2) - (max - min) / 2
-        self.parameter_map = np.array(np.meshgrid(*coords))
+        params = np.linspace(self.min, self.max, self.NUM_POINTS)
+        params = np.array(self.n_dimensions * list(params)).reshape(self.n_dimensions, self.NUM_POINTS)
+        self.parameter_map = np.array(np.meshgrid(*params))
 
         self.remaining_coords = (
             self.search_grid.copy()
@@ -214,6 +215,9 @@ class SPSSearch:
 
 
     def plot_results(self):
+        if self.n_dimensions != 2:
+            raise "Cannot plot non-2d data"
+        
         plt.figure()
         for n_epoch in range(1, self.NUM_EPOCHS):
         # Plot the initialised grid
@@ -221,8 +225,8 @@ class SPSSearch:
 
             plt.scatter(self.plot_data["pred_in_x_%d" % n_epoch],   self.plot_data["pred_in_y_%d" % n_epoch], color='y')
             plt.scatter(self.plot_data["pred_out_x_%d" % n_epoch],      self.plot_data["pred_out_y_%d" % n_epoch], color='b')
-            plt.scatter(self.plot_data["correct_x_%d" % n_epoch],        self.plot_data["correct_y_%d" % n_epoch], color='r')
             plt.scatter(self.plot_data["incorrect_x_%d" % n_epoch],      self.plot_data["incorrect_y_%d" % n_epoch], color='g')
+            plt.scatter(self.plot_data["correct_x_%d" % n_epoch],        self.plot_data["correct_y_%d" % n_epoch], color='r')
         plt.legend(['Predicted correct', 'Predicted incorrect', 'Tested correct', 'Tested incorrect'])
 
         # Plot confusion matrix

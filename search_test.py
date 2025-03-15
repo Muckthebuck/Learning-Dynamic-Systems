@@ -18,19 +18,20 @@ n_samples = 50
 
 m = 100
 q = 5
-T = n_samples
 
 armax_model = ARMAX(A, B, C, F, L)
 
 n_samples = 100
 # square wave reference signal
-R = signal.square(np.linspace(0, 10*np.pi, n_samples))
-
+# R = signal.square(np.linspace(0, 10*np.pi, n_samples))
+R = 3*np.ones(n_samples) 
 Y, U, N, R = armax_model.simulate(n_samples, R, noise_std=0.2)
+# armax_model.plot_results(Y, U, N, R)
 
 def sps_test_function(params):
     print("Testing", params)
-    a, b = params
+    b, a = params
+    a = -a
     A = [1, a]
     B = [0, b]
 
@@ -41,8 +42,11 @@ def sps_test_function(params):
     L = ([1], [1])
 
     # Transform to open loop
-    G_0, H_0 = model.transform_to_open_loop(G, H, F, L)  # Assuming F and L are defined
-
+    try:
+        G_0, H_0 = model.transform_to_open_loop(G, H, F, L)  # Assuming F and L are defined
+    except ValueError:
+        print("Unstable system... skipping")
+        return False
     # Check the condition and store the result if true
     in_sps, S1 = model.open_loop_sps(G_0, H_0, Y, R, 1, 1)  # Assuming Y and U are defined
     return in_sps
@@ -50,7 +54,7 @@ def sps_test_function(params):
 
 
 model = SPS_indirect_model(m, q)
-search = SPSSearch(0, 0.4, 2, test_cb=sps_test_function)
+search = SPSSearch(0, 1, 2, test_cb=sps_test_function)
 search.go()
 
 search.plot_results()
