@@ -36,6 +36,7 @@ def sps_test_function(params):
 
     G = (B, A)  # G should be a tuple of arrays
     H = (C, A)  # H should be a tuple of arrays
+    F = (np.array([0.31, 0.23]), np.array([1]))  # F(z^-1) = 0.31 + 0.23z^-1
 
     L = ([1], [1])
 
