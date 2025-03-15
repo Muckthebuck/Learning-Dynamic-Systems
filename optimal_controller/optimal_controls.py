@@ -1,6 +1,7 @@
 import numpy as np
 import cupy as cp
 import scipy
+from numpy.linalg import LinAlgError
 
 def dlqr(A, B, Q, R):
     """Solves the infinte horizon problem for discrete state-space system (A,B), with costs defined by (Q,R). Returns the optimal full-state feedback controller K and Riccati solution P."""
@@ -43,7 +44,7 @@ def dlqr_custom(A, B, Q, R, tol=1e-6, max_iters=1000):
             
             p = p_next
         else:
-            print("Error converging")
+            raise LinAlgError('Unable to iteratively solve the Riccati equation.')
 
         # 
         k = (r + b * p * b)**-1 * b * p * a
@@ -60,7 +61,7 @@ def dlqr_custom(A, B, Q, R, tol=1e-6, max_iters=1000):
             
             P = P_next
         else:
-            print("Error converging")
+            raise LinAlgError('Unable to iteratively solve the Riccati equation.')
 
         K = np.linalg.inv(R + B.T @ P @ B) @ B.T @ P @ A
         return K, P
