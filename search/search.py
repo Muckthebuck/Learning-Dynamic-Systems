@@ -4,7 +4,6 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import confusion_matrix, f1_score
 
 
-
 def generate_mesh_coordinates(min, max, n_dimensions, num_points):
     """Generates an n-dimensional meshgrid of coordinates"""
     output = []
@@ -138,6 +137,7 @@ class SPSSearch:
         self.pred_out = concat[np.where(concat[:,self.n_dimensions] == 0)]
 
     def knn_search(self):
+        """Logic to search through and test the KNN predictions."""
         confusion_true = []
         confusion_pred = []
 
