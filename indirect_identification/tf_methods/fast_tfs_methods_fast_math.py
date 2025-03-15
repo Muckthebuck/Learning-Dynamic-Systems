@@ -28,8 +28,9 @@ def _is_stable(den: np.ndarray, epsilon: float = 0.001) -> bool:
     Returns:
     bool: True if stable (all poles inside the unit circle), False otherwise.
     """
-    poles = np.roots(den)  # Compute poles (roots of denominator)
-    return np.all(np.abs(poles) < 1-epsilon)  # Check if all poles are inside the unit circle
+    den = den.astype(np.complex128)
+    poles = np.abs(np.roots(den))  # Compute poles (roots of denominator)
+    return np.all(poles < 1-epsilon)  # Check if all poles are inside the unit circle
 
 @jit(nopython=True, fastmath=True)
 def _simplify_array(arr: np.ndarray, epsilon: float = _epsilon) -> np.ndarray:
