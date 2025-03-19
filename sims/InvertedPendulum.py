@@ -82,6 +82,49 @@ class InvertedPendulum:
         return IM
 
 
+class Pendulum:
+    def __init__(self, length=110, mass=1.0, damping=0.1, gravity=9.81):
+        self.length = length
+        self.mass = mass
+        self.damping = damping
+        self.gravity = gravity
+        self.inertia = self.mass * (self.length ** 2)
+    
+    def draw(self, state_vec, t=None):
+        """
+        state_vec:
+            x0 : angle of pendulum (radians)
+            x1 : angular velocity of the pendulum
+        """
+        BOB_ANG = state_vec[0] * 180.0 / np.pi  # Convert to degrees
+        
+        IM = np.zeros((512, 512, 3), dtype='uint8')
+        center_x, center_y = IM.shape[1] // 2, 100  # Hinge position
+        
+        # Draw pivot
+        cv2.circle(IM, (center_x, center_y), 10, (255, 255, 255), -1)
+        
+        # Compute bob position
+        pendulum_bob_x = int(center_x + self.length * np.cos(state_vec[0]))
+        pendulum_bob_y = int(center_y - self.length * np.sin(state_vec[0]))
+        
+        # Draw pendulum
+        cv2.line(IM, (center_x, center_y), (pendulum_bob_x, pendulum_bob_y), (255, 255, 255), 3)
+        cv2.circle(IM, (pendulum_bob_x, pendulum_bob_y), 10, (255, 255, 255), -1)
+        
+        # Display angle
+        angle_display = BOB_ANG % 360
+        if angle_display > 180:
+            angle_display = -360 + angle_display
+        cv2.putText(IM, f"theta={angle_display:.2f} deg", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 250), 1)
+        
+        # Display time if provided
+        if t is not None:
+            cv2.putText(IM, f"t={t:.2f} sec", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 250), 1)
+        
+        return IM
+    
+
 if __name__=="__main__":
     syst = InvertedPendulum()
 
