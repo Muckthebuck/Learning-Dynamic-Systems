@@ -17,11 +17,11 @@ def generate_mesh_coordinates(min, max, n_dimensions, num_points):
 class SPSSearch:
     def __init__(
         self,
-        min: float = -1,
-        max: float = 1,
+        mins: np.ndarray = np.array(-1), # numpy array of min values per dimension
+        maxes: np.ndarray = np.array(1),  # numpy array of max values per dimension
         n_dimensions: int = 2,
         test_cb: callable = None,
-        n_points: int = 31, # Number of values tested for each parameter
+        n_points: np.ndarray = np.array(31), # Number of values tested for each parameter per dimension
         initialisation_size: float = 0.1, # Ratio of total points to use for random initialisation
         search_size: float = 0.8, # Proportion of the meshgrid which should be searched after initialisation, inclusive of initialisation.
         n_epochs: int = 25, # How many epochs to break the search into, e.g. how many times should the results be predicted. Inclusive of initialisation.
@@ -33,16 +33,17 @@ class SPSSearch:
         self.NUM_EPOCHS = n_epochs
         self.CHANCE_TEST_IN_REGION = chance_test_in_region
 
-        self.min = min
-        self.max = max
+        self.mins = mins
+        self.maxes = maxes
         self.n_dimensions = n_dimensions
+
 
         if test_cb is None:
             self.test_coordinate = lambda x : False
         else:
             self.test_coordinate = staticmethod(test_cb)
 
-        self.results = -1 * np.ones(self.n_dimensions * [self.NUM_POINTS])
+        self.results = -1 * np.ones(self.NUM_POINTS)
         """
         Results matrix for storing outcome\n
         - (-1)  : Coordinate has **not been tested**.
@@ -57,19 +58,21 @@ class SPSSearch:
 
         # Generate an n-dimensional meshgrid
         coords = []
-        for _ in range(self.n_dimensions):
-            coords.append(np.arange(self.NUM_POINTS))
+        for i in range(self.n_dimensions):
+            coords.append(np.arange(self.NUM_POINTS[i]))
         self.search_grid = np.array(np.meshgrid(*coords))
 
         # Normalise to be span the coordinate mapping
-        params = np.linspace(self.min, self.max, self.NUM_POINTS)
-        params = np.array(self.n_dimensions * list(params)).reshape(self.n_dimensions, self.NUM_POINTS)
+        params = []
+        for i in range(self.n_dimensions):
+            params.append(np.linspace(self.mins[i], self.maxes[i], self.NUM_POINTS[i]) )
+
         self.parameter_map = np.array(np.meshgrid(*params))
 
         self.remaining_coords = (
             self.search_grid.copy()
             .transpose()
-            .reshape(self.NUM_POINTS**self.n_dimensions, self.n_dimensions)
+            .reshape(np.prod(self.NUM_POINTS), self.n_dimensions)
             .tolist()
         )
 
@@ -101,8 +104,8 @@ class SPSSearch:
     def get_random_coordinate(self) -> tuple:
         """Returns an n-tuple random coordinate."""
         output = []
-        for _ in range(self.n_dimensions):
-            output.append(np.random.randint(0, self.NUM_POINTS))
+        for i in range(self.n_dimensions):
+            output.append(np.random.randint(0, self.NUM_POINTS[i]))
 
         return tuple(output)
 
@@ -145,7 +148,7 @@ class SPSSearch:
         # Generate random number to determine whether we want to test inside or outside the confidence region
             is_test_confidence_region = np.random.random() < self.CHANCE_TEST_IN_REGION
             is_coord_untested = False
-            
+
             while not is_coord_untested:
                 if is_test_confidence_region and len(self.pred_in) > 0:
                     # Test random point from expected confidence region
@@ -182,7 +185,7 @@ class SPSSearch:
             self.remaining_coords.remove(coord)
             self.output.append([*coord, self.results[coord]])
         self.confusion_data.append( (confusion_true, confusion_pred) )
-            
+
 
 
     def store_plot_data_2d(self, epoch_number):
@@ -200,7 +203,7 @@ class SPSSearch:
             mapped_pred_in_y = self.parameter_map[0,0, self.pred_in[:,1].astype('int')]
             mapped_pred_out_x = self.parameter_map[0,0, self.pred_out[:,0].astype('int')]
             mapped_pred_out_y = self.parameter_map[0,0, self.pred_out[:,1].astype('int')]
-            
+
             self.plot_data["correct_x_%d" % epoch_number]   = mapped_correct_x
             self.plot_data["correct_y_%d" % epoch_number]   = mapped_correct_y
             self.plot_data["incorrect_x_%d" % epoch_number] = mapped_incorrect_x
@@ -215,7 +218,7 @@ class SPSSearch:
         """Plot the data points in a 2-dimensional search."""
         if self.n_dimensions != 2:
             raise "Cannot plot non-2d data"
-        
+
         plt.figure()
         for n_epoch in range(1, self.NUM_EPOCHS):
         # Plot the initialised grid
