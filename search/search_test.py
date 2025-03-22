@@ -24,7 +24,7 @@ armax_model = ARMAX(A, B, C, F, L)
 n_samples = 100
 # square wave reference signal
 # R = signal.square(np.linspace(0, 10*np.pi, n_samples))
-R = 3*np.ones(n_samples) 
+R = 3*np.ones(n_samples)
 Y, U, N, R = armax_model.simulate(n_samples, R, noise_std=0.2)
 # armax_model.plot_results(Y, U, N, R)
 
@@ -54,7 +54,7 @@ def sps_test_function(params):
 
 
 model = SPS_indirect_model(m, q)
-search = SPSSearch(0, 1, 2, test_cb=sps_test_function)
+search = SPSSearch([0, 0], [1, 1], 2, n_points = [31, 31], test_cb=sps_test_function)
 search.go()
 
 search.plot_results_2d()
