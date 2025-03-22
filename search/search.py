@@ -192,17 +192,17 @@ class SPSSearch:
         """Preprocess and store data for plots."""
         if self.is_store_results:
             correct = np.where(self.results == 1)
-            mapped_correct_y = self.parameter_map[0,correct[0],0]
-            mapped_correct_x = self.parameter_map[1,0,correct[1]]
+            mapped_correct_x = self.parameter_map[0,correct[0],0]
+            mapped_correct_y = self.parameter_map[1,0,correct[1]]
 
             incorrect = np.where(self.results == 0)
-            mapped_incorrect_y = self.parameter_map[0,incorrect[0], 0]
-            mapped_incorrect_x = self.parameter_map[1,0,incorrect[1],]
+            mapped_incorrect_x = self.parameter_map[0,incorrect[0], 0]
+            mapped_incorrect_y = self.parameter_map[1,0,incorrect[1],]
 
-            mapped_pred_in_y = self.parameter_map[0, self.pred_in[:,0].astype('int'), 0]
-            mapped_pred_in_x = self.parameter_map[1, 0, self.pred_in[:,1].astype('int')]
-            mapped_pred_out_y = self.parameter_map[0, self.pred_out[:,0].astype('int'), 0]
-            mapped_pred_out_x = self.parameter_map[1, 0, self.pred_out[:,1].astype('int')]
+            mapped_pred_in_x = self.parameter_map[0, self.pred_in[:,0].astype('int'), 0]
+            mapped_pred_in_y = self.parameter_map[1, 0, self.pred_in[:,1].astype('int')]
+            mapped_pred_out_x = self.parameter_map[0, self.pred_out[:,0].astype('int'), 0]
+            mapped_pred_out_y = self.parameter_map[1, 0, self.pred_out[:,1].astype('int')]
 
             self.plot_data["correct_x_%d" % epoch_number]   = mapped_correct_x
             self.plot_data["correct_y_%d" % epoch_number]   = mapped_correct_y

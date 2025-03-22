@@ -30,7 +30,7 @@ Y, U, N, R = armax_model.simulate(n_samples, R, noise_std=0.2)
 
 def sps_test_function(params):
     print("Testing", params)
-    b, a = params
+    a, b = params
     a = -a
     A = [1, a]
     B = [0, b]
