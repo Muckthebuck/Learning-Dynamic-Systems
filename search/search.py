@@ -3,17 +3,6 @@ import matplotlib.pyplot as plt
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import confusion_matrix, f1_score
 
-
-def generate_mesh_coordinates(min, max, n_dimensions, num_points):
-    """Generates an n-dimensional meshgrid of coordinates"""
-    output = []
-
-    for _ in range(n_dimensions):
-        output.append(np.linspace(min, max, num_points))
-
-    return tuple(output)
-
-
 class SPSSearch:
     def __init__(
         self,
@@ -136,7 +125,6 @@ class SPSSearch:
 
         # Concatenate the results
         concat = np.concatenate([X_test, np.array([y_pred]).transpose()], axis=1)
-        # TODO: Check this with tuple coords
         self.pred_in = concat[np.where(concat[:,self.n_dimensions] == 1)]
         self.pred_out = concat[np.where(concat[:,self.n_dimensions] == 0)]
 
