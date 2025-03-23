@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import confusion_matrix, f1_score
 
+from numba import njit, jit
+
 class SPSSearch:
     def __init__(
         self,
@@ -90,13 +92,10 @@ class SPSSearch:
             self.confusion_coords = set()
             self.confusion_data = []
 
+
     def get_random_coordinate(self) -> tuple:
         """Returns an n-tuple random coordinate."""
-        output = []
-        for i in range(self.n_dimensions):
-            output.append(np.random.randint(0, self.NUM_POINTS[i]))
-
-        return tuple(output)
+        return tuple(jit_get_random_coordinate(self.NUM_POINTS))
 
     def random_search(self):
         """Test self.n_random points as an initialisation of the search"""
@@ -252,6 +251,17 @@ class SPSSearch:
             self.store_plot_data_2d(epoch_number=i)
 
         return self.parameter_map, self.results
+
+
+@njit
+def jit_get_random_coordinate(num_points: np.ndarray) -> np.ndarray:
+    """Returns an n-tuple random coordinate."""
+    output = []
+    for i in range(len(num_points)):
+        output.append(np.random.randint(0, num_points[i]))
+
+    return output
+
 
 
 if __name__ == "__main__":
