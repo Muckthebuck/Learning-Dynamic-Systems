@@ -4,8 +4,8 @@ import time
 import control
 import matplotlib.pyplot as plt
 import scipy.signal as signal
-from sims.InvertedPendulum import Pendulum
-from sims.sim_db import Database, SPSType
+from sims.cart_pendulum.InvertedPendulum import Pendulum
+from dB.sim_db import Database, SPSType
 from types import SimpleNamespace
 from scipy.signal import savgol_filter
 from scipy.linalg import solve_discrete_are

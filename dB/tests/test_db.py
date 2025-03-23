@@ -3,7 +3,7 @@ import sqlite3
 import pickle
 import numpy as np
 from types import SimpleNamespace
-from sims.sim_db import Database, SPSType
+from dB.sim_db import Database, SPSType
 from typing import Optional
 
 class TestDatabase(unittest.TestCase):

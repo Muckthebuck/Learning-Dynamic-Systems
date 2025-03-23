@@ -6,7 +6,7 @@ from typing import Tuple, Optional
 from sims.pendulum.PendulumSimBase import PendulumSimBase
 
 
-class SimPendulum(PendulumSimBase):
+class Pendulum(PendulumSimBase):
     """
     Simulates a simple pendulum using numerical integration and visualizes the motion.
     
