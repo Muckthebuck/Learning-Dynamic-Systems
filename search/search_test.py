@@ -26,7 +26,7 @@ n_samples = 100
 # R = signal.square(np.linspace(0, 10*np.pi, n_samples))
 R = 3*np.ones(n_samples)
 Y, U, N, R = armax_model.simulate(n_samples, R, noise_std=0.2)
-# armax_model.plot_results(Y, U, N, R)
+
 
 def sps_test_function(params):
     print("Testing", params)
@@ -37,8 +37,8 @@ def sps_test_function(params):
 
     G = (B, A)  # G should be a tuple of arrays
     H = (C, A)  # H should be a tuple of arrays
-    F = (np.array([0.31, 0.23]), np.array([1]))  # F(z^-1) = 0.31 + 0.23z^-1
 
+    F = (np.array([0.31, 0.23]), np.array([1]))  # F(z^-1) = 0.31 + 0.23z^-1
     L = ([1], [1])
 
     # Transform to open loop
@@ -54,7 +54,7 @@ def sps_test_function(params):
 
 
 model = SPS_indirect_model(m, q)
-search = SPSSearch([0, 0], [1, 1], 2, n_points = [31, 31], test_cb=sps_test_function)
+search = SPSSearch([0, 0], [0.4, 0.4], 2, n_points = [11, 51], test_cb=sps_test_function)
 search.go()
 
 search.plot_results_2d()
