@@ -119,9 +119,10 @@ class SPSSearch:
                 random_coord = self.get_random_coordinate()
 
             mapped_coord = self.parameter_map[:, *random_coord]
-            self.results[random_coord] = self.test_coordinate(mapped_coord)
+            in_sps = self.test_coordinate(mapped_coord)
+            self.results[random_coord] = 1 if in_sps else 0
             self.remaining_coords.remove(random_coord)
-            self.output.append([*random_coord, self.results[random_coord]])    # Append to secondary structure for convenience.
+            self.output.append([*random_coord, in_sps])    # Append to secondary structure for convenience.
 
     def calculate_knn_predictions(self):
         """Recalculate the KNN predictors"""
