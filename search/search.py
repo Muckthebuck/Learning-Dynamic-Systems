@@ -208,10 +208,10 @@ class SPSSearch:
             self.plot_data["correct_y_%d" % epoch_number]   = mapped_correct_y
             self.plot_data["incorrect_x_%d" % epoch_number] = mapped_incorrect_x
             self.plot_data["incorrect_y_%d" % epoch_number] = mapped_incorrect_y
-            self.plot_data["pred_in_x_%d" % epoch_number]   = mapped_pred_in_x
-            self.plot_data["pred_in_y_%d" % epoch_number]   = mapped_pred_in_y
             self.plot_data["pred_out_x_%d" % epoch_number]  = mapped_pred_out_x
             self.plot_data["pred_out_y_%d" % epoch_number]  = mapped_pred_out_y
+            self.plot_data["pred_in_x_%d" % epoch_number]   = mapped_pred_in_x
+            self.plot_data["pred_in_y_%d" % epoch_number]   = mapped_pred_in_y
 
 
     def plot_results_2d(self):
@@ -224,11 +224,11 @@ class SPSSearch:
         # Plot the initialised grid
             plt.subplot(5, 5, n_epoch+1)
 
-            plt.scatter(self.plot_data["pred_in_x_%d" % n_epoch],   self.plot_data["pred_in_y_%d" % n_epoch], color='y')
             plt.scatter(self.plot_data["pred_out_x_%d" % n_epoch],      self.plot_data["pred_out_y_%d" % n_epoch], color='b')
             plt.scatter(self.plot_data["incorrect_x_%d" % n_epoch],      self.plot_data["incorrect_y_%d" % n_epoch], color='g')
+            plt.scatter(self.plot_data["pred_in_x_%d" % n_epoch],   self.plot_data["pred_in_y_%d" % n_epoch], color='y')
             plt.scatter(self.plot_data["correct_x_%d" % n_epoch],        self.plot_data["correct_y_%d" % n_epoch], color='r')
-        plt.legend(['Predicted correct', 'Predicted incorrect', 'Tested correct', 'Tested incorrect'])
+        plt.legend(['Predicted incorrect', 'Tested incorrect', 'Predicted correct', 'Tested correct'])
 
         # TODO: Plot confusion matrix
         # Currently plotting f score
