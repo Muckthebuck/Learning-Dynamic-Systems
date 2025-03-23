@@ -2,7 +2,7 @@
 from typing import Tuple, List, Union
 import numpy as np
 from scipy.signal import lfilter
-from sims.db_test import Database, SPSType
+from sims.sim_db import Database, SPSType
 from indirect_identification.d_tfs import d_tfs
 from types import SimpleNamespace
 
