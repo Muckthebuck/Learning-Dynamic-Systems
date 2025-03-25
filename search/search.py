@@ -87,7 +87,7 @@ class SPSSearch:
         # Otherwise, expose hyperparameters
         self.knn = KNeighborsClassifier(n_neighbors=k_neighbours, weights="distance")
 
-        self.is_store_results = True
+        self.is_store_results = False
         if self.is_store_results:
             self.plot_data = {}
             self.confusion_coords = set()
