@@ -16,7 +16,8 @@ class SPSSearch:
         initialisation_size: float = 0.1, # Ratio of total points to use for random initialisation
         search_size: float = 0.8, # Proportion of the meshgrid which should be searched after initialisation, inclusive of initialisation.
         n_epochs: int = 25, # How many epochs to break the search into, e.g. how many times should the results be predicted. Inclusive of initialisation.
-        chance_test_in_region: float = 0.8
+        chance_test_in_region: float = 0.8,
+        k_neighbours = 7
     ):
         self.NUM_POINTS = n_points
         self.INITIALISATION_SIZE = initialisation_size
@@ -84,7 +85,7 @@ class SPSSearch:
 
         # TODO: Allow a model with fit() and predict() functions to be passed in?
         # Otherwise, expose hyperparameters
-        self.knn = KNeighborsClassifier(n_neighbors=7, weights="distance")
+        self.knn = KNeighborsClassifier(n_neighbors=k_neighbours, weights="distance")
 
         self.is_store_results = True
         if self.is_store_results:
