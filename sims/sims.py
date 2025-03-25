@@ -1,25 +1,26 @@
-from dB.sim_db import Database, SPSType
 from types import SimpleNamespace
 from scipy import signal
 import math
 import sys
 import argparse
+from dB.sim_db import Database, SPSType
 from sims.pendulum import Pendulum, CartPendulum
 from sims.car import CarlaSps
+from optimal_controller.controller import Plant, Controller
 import numpy as np
 from typing import Union
 
 SIM_CLASS_MAP = {
-    "Pendulum": (Pendulum, np.array([np.pi/4, 0.0])),
-    "Cart-Pendulum": (CartPendulum, np.array([0, 0, np.pi/4, 0.0])),
-    "Carla": (CarlaSps, np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
+    "Pendulum": (Pendulum, np.array([np.pi/4, 0.0]), (2,1)),
+    "Cart-Pendulum": (CartPendulum, np.array([0, 0, np.pi/4, 0.0]), (4,1)),
+    "Carla": (CarlaSps, np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), (11,1))
 }
 
 class Sim:
     """
     CartPendulumSimulation class handles the simulation and visualization of the cart-pendulum system.
     """
-    def __init__(self, controller, disturbance=50.0):
+    def __init__(self, disturbance=50.0):
         """
         Initializes the simulation environment.
 
@@ -29,8 +30,6 @@ class Sim:
             disturbance (float): Magnitude of the disturbance force.
         """
         self.parse_arguments()
-        self.controller = controller
-        self.disturbance = disturbance
         self.apply_disturbance = False
 
     def parse_arguments(self):
@@ -43,16 +42,20 @@ class Sim:
         parser.add_argument("--plot_system", type=bool, default=True, help="Plot the system states")
         parser.add_argument("--history_limit", type=int, default=200, help="Limit of history for plotting")
         parser.add_argument("--dB", type=str, default="sim.db", help="Database file")
+        parser.add_argument("--disturbance", type=float, default=50.0, help="Magnitude of disturbance force")
+        parser.add_argument("--controller", type=str, default="lqr", help="Controller type")
         args = parser.parse_args()
         self.T: float = args.T
         self.dt: float = args.dt
-        sim, state = SIM_CLASS_MAP[args.sim]
+        sim, state, self.n = SIM_CLASS_MAP[args.sim]
         self.initial_state: np.ndarray = state
         self.sim: Union[Pendulum, CartPendulum, CarlaSps] = sim(dt=self.dt, 
                                                                 initial_state=state, 
                                                                 plot_system=args.plot_system, 
                                                                 history_limit=args.history_limit)
         self.db = Database(args.dB)
+        self.controller_plant = Plant(dt=self.dt, db=self.db)
+        self.controller = Controller(plant=self.controller_plant, type=args.controller, n=self.n)
     
     def write_data_to_db(self, y: np.ndarray, u: np.ndarray, r: np.ndarray, sps_type: SPSType):
         data = {
@@ -87,6 +90,7 @@ class Sim:
         """
         t = np.linspace(0, T, int(fs * T), endpoint=False)  # Time vector
         y =  signal.square(2 * np.pi * f * t)
+        y = np.tile(y, (self.n[1], 1)).T
         return t, y
     
     def impulse_wave(self, T, f, fs):
@@ -112,7 +116,7 @@ class Sim:
         
         impulse_period = int(fs / f)                        # Samples between impulses
         y[::impulse_period] = 1                             # Set impulses at intervals
-        
+        y = np.tile(y, (self.n[1], 1)).T
         return t, y
 
     def sim_model_response(self, T, f, input_type="square_wave"):
@@ -134,7 +138,7 @@ class Sim:
         states = np.array(states)
         return states, u, t
     
-    def initialise_plant(self, T=5, f=1, input_type="square_wave", timeout=5, max_retries=3):
+    def initialise_plant(self, T=5, f=1, input_type="square_wave", timeout=10, max_retries=3):
         """
         Whack the system with square wave or impulses, send the data to DB,
         and wait for an SS update with retries before raising TimeoutError.
@@ -149,50 +153,24 @@ class Sim:
         Raises:
             TimeoutError: If no SS update is received within the timeout after retries.
         """
-        pass
-        # if self.plant.initialised:
-        #     print("[Init] Already initialized, skipping whacking")
-        #     return
+        if self.controller_plant.initialised:
+            print("[Init] Already initialized, skipping whacking")
+            return
 
-        # retries = 0
-        # # Send input to DB
-        # y, u, t = self.sim_model_response(T=T, f=f, input_type=input_type)
-        # self.plant.write_data_to_db(y=y, u=u, r=None, sps_type=SPSType.OPEN_LOOP)
-
-        # while retries <= max_retries:
-        #     print(f"[Init] Whacking attempt {retries + 1}/{max_retries + 1}")
-            
-        #     # Wait for SS update
-        #     self.plant.ss_event.clear()
-        #     print("[Init] Waiting for SS update...")
-
-        #     update_received = self.ss_event.wait(timeout)
-
-        #     if update_received:
-        #         print("[Init] Initial SS update received!")
-        #         self.plant.initialised = True
-        #         print("[Init] Latest SS:", self.plant.ss)
-        #         return  # Exit the loop if update is received
-
-        #     print("[Init] Timeout! No update received.")
-        #     retries += 1
-
-        # print("[Init] Max retries reached. No SS update received.")
-        # raise TimeoutError("[Init] Failed to receive SS update after retries.")
-
-
+        # Send input to DB
+        y, u, t = self.sim_model_response(T=T, f=f, input_type=input_type)
+        self.write_data_to_db(y=y, u=u, r=None, sps_type=SPSType.OPEN_LOOP)
+        self.controller_plant.initialised_event.wait(timeout=timeout)
+        print("[Init] Plant initialized")
 
 
     def run(self):
         """
         Runs the cart-pendulum simulation.
         """
- 
-        u = 0.0
-
+        state = self.sim.state
         for _ in range(int(self.T / self.dt)):
-            # u = self.controller.get_u(self.state)[0]
-            u = 0.0
+            u = self.controller.get_u(state)
             state, done = self.sim.step(u=u, t=_ * self.dt)
             self.db
             if done:
@@ -209,5 +187,7 @@ if __name__ == '__main__':
     # Create the simulation instance
     simulation = Sim(controller=controller, disturbance=50.0)
 
+    # initialise the plant
+    simulation.initialise_plant(T=5, f=1, input_type="square_wave", timeout=10, max_retries=3)
     # Run the simulation
     simulation.run()

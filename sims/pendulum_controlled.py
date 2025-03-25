@@ -5,7 +5,7 @@ import control
 import matplotlib.pyplot as plt
 import scipy.signal as signal
 from sims.cart_pendulum.InvertedPendulum import InvertedPendulum
-from sims.sim_db import Database, SPSType
+from dB.sim_db import Database, SPSType
 from types import SimpleNamespace
 from scipy.signal import savgol_filter
 from scipy.linalg import solve_discrete_are

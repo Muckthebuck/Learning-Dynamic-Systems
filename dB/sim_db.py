@@ -48,7 +48,7 @@ class Database:
     Database class to manage storage and retrieval of system states (ss) and data with connection pooling.
 
     Attributes:
-        db_name (str): Name of the SQLite database file.
+        db_name (str): Name of the SQLite database file. Default: sim.db
         lock (threading.Lock): Lock for thread-safe access.
         subscribers (dict): Dictionary of subscribers for pub-sub mechanism.
         pool (Queue): Connection pool for SQLite connections.
@@ -77,7 +77,7 @@ class Database:
 
     POOL_SIZE = 5
 
-    def __init__(self, db_name: str = "pipeline.db") -> None:
+    def __init__(self, db_name: str = "sim.db") -> None:
         self.db_name = db_name
         self.lock = threading.Lock()
         self.subscribers = {"ss": [], "data": []}

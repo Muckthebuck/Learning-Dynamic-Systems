@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 import time
 import matplotlib.pyplot as plt
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Union
 from sims.pendulum.PendulumSimBase import PendulumSimBase
 
 
@@ -42,7 +42,7 @@ class Pendulum(PendulumSimBase):
         self.inertia: float = self.m * (self.L ** 2)
 
 
-    def dynamics(self, y: np.ndarray, u: float) -> np.ndarray:
+    def dynamics(self, y: np.ndarray, u: Union[float, np.ndarray]) -> np.ndarray:
         """
         Computes the system dynamics.
 
@@ -53,6 +53,9 @@ class Pendulum(PendulumSimBase):
         Returns:
             np.ndarray: State derivative [theta_dot, theta_ddot].
         """
+        # if u is np array, convert to float
+        if isinstance(u, np.ndarray):
+            u = u[0]
         theta, theta_dot = y
         theta_ddot = (u - self.d * theta_dot - self.m * self.g * self.L * np.cos(theta)) / self.inertia
         return np.array([theta_dot, theta_ddot])
@@ -86,7 +89,7 @@ if __name__ == '__main__':
     T = 10
     dt = 0.02
     state = np.array([np.pi/4, 0.0])
-    sim = SimPendulum(dt=dt, initial_state=state, plot_system=True)
+    sim = Pendulum(dt=dt, initial_state=state, plot_system=True)
     
     for _ in range(int(T / dt)):
         __, done = sim.step(u=0,t=_*dt)
