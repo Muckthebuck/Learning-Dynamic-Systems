@@ -6,3 +6,4 @@ control
 opencv-python
 sqlite
 numba
+scikit-learn
