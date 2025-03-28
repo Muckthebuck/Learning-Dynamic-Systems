@@ -81,7 +81,7 @@ class Controller:
         self.Q = 0.4 * np.eye(n[0])
         self.R = np.eye(n[1])
         if self.plant.initialised:
-            self.armax, self.K = self.design_lqr()
+            self.K = self.design_lqr()
         
     def design_lqr(self):
         """
@@ -98,7 +98,8 @@ class Controller:
         F = L  = K 
         armax = {'F': F, 'L': L}
         armax = SimpleNamespace(**armax)
-        return armax, K
+        self.plant.db.write_ctrl(ctrl=armax)
+        return K
     
     def get_u(self, y, r: np.ndarray):
         """
@@ -111,7 +112,7 @@ class Controller:
             ndarray: Control input vector.
         """
         if self.plant.new_update:
-            self.armax, self.K = self.design_lqr()
+            self.K = self.design_lqr()
             self.plant.new_update = False
 
         u = self.K @ (r - y)

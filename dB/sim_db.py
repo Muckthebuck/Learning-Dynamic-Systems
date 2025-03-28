@@ -56,7 +56,12 @@ class Database:
     Table Schema:
         ss:
             - id: INTEGER PRIMARY KEY AUTOINCREMENT
-            - ss: BLOB (Serialized system state)
+            - data: BLOB (Serialized system state)
+            - timestamp: DATETIME (Default: CURRENT_TIMESTAMP)
+        
+        ctrl:
+            - id: INTEGER PRIMARY KEY AUTOINCREMENT
+            - data: BLOB (Serialized controller F, L)
             - timestamp: DATETIME (Default: CURRENT_TIMESTAMP)
         
         data:
@@ -73,6 +78,11 @@ class Database:
             - id: INTEGER PRIMARY KEY AUTOINCREMENT
             - data: BLOB
             - timestamp: DATETIME (Default: CURRENT_TIMESTAMP)
+        
+        archive_ctrl:
+            - id: INTEGER PRIMARY KEY AUTOINCREMENT
+            - data: BLOB
+            - timestamp: DATETIME (Default: CURRENT_TIMESTAMP)
     """
 
     POOL_SIZE = 5
@@ -80,7 +90,7 @@ class Database:
     def __init__(self, db_name: str = "sim.db") -> None:
         self.db_name = db_name
         self.lock = threading.Lock()
-        self.subscribers = {"ss": [], "data": []}
+        self.subscribers = {"ss": [], "data": [], "ctrl": []}
         self.pool = Queue(maxsize=self.POOL_SIZE)
         self._init_pool()
         self._init_db()
@@ -121,6 +131,14 @@ class Database:
         """
         )
         cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ctrl (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                data BLOB,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """
+        )
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS archive_ss (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 data BLOB,
@@ -130,6 +148,14 @@ class Database:
         )
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS archive_data (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                data BLOB,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """
+        )
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS archive_ctrl (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 data BLOB,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -182,6 +208,20 @@ class Database:
             self._release_connection(conn)
             print("[DB] data written and archived")
             self._notify("data", serialized_data)
+    
+    def write_ctrl(self, ctrl: SimpleNamespace) -> None:
+        """Write controller data to the database."""
+        serialized_ctrl = self._serialize(ctrl)
+        with self.lock:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM ctrl")
+            cursor.execute("INSERT INTO ctrl (data) VALUES (?)", (serialized_ctrl,))
+            cursor.execute("INSERT INTO archive_ctrl (data) VALUES (?)", (serialized_ctrl,))
+            conn.commit()
+            self._release_connection(conn)
+            print("[DB] ctrl written")
+            self._notify("ctrl", serialized_ctrl)
 
     def read_latest(self, table: str) -> Optional[Any]:
         """Read the latest entry from the specified table."""

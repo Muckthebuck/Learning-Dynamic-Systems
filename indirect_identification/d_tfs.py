@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Tuple, Union, List
-from scipy.signal import lfilter
+from scipy.signal import lfilter, ss2tf
 from indirect_identification.tf_methods.fast_tfs_methods_fast_math import *
 
 __all__  = [
@@ -261,6 +261,36 @@ class d_tfs:
             return np.asarray(Y_t)
         except Exception as e:
             raise ValueError(f"Error applying shift operator: {e}")
+    
+    @staticmethod
+    def ss_to_tf(A, B, C, D, d_tfs):
+        """
+        Converts a state-space system (A, B, C, D) into a transfer function matrix G.
+        Works with both SISO and MIMO systems.
+
+        Parameters:
+        A (ndarray): State matrix (n_states x n_states)
+        B (ndarray): Input matrix (n_states x n_inputs)
+        C (ndarray): Output matrix (n_outputs x n_states)
+        D (ndarray): Feedthrough matrix (n_outputs x n_inputs)
+        d_tfs (callable): Function to create a transfer function object
+
+        Returns:
+        ndarray: Transfer function matrix G (n_outputs x n_inputs) with d_tfs objects
+        """
+        n_inputs = B.shape[1]  # Number of inputs
+        n_outputs = C.shape[0]  # Number of outputs
+        if n_inputs == 1 and n_outputs == 1:
+            num, den = ss2tf(A, B, C, D)
+            return d_tfs((num[0], den))  # Return single transfer function object
+        G = np.zeros((n_outputs, n_inputs), dtype=object)  # Create empty array for transfer functions
+        
+        for j in range(n_inputs):  # Loop over inputs
+            num, den = ss2tf(A, B, C, D, input=j)
+            for i in range(n_outputs):
+                G[i, j] = d_tfs((num[i], den))  # Store transfer function object
+        
+        return G
 
 
 def apply_tf_matrix(G: np.ndarray, U: np.ndarray) -> np.ndarray:

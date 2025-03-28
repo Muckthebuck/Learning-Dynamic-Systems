@@ -10,9 +10,9 @@ np.random.seed(42)
 
 class SPS_indirect_model:
     """
-    Indirect Stochastic Process Simulation (SPS) model class.
+    Indirect Sign Perturbed Sum (SPS) model class.
     """
-    def __init__(self, m: int, q: int, N: int = 50, db: Database = None):
+    def __init__(self, m: int, q: int, N: int = 50):
         """
         Initialize the SPS model.
         
@@ -28,45 +28,7 @@ class SPS_indirect_model:
         self.alpha = np.sign(self.alpha)
         self.alpha[0, :] = 1
         self.pi_order = np.random.permutation(np.arange(m))
-        if db is not None:
-            self.db = db
-            self.db.subscribe("data", self.data_callback)
-
-    def data_callback(self, data):
-        """
-        data attributes: y, u, r, sps_type
-        """
-        self.update_sps_region(data=data)
-        pass
-
-    def update_sps_region(self, data):
-        if data.sps_type == SPSType.OPEN_LOOP:
-            pass
-        if data.sps_type == SPSType.CLOSED_LOOP:
-            pass
-        A=B=C=D=None
-        if self.db is not None:
-            self.write_state_space_to_db(A, B, C, D)
-        pass
-        
-    def write_state_space_to_db(self, A, B, C, D):
-        try:
-            ss = SimpleNamespace(
-                A=A,
-                B=B,
-                C=C,
-                D=D
-            )
-            self.db.write_ss(ss=ss)
-        except Exception as e:
-            print(f"Failed to write state space: {ss}")
-            raise RuntimeError(f"Error writting to database: {e}")
-
-
-
-    def plot_current_sps_region(self):
-        pass
-
+ 
     def create_phi_optimized(self, Y: np.ndarray, U: np.ndarray, n_a: int, n_b: int) -> np.ndarray:
         """
         Create the phi matrix optimized for the given inputs.
