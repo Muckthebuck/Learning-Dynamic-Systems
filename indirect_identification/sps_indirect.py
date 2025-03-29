@@ -57,10 +57,11 @@ class SPS_indirect_model:
         
         return phi
 
-    def transform_to_open_loop(self, G: Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]], 
-                               H: Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]], 
-                               F: Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]], 
-                               L: Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]]) -> Tuple['d_tfs', 'd_tfs']:
+    def transform_to_open_loop(self, 
+                               G: Union['d_tfs', Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]]], 
+                               H: Union['d_tfs', Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]]], 
+                               F: Union['d_tfs', Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]]], 
+                               L: Union['d_tfs', Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]]]) -> Tuple['d_tfs', 'd_tfs']:
         """
         Transform the closed-loop system to an open-loop system.
         
@@ -73,10 +74,14 @@ class SPS_indirect_model:
         Returns:
         tuple: The open-loop transfer functions G_0 and H_0.
         """
-        G = d_tfs(G)
-        H = d_tfs(H)
-        F = d_tfs(F)
-        L = d_tfs(L)
+        if not isinstance(G, d_tfs):
+            G = d_tfs(G)
+        if not isinstance(H, d_tfs):
+            H = d_tfs(H)
+        if not isinstance(F, d_tfs):
+            F = d_tfs(F)
+        if not isinstance(L, d_tfs):
+            L = d_tfs(L)
 
         GF_plus_I = (G * F) + 1
         i_GF_plus_I = 1/GF_plus_I

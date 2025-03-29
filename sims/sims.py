@@ -39,7 +39,7 @@ class Sim:
         parser.add_argument("--sim", type=str, required=True, 
                             choices=["Pendulum", "Cart-Pendulum", "Carla"], 
                             help=f"Your simulation (must be one of {list(SIM_CLASS_MAP.keys())})")
-        parser.add_argument("--plot_system", type=bool, default=True, help="Plot the system states")
+        parser.add_argument("--plot_system", action=argparse.BooleanOptionalAction, default=True, help="Plot the system")
         parser.add_argument("--history_limit", type=int, default=200, help="Limit of history for plotting")
         parser.add_argument("--dB", type=str, default="sim.db", help="Database file")
         parser.add_argument("--disturbance", type=float, default=50.0, help="Magnitude of disturbance force")

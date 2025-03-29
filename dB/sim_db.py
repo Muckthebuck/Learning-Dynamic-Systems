@@ -223,6 +223,13 @@ class Database:
             print("[DB] ctrl written")
             self._notify("ctrl", serialized_ctrl)
 
+    def get_latest_ctrl(self) -> Optional[Any]:
+        """Get the latest controller data."""
+        ctrl = self.read_latest("ctrl")
+        if ctrl:
+            return ctrl
+        return None
+
     def read_latest(self, table: str) -> Optional[Any]:
         """Read the latest entry from the specified table."""
         conn = self._get_connection()
