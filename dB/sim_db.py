@@ -229,6 +229,13 @@ class Database:
         if ctrl:
             return ctrl
         return None
+    
+    def get_latest_data(self) -> Optional[Any]:
+        """Get the latest data entry."""
+        data = self.read_latest("data")
+        if data:
+            return data
+        return None
 
     def read_latest(self, table: str) -> Optional[Any]:
         """Read the latest entry from the specified table."""

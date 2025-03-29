@@ -154,7 +154,12 @@ class SPS:
             return False
 
         # Check the condition and store the result if true
-        in_sps, _ = self.model.open_loop_sps(G, H)
+        data = self.db.get_latest_data()
+        if data is None:
+            raise RuntimeError("Data not found in database")
+        in_sps, _ = self.model.open_loop_sps(G_0=G, H_0=H, 
+                                             Y_t=data.y, U_t=data.u, 
+                                             n_a=self.nA, n_b=self.nB)
         return in_sps
     
     def closed_loop_sps_search_fn(self, params):
@@ -175,8 +180,12 @@ class SPS:
             if self.debug:
                 print("Controller not found... skipping")
             raise
-        
-        in_sps, _ = self.model.open_loop_sps(G_0, H_0)
+        data = self.db.get_latest_data()
+        if data is None:
+            raise RuntimeError("Data not found in database")
+        in_sps, _ = self.model.open_loop_sps(G_=G_0, H=H_0, 
+                                             Y_t=data.y, U_t=data.r, 
+                                             n_a=self.nA, n_b=self.nB)
         return in_sps
     
 

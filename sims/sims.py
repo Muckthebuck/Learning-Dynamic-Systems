@@ -169,10 +169,28 @@ class Sim:
         Runs the cart-pendulum simulation.
         """
         state = self.sim.state
+        history_y = []
+        history_u = []
+        r = np.pi/2
+        buffer_len = 1000
         for _ in range(int(self.T / self.dt)):
-            u = self.controller.get_u(state)
+            # get the controller output
+            u = self.controller.get_u(y=state, r=r)
+
+            # history management and write to DB
+            if len(history_y) < buffer_len:
+                history_y.append(state.copy())
+                history_u.append(u.copy())
+            if len(history_y) == buffer_len:
+                self.write_data_to_db(y=np.array(history_y), 
+                                      u=np.array(history_u), 
+                                      r=np.array([r]*buffer_len), 
+                                      sps_type=SPSType.CLOSED_LOOP)
+                history_y = []
+                history_u = []
+
+            # update the state
             state, done = self.sim.step(u=u, t=_ * self.dt)
-            self.db
             if done:
                 break
 
