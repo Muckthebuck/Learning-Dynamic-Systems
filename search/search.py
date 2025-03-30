@@ -173,7 +173,12 @@ class SPSSearch:
 
             self.remaining_coords.remove(coord)
             self.output.append([*coord, self.results[coord]])
-        self.confusion_data.append( (confusion_true, confusion_pred) )
+        if self.is_store_results:
+            self.confusion_data.append( (confusion_true, confusion_pred) )
+
+    def get_results(self):
+        """Return values for which SPS was tested TRUE"""
+        return self.parameter_map[:,*(np.array(np.where(self.results == 1)))]
 
 
 
