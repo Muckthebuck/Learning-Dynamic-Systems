@@ -62,8 +62,9 @@ class SPS:
                 test_cb=self._get_search_fn(data.sps_type)
             )
         search.go()
-        # TODO: save the results to the database
-        A=B=C=D=None
+        # get the results
+        results = search.get_results()
+        A, B, C, D = self.get_ss_region(results=results)
         if self.db is not None:
             self.write_state_space_to_db(A, B, C, D)
         pass
@@ -87,8 +88,29 @@ class SPS:
             return self.closed_loop_sps_search_fn
         else:
             raise ValueError(f"Unknown SPS type: {sps_type}")
+        
+    def get_ss_region(self, results:np.ndarray) -> np.ndarray:
+        """
+        Get the state space region from the given parameters.
+        """
+        # Construct state space matrices from the given parameters
+        result_ss = np.apply_along_axis(self._construct_ss_from_params, 0, results)
+        return result_ss
+        
+    def _construct_ss_from_params(self, params):
+        # A: n_state x n_state matrix
+        A = np.vstack([np.hstack([np.zeros((self.n_states-1, 1)), 
+                                  np.eye(self.n_states-1)]), -params[:self.n_states]])
+        # B: n_state x n_input matrix
+        B = params[self.n_states:self.n_states*self.n_inputs].reshape(self.n_states, self.n_inputs)
+        # C: n_output x n_state matrix
+        C = self.C
+        # D: n_output x n_input matrix: zero matrix for now
+        D = np.zeros((self.n_output, self.n_inputs))
 
-    def construct_ss_from_params(self, params):
+        return A, B, C, D
+
+    def construct_gh_from_params(self, params):
         """
         Construct state space matrices from the given parameters.
         State space matrices are in observable canonical form.
@@ -99,15 +121,7 @@ class SPS:
             3. G and H are stable transfer functions
             4. H is invertible transfer function (H(0) != 0)
         """
-        # A: n_state x n_state matrix
-        A = np.vstack([np.hstack([np.zeros((self.n_states-1, 1)), 
-                                  np.eye(self.n_states-1)]), -params[:self.n_states]])
-        # B: n_state x n_input matrix
-        B = params[self.n_states:self.n_states*self.n_inputs].reshape(self.n_states, self.n_inputs)
-        # C: n_output x n_state matrix
-        C = self.C
-        # D: n_output x n_input matrix: zero matrix for now
-        D = np.zeros((self.n_output, self.n_inputs))
+        A, B, C, D = self._construct_ss_from_params(params)
 
         # G Transfer function matrix
         G = d_tfs.ss_to_tf(A, B, C, D, check_assumption=True, epsilon=self.epsilon)
@@ -147,7 +161,7 @@ class SPS:
         """
         # Transform to open loop
         try:
-            G, H = self.construct_ss_from_params(params)
+            G, H = self.construct_gh_from_params(params)
         except ValueError:
             if self.debug:
                 print("Assumptions not satisfied... skipping")
@@ -167,7 +181,7 @@ class SPS:
         Perform closed loop SPS search for the given parameters.
         """
         try:
-            G, H = self.construct_ss_from_params(params)
+            G, H = self.construct_gh_from_params(params)
             ctrl = self.db.get_latest_ctrl()
             if ctrl is None:
                 raise RuntimeError("Controller not found in database")
