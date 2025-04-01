@@ -215,7 +215,7 @@ class SPS:
             self.db.write_ss(ss=ss)
         except Exception as e:
             print(f"Failed to write state space: {ss}")
-            raise RuntimeError(f"Error writting to database: {e}")
+            raise RuntimeError(f"Error writing to database: {e}")
 
 
 
