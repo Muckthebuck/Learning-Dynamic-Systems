@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Tuple, Union, List
-from scipy.signal import lfilter
+from scipy.signal import lfilter, ss2tf
 from indirect_identification.tf_methods.fast_tfs_methods_fast_math import *
 
 __all__  = [
@@ -261,6 +261,72 @@ class d_tfs:
             return np.asarray(Y_t)
         except Exception as e:
             raise ValueError(f"Error applying shift operator: {e}")
+    
+    @staticmethod
+    def ss_to_tf(A, B, C, D, check_assumption=True, epsilon=1e-10):
+        """
+        Converts a state-space system (A, B, C, D) into a transfer function matrix G.
+        Works with both SISO and MIMO systems.
+
+        Parameters:
+        A (ndarray): State matrix (n_states x n_states)
+        B (ndarray): Input matrix (n_states x n_inputs)
+        C (ndarray): Output matrix (n_outputs x n_states)
+        D (ndarray): Feedthrough matrix (n_outputs x n_inputs)
+        check_assumption (bool): If True, checks if G(0) == 0 and stable. Default is True.
+        epsilon (float): Tolerance for checking assumptions. Default is 1e-10.
+
+        Returns:
+        ndarray: Transfer function matrix G (n_outputs x n_inputs) with d_tfs objects
+        """
+        n_inputs = B.shape[1]  # Number of inputs
+        n_outputs = C.shape[0]  # Number of outputs
+        if n_inputs == 1 and n_outputs == 1:
+            num, den = ss2tf(A, B, C, D)
+            G = d_tfs((num[0], den))
+            if check_assumption:
+                # Check assumptions for single transfer function
+                d_tfs.sps_assumption_check(G, 0, epsilon)
+            return d_tfs((num[0], den))  # Return single transfer function object
+        G = np.zeros((n_outputs, n_inputs), dtype=object)  # Create empty array for transfer functions
+        
+        for j in range(n_inputs):  # Loop over inputs
+            num, den = ss2tf(A, B, C, D, input=j)
+            for i in range(n_outputs):
+                G[i, j] = d_tfs((num[i], den))  # Store transfer function object
+                if check_assumption:
+                    # Check assumptions for each transfer function
+                    d_tfs.sps_assumption_check(G[i, j], 0, epsilon)  
+        return G
+    
+    @staticmethod
+    def sps_assumption_check(tf: Union['d_tfs', float], value: float, epsilon: float = 0.001) -> None:
+        """
+        Check if the transfer function satisfies the SPS assumptions.
+
+        Assumptions:
+            1. tf(0) = value
+            2. tf is stable
+        
+        Parameters:
+            tf (Union[d_tfs, float]): The transfer function to check.
+            value (float): The expected value at tf(0).
+            epsilon (float): Tolerance for checking the assumption. Default is 0.001.
+
+        Raises:
+            ValueError: If the transfer function does not satisfy the assumptions.
+        """
+        if isinstance(tf, d_tfs):
+            if np.abs(tf(0) - value) > epsilon:
+                raise ValueError(f"SPS assumption failed: tf(0) = {tf(0)} != {value} (tol={epsilon})")
+            if not tf.is_stable():
+                raise ValueError("SPS assumption failed: Transfer function is not stable.")
+        elif isinstance(tf, (int, float, np.float32, np.float64)):
+            if np.abs(tf - value) >= epsilon:
+                raise ValueError(f"SPS assumption failed: {tf} != {value} (tol={epsilon})")
+        else:
+            raise TypeError(f"Unsupported type for assumption check: {type(tf)}")
+
 
 
 def apply_tf_matrix(G: np.ndarray, U: np.ndarray) -> np.ndarray:

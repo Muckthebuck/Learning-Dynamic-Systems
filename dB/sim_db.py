@@ -48,7 +48,7 @@ class Database:
     Database class to manage storage and retrieval of system states (ss) and data with connection pooling.
 
     Attributes:
-        db_name (str): Name of the SQLite database file.
+        db_name (str): Name of the SQLite database file. Default: sim.db
         lock (threading.Lock): Lock for thread-safe access.
         subscribers (dict): Dictionary of subscribers for pub-sub mechanism.
         pool (Queue): Connection pool for SQLite connections.
@@ -56,7 +56,12 @@ class Database:
     Table Schema:
         ss:
             - id: INTEGER PRIMARY KEY AUTOINCREMENT
-            - ss: BLOB (Serialized system state)
+            - data: BLOB (Serialized system state)
+            - timestamp: DATETIME (Default: CURRENT_TIMESTAMP)
+        
+        controller:
+            - id: INTEGER PRIMARY KEY AUTOINCREMENT
+            - data: BLOB (Serialized controller F, L)
             - timestamp: DATETIME (Default: CURRENT_TIMESTAMP)
         
         data:
@@ -73,14 +78,19 @@ class Database:
             - id: INTEGER PRIMARY KEY AUTOINCREMENT
             - data: BLOB
             - timestamp: DATETIME (Default: CURRENT_TIMESTAMP)
+        
+        archive_controller:
+            - id: INTEGER PRIMARY KEY AUTOINCREMENT
+            - data: BLOB
+            - timestamp: DATETIME (Default: CURRENT_TIMESTAMP)
     """
 
     POOL_SIZE = 5
 
-    def __init__(self, db_name: str = "pipeline.db") -> None:
+    def __init__(self, db_name: str = "sim.db") -> None:
         self.db_name = db_name
         self.lock = threading.Lock()
-        self.subscribers = {"ss": [], "data": []}
+        self.subscribers = {"ss": [], "data": [], "controller": []}
         self.pool = Queue(maxsize=self.POOL_SIZE)
         self._init_pool()
         self._init_db()
@@ -121,6 +131,14 @@ class Database:
         """
         )
         cursor.execute("""
+            CREATE TABLE IF NOT EXISTS controller (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                data BLOB,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """
+        )
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS archive_ss (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 data BLOB,
@@ -130,6 +148,14 @@ class Database:
         )
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS archive_data (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                data BLOB,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """
+        )
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS archive_controller (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 data BLOB,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -182,6 +208,34 @@ class Database:
             self._release_connection(conn)
             print("[DB] data written and archived")
             self._notify("data", serialized_data)
+    
+    def write_controller(self, controller: SimpleNamespace) -> None:
+        """Write controller data to the database."""
+        serialized_controller = self._serialize(controller)
+        with self.lock:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM controller")
+            cursor.execute("INSERT INTO controller (data) VALUES (?)", (serialized_controller,))
+            cursor.execute("INSERT INTO archive_controller (data) VALUES (?)", (serialized_controller,))
+            conn.commit()
+            self._release_connection(conn)
+            print("[DB] controller written")
+            self._notify("controller", serialized_controller)
+
+    def get_latest_controller(self) -> Optional[Any]:
+        """Get the latest controller data."""
+        controller = self.read_latest("controller")
+        if controller:
+            return controller
+        return None
+    
+    def get_latest_data(self) -> Optional[Any]:
+        """Get the latest data entry."""
+        data = self.read_latest("data")
+        if data:
+            return data
+        return None
 
     def read_latest(self, table: str) -> Optional[Any]:
         """Read the latest entry from the specified table."""

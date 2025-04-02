@@ -2,7 +2,7 @@
 from typing import Tuple, List, Union
 import numpy as np
 from scipy.signal import lfilter
-from sims.db_test import Database, SPSType
+from dB.sim_db import Database, SPSType
 from indirect_identification.d_tfs import d_tfs
 from types import SimpleNamespace
 
@@ -10,9 +10,9 @@ np.random.seed(42)
 
 class SPS_indirect_model:
     """
-    Indirect Stochastic Process Simulation (SPS) model class.
+    Indirect Sign Perturbed Sum (SPS) model class.
     """
-    def __init__(self, m: int, q: int, N: int = 50, db: Database = None):
+    def __init__(self, m: int, q: int, N: int = 50):
         """
         Initialize the SPS model.
         
@@ -28,45 +28,7 @@ class SPS_indirect_model:
         self.alpha = np.sign(self.alpha)
         self.alpha[0, :] = 1
         self.pi_order = np.random.permutation(np.arange(m))
-        if db is not None:
-            self.db = db
-            self.db.subscribe("data", self.data_callback)
-
-    def data_callback(self, data):
-        """
-        data attributes: y, u, r, sps_type
-        """
-        self.update_sps_region(data=data)
-        pass
-
-    def update_sps_region(self, data):
-        if data.sps_type == SPSType.OPEN_LOOP:
-            pass
-        if data.sps_type == SPSType.CLOSED_LOOP:
-            pass
-        A=B=C=D=None
-        if self.db is not None:
-            self.write_state_space_to_db(A, B, C, D)
-        pass
-        
-    def write_state_space_to_db(self, A, B, C, D):
-        try:
-            ss = SimpleNamespace(
-                A=A,
-                B=B,
-                C=C,
-                D=D
-            )
-            self.db.write_ss(ss=ss)
-        except Exception as e:
-            print(f"Failed to write state space: {ss}")
-            raise RuntimeError(f"Error writting to database: {e}")
-
-
-
-    def plot_current_sps_region(self):
-        pass
-
+ 
     def create_phi_optimized(self, Y: np.ndarray, U: np.ndarray, n_a: int, n_b: int) -> np.ndarray:
         """
         Create the phi matrix optimized for the given inputs.
@@ -95,10 +57,11 @@ class SPS_indirect_model:
         
         return phi
 
-    def transform_to_open_loop(self, G: Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]], 
-                               H: Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]], 
-                               F: Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]], 
-                               L: Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]]) -> Tuple['d_tfs', 'd_tfs']:
+    def transform_to_open_loop(self, 
+                               G: Union['d_tfs', Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]]], 
+                               H: Union['d_tfs', Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]]], 
+                               F: Union['d_tfs', Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]]], 
+                               L: Union['d_tfs', Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]]]) -> Tuple['d_tfs', 'd_tfs']:
         """
         Transform the closed-loop system to an open-loop system.
         
@@ -111,10 +74,14 @@ class SPS_indirect_model:
         Returns:
         tuple: The open-loop transfer functions G_0 and H_0.
         """
-        G = d_tfs(G)
-        H = d_tfs(H)
-        F = d_tfs(F)
-        L = d_tfs(L)
+        if not isinstance(G, d_tfs):
+            G = d_tfs(G)
+        if not isinstance(H, d_tfs):
+            H = d_tfs(H)
+        if not isinstance(F, d_tfs):
+            F = d_tfs(F)
+        if not isinstance(L, d_tfs):
+            L = d_tfs(L)
 
         GF_plus_I = (G * F) + 1
         i_GF_plus_I = 1/GF_plus_I
