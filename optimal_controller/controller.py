@@ -95,10 +95,13 @@ class Controller:
         K = get_optimal_controller(self.plant.ss.A, self.plant.ss.B, self.Q, self.R)
         # K = np.dot(self.plant.ss.C, K.T).reshape(K.shape[0], -1)
         # G, H, F, L 
+        
+
+        # @c-hars TODO: update the F,L matrices to reflect the integrator tracking
         F = L  = K 
         armax = {'F': F, 'L': L}
         armax = SimpleNamespace(**armax)
-        self.plant.db.write_ctrl(ctrl=armax)
+        self.plant.db.write_controller(controller=armax)
         return K
     
     def get_u(self, y, r: np.ndarray):
@@ -115,6 +118,7 @@ class Controller:
             self.K = self.design_lqr()
             self.plant.new_update = False
 
+        # @c-hars TODO: update the input version to reflect the integrator tracking
         u = self.K @ (r - y)
         # u = np.clip(u, -100, 100)
         return u 

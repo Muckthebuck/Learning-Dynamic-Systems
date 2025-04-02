@@ -59,7 +59,7 @@ class Database:
             - data: BLOB (Serialized system state)
             - timestamp: DATETIME (Default: CURRENT_TIMESTAMP)
         
-        ctrl:
+        controller:
             - id: INTEGER PRIMARY KEY AUTOINCREMENT
             - data: BLOB (Serialized controller F, L)
             - timestamp: DATETIME (Default: CURRENT_TIMESTAMP)
@@ -79,7 +79,7 @@ class Database:
             - data: BLOB
             - timestamp: DATETIME (Default: CURRENT_TIMESTAMP)
         
-        archive_ctrl:
+        archive_controller:
             - id: INTEGER PRIMARY KEY AUTOINCREMENT
             - data: BLOB
             - timestamp: DATETIME (Default: CURRENT_TIMESTAMP)
@@ -90,7 +90,7 @@ class Database:
     def __init__(self, db_name: str = "sim.db") -> None:
         self.db_name = db_name
         self.lock = threading.Lock()
-        self.subscribers = {"ss": [], "data": [], "ctrl": []}
+        self.subscribers = {"ss": [], "data": [], "controller": []}
         self.pool = Queue(maxsize=self.POOL_SIZE)
         self._init_pool()
         self._init_db()
@@ -131,7 +131,7 @@ class Database:
         """
         )
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS ctrl (
+            CREATE TABLE IF NOT EXISTS controller (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 data BLOB,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -155,7 +155,7 @@ class Database:
         """
         )
         cursor.execute("""
-            CREATE TABLE IF NOT EXISTS archive_ctrl (
+            CREATE TABLE IF NOT EXISTS archive_controller (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 data BLOB,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -209,25 +209,25 @@ class Database:
             print("[DB] data written and archived")
             self._notify("data", serialized_data)
     
-    def write_ctrl(self, ctrl: SimpleNamespace) -> None:
+    def write_controller(self, controller: SimpleNamespace) -> None:
         """Write controller data to the database."""
-        serialized_ctrl = self._serialize(ctrl)
+        serialized_controller = self._serialize(controller)
         with self.lock:
             conn = self._get_connection()
             cursor = conn.cursor()
-            cursor.execute("DELETE FROM ctrl")
-            cursor.execute("INSERT INTO ctrl (data) VALUES (?)", (serialized_ctrl,))
-            cursor.execute("INSERT INTO archive_ctrl (data) VALUES (?)", (serialized_ctrl,))
+            cursor.execute("DELETE FROM controller")
+            cursor.execute("INSERT INTO controller (data) VALUES (?)", (serialized_controller,))
+            cursor.execute("INSERT INTO archive_controller (data) VALUES (?)", (serialized_controller,))
             conn.commit()
             self._release_connection(conn)
-            print("[DB] ctrl written")
-            self._notify("ctrl", serialized_ctrl)
+            print("[DB] controller written")
+            self._notify("controller", serialized_controller)
 
-    def get_latest_ctrl(self) -> Optional[Any]:
+    def get_latest_controller(self) -> Optional[Any]:
         """Get the latest controller data."""
-        ctrl = self.read_latest("ctrl")
-        if ctrl:
-            return ctrl
+        controller = self.read_latest("controller")
+        if controller:
+            return controller
         return None
     
     def get_latest_data(self) -> Optional[Any]:

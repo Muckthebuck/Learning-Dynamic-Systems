@@ -182,7 +182,7 @@ class SPS:
         """
         try:
             G, H = self.construct_gh_from_params(params)
-            ctrl = self.db.get_latest_ctrl()
+            ctrl = self.db.get_latest_controller()
             if ctrl is None:
                 raise RuntimeError("Controller not found in database")
             G_0, H_0 = self.model.transform_to_open_loop(G, H, ctrl.F, ctrl.L)
