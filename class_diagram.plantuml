@@ -1,0 +1,197 @@
+@startuml class_diagram
+title Learning Dynamical Systems - April 2025
+' SPS '
+class d_tfs implements fast_tfs_methods {
+    - __add__()
+    - __sub__()
+    - __rsub__()
+    - __mul__()
+    - __truediv__()
+    - __invert__()
+    - __neg__()
+    - __eq__()
+    - _apply_shift_operator()
+    - is_stable()
+    + ss_to_tf()
+    + sps_assumption_check()
+}
+
+class fast_tfs_methods {
+    + _simplify_array()
+    + _simplify()
+    + _ensure_same_size()
+    + _convolve()
+    + _add_tfs()
+    + _add_scalar()
+    + _sub_tfs()
+    + _mul_tfs()
+    + _mul_scalar()
+    + _div_tfs()
+    + _poly_divide()
+    + _poly_sub()
+    + _eGCD()
+    + _reduce_fraction_numpy()
+
+}
+
+
+class SPS_indirect_model implements d_tfs {
+    - N
+    - m
+    - q
+    - alpha[]
+
+    + transform_to_open_loop()
+    + open_loop_sps()
+    - create_phi_optimized()
+    - write_state_space_to_db()
+}
+
+class SPS {
+    - n_states
+    - n_inputs
+    - n_outputs
+    - n_noise_order
+    - n_params
+    + update_sps_region()
+}
+
+SPS --> Database
+SPS --> SPS_indirect_model
+SPS --> SPS_Search
+
+
+class SPS_Search {
+    + mins
+    + maxes
+    + n_dimensions
+    + n_epochs
+    + initialisation_size
+    + search_size
+
+    + go()
+    + get_results()
+    - test_callback()
+    - plot_results_2d()
+    - store_plot_data_2d()
+}
+
+
+
+
+' Control '
+' class Observer {
+'     + P
+'     + Q
+'     + R
+'     + C
+'     + L
+'     + window_size
+'     + epsilon
+'     {method} update()
+'     {method} estimate_measurement_covariance()
+'     {method} estimate_process_covariance()
+' }
+
+class Controller {
+    + plant
+    + desired
+    - Q
+    - R
+    - K
+    - armax
+    + design_lqr()
+    + get_u()
+}
+
+class Plant {
+    - dt
+    - ss
+    - db
+    + dynamics()
+    - ss_callback()
+}
+
+class CarlaSPS {
+    - step()
+}
+
+Controller --> Plant
+Plant --> Database
+' Simulation '
+
+class Sim {
+    - db
+    - controller_plant
+    - controller
+    - T
+    - dt
+    - initial_state
+    - state
+
+    - parse_arguments()
+    - initialise_plant()
+    - run()
+    - write_data_to_db()
+    - sim_model_response()
+    - square_wave()
+    - impulse_wave()
+}
+
+Sim --> CartPendulum
+Sim --> Pendulum
+Sim --> Controller
+Sim --> Database
+Sim --> CarlaSPS
+
+abstract class PendulumSimBase {
+    + dynamics()
+    + step()
+    + render()
+    + draw()
+    + update_plot()
+    + show_final_plot()
+}
+
+class Pendulum extends PendulumSimBase {
+    + dynamics()
+    + draw()
+}
+
+class CartPendulum extends PendulumSimBase {
+    + dynamics()
+    + draw()
+}
+
+
+
+' database classes '
+class Database {
+    {method} write_ss()
+    {method} write_data()
+    {method} read_latest()
+    {method} subscribe()
+}
+
+entity ss {
+    + data : blob
+    + timestamp : DateTime
+}
+entity data {
+    + data : blob
+    + timestamp : DateTime
+}
+
+entity controller {
+    + data : blob
+    + timestamp : DateTime
+
+}
+
+Database --> ss
+Database --> data
+Database --> controller
+
+
+hide empty members
+@enduml
