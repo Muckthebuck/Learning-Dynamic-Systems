@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 import time
 import matplotlib.pyplot as plt
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Union
 from abc import ABC, abstractmethod
 
 
@@ -21,7 +21,7 @@ class PendulumSimBase(ABC):
     """
     def __init__(self, initial_state: np.ndarray, C: np.ndarray, 
                  labels: Optional[list[str]] = None, sim_title: str = "Sim", dt: float = 0.02, 
-                 plot_system: bool = False, history_limit: int = 200) -> None:
+                 plot_system: bool = False, history_limit: float = 2) -> None:
         """
         Initializes the pendulum simulation.
 
@@ -30,7 +30,7 @@ class PendulumSimBase(ABC):
             initial_state (Optional[np.ndarray]): Initial state [theta, theta_dot].
         """
         self.dt: float = dt
-        self.history_limit=history_limit
+        self.history_limit=int(history_limit/dt)
         self.state: np.ndarray = initial_state
         self.C: np.ndarray = C
         self.plot_system: bool = plot_system
@@ -70,25 +70,31 @@ class PendulumSimBase(ABC):
         raise NotImplementedError("Subclasses must implement 'compute_dynamics'.")
 
 
-    def step(self, u: float, t) -> Tuple[np.ndarray, bool]:
+    def step(self, u: float, t, full_state: bool = False) -> Union[Tuple[np.ndarray, bool], Tuple[np.ndarray, bool, np.ndarray]]:
         """
         Advances the simulation by one time step using RK4 integration.
 
         Args:
             u (float): Control input (torque).
+            t (float): current time.
+            full_state (bool): Whether to return full state as well
 
         Returns:
             np.ndarray: Measured output [theta].
+            bool: Whether simulation is now stopped.
+            np.ndarray: Also returns fully observed state if full_state arg is true
         """
         self.state = self._rk4_step(self.state, u)
         if self.plot_system:
-            self.history.append(self.state.copy())
+            self.history.append(np.append(self.state,u))
             if len(self.history) > self.history_limit:
                 self.history = self.history[-self.history_limit:]  # Keep only the last N points
             self.update_plot(t)
         done = not self.render() # if render returns False, simulation is manually stopped
-        
-        return np.dot(self.C, self.state), done
+        if not full_state:
+            return np.dot(self.C, self.state), done
+        if full_state:
+            return np.dot(self.C, self.state), done, self.state
 
     def _rk4_step(self, state: np.ndarray, u: float) -> np.ndarray:
         """
