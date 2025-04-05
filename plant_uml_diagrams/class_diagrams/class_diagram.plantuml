@@ -1,0 +1,206 @@
+@startuml
+title Learning Dynamical Systems - April 2025
+' SPS '
+
+class fast_tfs_methods << (M,orchid) Module >> {
+    + @jit _simplify_array()
+    + @jit _simplify()
+    + @jit _ensure_same_size()
+    + @jit _convolve()
+    + @jit _add_tfs()
+    + @jit _add_scalar()
+    + @jit _sub_tfs()
+    + @jit _mul_tfs()
+    + @jit _mul_scalar()
+    + @jit _div_tfs()
+    + @jit _poly_divide()
+    + @jit _poly_sub()
+    + @jit _eGCD()
+    + @jit _reduce_fraction_numpy()
+}
+
+' Representing the main class '
+class d_tfs {
+    - __add__()
+    - __sub__()
+    - __rsub__()
+    - __mul__()
+    - __truediv__()
+    - __invert__()
+    - __neg__()
+    - __eq__()
+    - _apply_shift_operator()
+    - is_stable()
+    + ss_to_tf()
+    + sps_assumption_check()
+}
+
+class SPS_indirect_model{
+    - N
+    - m
+    - q
+    - alpha[]
+
+    + transform_to_open_loop()
+    + open_loop_sps()
+    - create_phi_optimized()
+    - write_state_space_to_db()
+}
+
+d_tfs -up-> fast_tfs_methods : "uses to implement dunder fns
+SPS_indirect_model -up-> d_tfs : "uses"
+
+class SPS {
+    - n_states
+    - n_inputs
+    - n_outputs
+    - n_noise_order
+    - n_params
+    + update_sps_region()
+}
+
+SPS ..> Database : "Subscribes to data and Writes to ss table"
+SPS --> SPS_indirect_model
+SPS --> SPS_Search
+
+
+class SPS_Search {
+    + mins
+    + maxes
+    + n_dimensions
+    + n_epochs
+    + initialisation_size
+    + search_size
+
+    + go()
+    + get_results()
+    - test_callback()
+    - plot_results_2d()
+    - store_plot_data_2d()
+}
+
+
+
+
+' Control '
+' class Observer {
+'     + P
+'     + Q
+'     + R
+'     + C
+'     + L
+'     + window_size
+'     + epsilon
+'     {method} update()
+'     {method} estimate_measurement_covariance()
+'     {method} estimate_process_covariance()
+' }
+
+class Controller {
+    + plant
+    + desired
+    - Q
+    - R
+    - K
+    - armax
+    + design_lqr()
+    + get_u()
+}
+
+class Plant {
+    - dt
+    - ss
+    - db
+    + dynamics()
+    - ss_callback()
+}
+
+class CarlaSPS {
+    - step()
+}
+
+Controller *-- Plant : "has a"
+Plant ..> Database : "subscribes to ss and writes to controller tablescan"
+
+' Simulation '
+
+class Sim {
+    - db
+    - controller_plant
+    - controller
+    - T
+    - dt
+    - initial_state
+    - state
+
+    - parse_arguments()
+    - initialise_plant()
+    - run()
+    - write_data_to_db()
+    - sim_model_response()
+    - square_wave()
+    - impulse_wave()
+}
+
+Sim ..> CarlaSPS : "selected dynamically"
+Sim ..> Pendulum : "selected dynamically"
+Sim ..> CartPendulum : "selected dynamically"
+
+note right of Sim
+  Selection made via dictionary
+end note
+
+Sim ..> Database : "writes to data table"
+Sim *-- Controller : "creates and uses"
+
+abstract class PendulumSimBase <<Abstract class>> {
+    + dynamics()
+    + step()
+    + render()
+    + draw()
+    + update_plot()
+    + show_final_plot()
+}
+
+class Pendulum extends PendulumSimBase {
+    + dynamics()
+    + draw()
+}
+
+class CartPendulum extends PendulumSimBase {
+    + dynamics()
+    + draw()
+}
+
+
+
+' database classes '
+class Database  << (S,#FF7700) Singleton >> {
+    {method} write_ss()
+    {method} write_data()
+    {method} read_latest()
+    {method} subscribe()
+}
+
+class ss  << (T,gold) Table >> {
+    + data : blob
+    + timestamp : DateTime
+}
+class data << (T,gold) Table >> {
+    + data : blob
+    + timestamp : DateTime
+}
+
+class controller << (T,gold) Table >> {
+    + data : blob
+    + timestamp : DateTime
+
+}
+
+Database --> ss
+Database --> data
+Database --> controller
+
+
+hide empty members
+@enduml
