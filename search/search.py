@@ -4,7 +4,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import confusion_matrix, f1_score
 
 from numba import njit, jit
-
+import logging
 class SPSSearch:
     def __init__(
         self,
@@ -17,7 +17,8 @@ class SPSSearch:
         search_size: float = 0.8, # Proportion of the meshgrid which should be searched after initialisation, inclusive of initialisation.
         n_epochs: int = 25, # How many epochs to break the search into, e.g. how many times should the results be predicted. Inclusive of initialisation.
         chance_test_in_region: float = 0.8,
-        k_neighbours = 7
+        k_neighbours = 7,
+        logger = None
     ):
         self.NUM_POINTS = n_points
         self.INITIALISATION_SIZE = initialisation_size
@@ -28,6 +29,7 @@ class SPSSearch:
         self.mins = mins
         self.maxes = maxes
         self.n_dimensions = n_dimensions
+        self.logger = logger if logger is not None else logging.getLogger(__name__)
 
 
         if test_cb is None:
@@ -78,10 +80,11 @@ class SPSSearch:
         self.n_per_epoch = int(self.SEARCH_SIZE * len(self.remaining_coords) / (self.NUM_EPOCHS-1))
 
         # Print some stats
-        print("Number of datapoints:", len(self.remaining_coords))
-        print("Number of random points:", self.n_random)
-        print("Number of points which will be tested:", int(self.SEARCH_SIZE * len(self.remaining_coords)))
-        print("Number of points per epoch:", self.n_per_epoch)
+        self.logger.info("[SPSSearch] Number of datapoints: %d", len(self.remaining_coords))
+        self.logger.info("[SPSSearch] Number of random points: %d", self.n_random)
+        self.logger.info("[SPSSearch] Number of points which will be tested: %d", int(self.SEARCH_SIZE * len(self.remaining_coords)))
+        self.logger.info("[SPSSearch] Number of points per epoch: %d", self.n_per_epoch)
+        self.logger.info("[SPSSearch] Number of points per dimension: %s", self.NUM_POINTS)
 
         # TODO: Allow a model with fit() and predict() functions to be passed in?
         # Otherwise, expose hyperparameters
@@ -92,6 +95,8 @@ class SPSSearch:
             self.plot_data = {}
             self.confusion_coords = set()
             self.confusion_data = []
+
+        self.logger.info("[SPSSearch] SPSSearch initialised")
 
 
     def get_random_coordinate(self) -> tuple:
@@ -158,7 +163,7 @@ class SPSSearch:
                         self.pred_out = np.concatenate([self.pred_out[:index-1], self.pred_out[index:]])
 
                 else:
-                    print("Run out of points to test! Stopping")
+                    self.logger.info("Run out of points to test! Stopping")
                     break
 
                 coord = tuple(coord.astype(int))
@@ -246,9 +251,9 @@ class SPSSearch:
     def go(self):
         # Perform random search
         self.random_search()
-
+        self.logger.debug("Random search complete")
         for i in range(1, self.NUM_EPOCHS):
-            print("Epoch", i)
+            self.logger.debug(f"Epoch: {i}")
             # Perform KNN
             self.calculate_knn_predictions()
 
@@ -259,14 +264,15 @@ class SPSSearch:
         return self.parameter_map, self.results
 
 
-@njit
+
+
 def jit_get_random_coordinate(num_points: np.ndarray) -> np.ndarray:
     """Returns an n-tuple random coordinate."""
-    output = []
+    output = np.empty(len(num_points), dtype=np.int32)  # Preallocate NumPy array
     for i in range(len(num_points)):
-        output.append(np.random.randint(0, num_points[i]))
-
+        output[i] = np.random.randint(0, num_points[i])  # Assign value directly
     return output
+
 
 
 

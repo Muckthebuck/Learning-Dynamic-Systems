@@ -10,7 +10,7 @@ class Plant:
     The class subscribes to the database for updates on the system dynamics.
     The class is used to design and implement controllers and observers.
     """
-    def __init__(self, dt=0.02, db: Database=None):
+    def __init__(self, dt=0.02, db: str = "sim.db"):
         """
         Initializes the plant model with default parameters.
         
@@ -22,15 +22,12 @@ class Plant:
         # sim params
         self.ss = None
         self.new_update = False
-        
-        if db is not None:
-            self.db = db
-        else:
-            # default "sim.db" database
-            self.db = Database()
+        self.db = Database(db_name=db)
+          
         
         self.db.subscribe("ss", self.ss_callback)
         self.initialised_event = threading.Event()
+        self.initialised_event.clear()
 
     def ss_callback(self, ss):
         """

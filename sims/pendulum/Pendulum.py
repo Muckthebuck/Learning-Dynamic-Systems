@@ -31,7 +31,7 @@ class Pendulum(PendulumSimBase):
         """
 
         super().__init__(initial_state=initial_state, C=np.array([[1, 0]]), 
-                         labels=["Pendulum Angle", "Pendulum Angular Velocity"], 
+                         labels=["Pendulum Angle", "Pendulum Angular Velocity", "Input"], 
                          sim_title="Pendulum Simulation", dt=dt, 
                          plot_system=plot_system, history_limit=history_limit)
 

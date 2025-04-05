@@ -30,7 +30,7 @@ class CartPendulum(PendulumSimBase):
             initial_state (Optional[np.ndarray]): Initial state [theta, theta_dot].
         """
         super().__init__(initial_state=initial_state, C=np.array([[1, 0, 0, 0], [0, 0, 1, 0]]),
-                         labels=["Cart Position", "Cart Velocity", "Pendulum Angle", "Pendulum Angular Velocity"],
+                         labels=["Cart Position", "Cart Velocity", "Pendulum Angle", "Pendulum Angular Velocity, Input"],
                          sim_title="Cart Pendulum Simulation", dt=dt,
                          plot_system=plot_system, history_limit=history_limit)
         self.g: float = 9.81

@@ -8,7 +8,9 @@ from sims.pendulum import Pendulum, CartPendulum
 from sims.car import CarlaSps
 from optimal_controller.controller import Plant, Controller
 import numpy as np
-from typing import Union
+from typing import Union, List
+import logging
+import time
 
 SIM_CLASS_MAP = {
     "Pendulum": (Pendulum, np.array([np.pi/4, 0.0]), (2,1)),
@@ -20,41 +22,58 @@ class Sim:
     """
     CartPendulumSimulation class handles the simulation and visualization of the cart-pendulum system.
     """
-    def __init__(self, disturbance=50.0):
+    def __init__(self, raw_args: List[str]=None, db: Database=None, args: argparse.Namespace=None, logger: logging.Logger=None):
         """
         Initializes the simulation environment.
 
         Args:
-            plant (CartPendulumPlant): Plant model instance.
-            T (float): Total simulation time.
-            disturbance (float): Magnitude of the disturbance force.
+            raw_args (list): Command line arguments to override default values.
+            db (Database): Database object for storing simulation data.
+            args (argparse.Namespace): Parsed command line arguments.
         """
-        self.parse_arguments()
-        self.apply_disturbance = False
-
-    def parse_arguments(self):
+        self.logger = logger if logger else logging.getLogger(__name__)
+        self.parse_arguments(raw_args=raw_args, db=db, args=args)
+    
+    def _parse_args(self, raw_args: List[str]=None, args: argparse.Namespace=None) -> argparse.Namespace:
+        if args is not None:
+            return args
         parser = argparse.ArgumentParser(description="Process arguments inside a class.")
         parser.add_argument("--T", type=float, default=10, help="Total simulation time")
         parser.add_argument("--dt", type=float, default=0.02, help="Simulation time step")
         parser.add_argument("--sim", type=str, required=True, 
                             choices=["Pendulum", "Cart-Pendulum", "Carla"], 
                             help=f"Your simulation (must be one of {list(SIM_CLASS_MAP.keys())})")
-        parser.add_argument("--plot_system", action=argparse.BooleanOptionalAction, default=True, help="Plot the system")
-        parser.add_argument("--history_limit", type=int, default=200, help="Limit of history for plotting")
-        parser.add_argument("--dB", type=str, default="sim.db", help="Database file")
+        parser.add_argument("--plot_system", action="store_true", help="Enable plotting")
+        parser.add_argument("--history_limit", type=float, default=2, help="Limit of history for plotting")
+        parser.add_argument("--dB", type=str, default="sim_data.db", help="Database file")
         parser.add_argument("--disturbance", type=float, default=50.0, help="Magnitude of disturbance force")
+        parser.add_argument("--apply_disturbance", action="store_true", help="apply disturbance")
         parser.add_argument("--controller", type=str, default="lqr", help="Controller type")
-        args = parser.parse_args()
+        args = parser.parse_args(raw_args)
+        return args
+
+
+    def parse_arguments(self, raw_args=None, db:Database=None, args: argparse.Namespace=None):
+        args = self._parse_args(raw_args=raw_args, args=args)
         self.T: float = args.T
         self.dt: float = args.dt
         sim, state, self.n = SIM_CLASS_MAP[args.sim]
         self.initial_state: np.ndarray = state
+        self.apply_disturbance = args.apply_disturbance
+        self.disturbance = args.disturbance
+
         self.sim: Union[Pendulum, CartPendulum, CarlaSps] = sim(dt=self.dt, 
                                                                 initial_state=state, 
                                                                 plot_system=args.plot_system, 
                                                                 history_limit=args.history_limit)
-        self.db = Database(args.dB)
-        self.controller_plant = Plant(dt=self.dt, db=self.db)
+        
+        if db is not None:
+            self.db = db
+            db_name = db.db_name
+        else:
+            self.db = Database(args.dB)
+            db_name = args.dB
+        self.controller_plant = Plant(dt=self.dt, db=db_name)
         self.controller = Controller(plant=self.controller_plant, type=args.controller, n=self.n)
     
     def write_data_to_db(self, y: np.ndarray, u: np.ndarray, r: np.ndarray, sps_type: SPSType):
@@ -64,11 +83,11 @@ class Sim:
             "r": r,
             "sps_type": sps_type
         }
-        data = SimpleNamespace(data)
+        data = SimpleNamespace(**data)
         if self.db:
             self.db.write_data(data=data)
         else:
-            print("No database provided.")
+            self.logger.warning("No database provided.")
     
     def square_wave(self, T, f, fs):
         """
@@ -93,7 +112,7 @@ class Sim:
         y = np.tile(y, (self.n[1], 1)).T
         return t, y
     
-    def impulse_wave(self, T, f, fs):
+    def impulse_wave(self, T, f, fs, A=40):
         """
         Generate an impulse wave.
 
@@ -115,7 +134,7 @@ class Sim:
         y = np.zeros_like(t)                                # Initialize signal with zeros
         
         impulse_period = int(fs / f)                        # Samples between impulses
-        y[::impulse_period] = 1                             # Set impulses at intervals
+        y[::impulse_period] = A                             # Set impulses at intervals
         y = np.tile(y, (self.n[1], 1)).T
         return t, y
 
@@ -131,14 +150,14 @@ class Sim:
         t, u = _input()
         self.sim.state = self.initial_state
         states = []
-        states.append(self.sim.state.copy())
+        states.append(np.dot(self.sim.C, self.sim.state))
         for _u, t in zip(u, t):
             states.append(self.sim.step(u=_u, t=t)[0])
         states.pop()
         states = np.array(states)
         return states, u, t
     
-    def initialise_plant(self, T=5, f=1, input_type="square_wave", timeout=10, max_retries=3):
+    def initialise_plant(self, T=5, f=1, input_type="square_wave"):
         """
         Whack the system with square wave or impulses, send the data to DB,
         and wait for an SS update with retries before raising TimeoutError.
@@ -154,14 +173,25 @@ class Sim:
             TimeoutError: If no SS update is received within the timeout after retries.
         """
         if self.controller_plant.initialised:
-            print("[Init] Already initialized, skipping whacking")
+            self.logger.info("[Init] Already initialized, skipping whacking")
             return
 
         # Send input to DB
         y, u, t = self.sim_model_response(T=T, f=f, input_type=input_type)
         self.write_data_to_db(y=y, u=u, r=None, sps_type=SPSType.OPEN_LOOP)
-        self.controller_plant.initialised_event.wait(timeout=timeout)
-        print("[Init] Plant initialized")
+        curr_t = t
+        i=0
+        n_u = u.shape[0]
+        self.logger.debug(f"[SIMS] Sending {n_u} inputs to DB")
+        self.logger.info("[Init] Waiting for SS update...")
+        while self.controller_plant.initialised_event.is_set() is False:
+            # continue running the simulation with the same input recurrently
+            self.sim.step(u=u[i%n_u], t=curr_t)
+            i += 1
+            curr_t += self.dt
+
+            
+        self.logger.info("[Init] Plant initialized")
 
 
     def run(self):
@@ -169,17 +199,18 @@ class Sim:
         Runs the cart-pendulum simulation.
         """
         state = self.sim.state
+        y = np.dot(self.sim.C, state)
         history_y = []
         history_u = []
         r = np.pi/2
         buffer_len = 1000
         for _ in range(int(self.T / self.dt)):
             # get the controller output
-            u = self.controller.get_u(y=state, r=r)
+            u = self.controller.get_u(state, r=r)
 
             # history management and write to DB
             if len(history_y) < buffer_len:
-                history_y.append(state.copy())
+                history_y.append(y.copy())
                 history_u.append(u.copy())
             if len(history_y) == buffer_len:
                 self.write_data_to_db(y=np.array(history_y), 
@@ -190,22 +221,31 @@ class Sim:
                 history_u = []
 
             # update the state
-            state, done = self.sim.step(u=u, t=_ * self.dt)
+            y, done, state = self.sim.step(u=u, t=_ * self.dt, full_state=True)
             if done:
                 break
 
         self.sim.show_final_plot()
 
+def run_simulation(raw_args=None, db:Database=None, args: argparse.Namespace=None, logger: logging.Logger=None):
+    """
+    Run the simulation with optional command line arguments.
+
+    Args:
+        raw_args (list): Command line arguments to override default values.
+    """
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+    logger = logger if logger else logging.getLogger(__name__)
+    # Create the simulation instance
+    simulation = Sim(raw_args=raw_args, db=db, args=args, logger=logger)
+    logger.info("[Init] Simulation instance created")
+
+    # initialise the plant
+    simulation.initialise_plant(T=2, f=5, input_type="impulse_wave")
+    # Run the simulation
+    simulation.run()
  
 
 if __name__ == '__main__':
-    # Placeholder for controller (you may need to replace this with an actual controller instance)
-    controller = None  
-
     # Create the simulation instance
-    simulation = Sim(controller=controller, disturbance=50.0)
-
-    # initialise the plant
-    simulation.initialise_plant(T=5, f=1, input_type="square_wave", timeout=10, max_retries=3)
-    # Run the simulation
-    simulation.run()
+    run_simulation()
