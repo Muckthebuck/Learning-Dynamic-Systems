@@ -47,7 +47,7 @@ class Sim:
         parser.add_argument("--history_limit", type=float, default=2, help="Limit of history for plotting")
         parser.add_argument("--dB", type=str, default="sim_data.db", help="Database file")
         parser.add_argument("--disturbance", type=float, default=50.0, help="Magnitude of disturbance force")
-        parser.add_argument("--apply_disturbance", action="store_true", help="apply disturbace")
+        parser.add_argument("--apply_disturbance", action="store_true", help="apply disturbance")
         parser.add_argument("--controller", type=str, default="lqr", help="Controller type")
         args = parser.parse_args(raw_args)
         return args
