@@ -4,3 +4,7 @@ scipy
 cupy-cuda12x
 control
 opencv-python
+sqlite
+numba
+scikit-learn
+redis[hiredis]
