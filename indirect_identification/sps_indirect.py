@@ -58,10 +58,11 @@ class SPS_indirect_model:
         return phi
 
     def transform_to_open_loop(self, 
-                               G: Union['d_tfs', Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]]], 
-                               H: Union['d_tfs', Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]]], 
-                               F: Union['d_tfs', Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]]], 
-                               L: Union['d_tfs', Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]]]) -> Tuple['d_tfs', 'd_tfs']:
+                                G: Union['d_tfs', Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]]], 
+                                H: Union['d_tfs', Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]]], 
+                                F: Union['d_tfs', Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]]], 
+                                L: Union['d_tfs', Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]]],
+                                check_stability: bool = True) -> Tuple['d_tfs', 'd_tfs']:
         """
         Transform the closed-loop system to an open-loop system.
         
@@ -86,8 +87,9 @@ class SPS_indirect_model:
         GF_plus_I = (G * F) + 1
         i_GF_plus_I = 1/GF_plus_I
         
-        if not all(tf.is_stable() for tf in [L, G, H, 1/H, i_GF_plus_I] if isinstance(tf, d_tfs)):
-            raise ValueError(f"Error transforming to open loop: stability conditions not satisfied.")
+        if check_stability:
+            if not all(tf.is_stable() for tf in [L, G, H, 1/H, i_GF_plus_I] if isinstance(tf, d_tfs)):
+                raise ValueError(f"Error transforming to open loop: stability conditions not satisfied.")
         
         G_0 = i_GF_plus_I * G * L
         H_0 = i_GF_plus_I * H
