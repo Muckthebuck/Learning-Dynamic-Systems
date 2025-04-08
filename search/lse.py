@@ -25,7 +25,7 @@ def test_ls(params, K: float, U, Y):
     A = [1, a]
     B = [0, b]
     C = [1, c]
-    F = [0.31, 0.23] # F(z^-1) = 0.31 + 0.23z^-1
+    F = [1] # F(z^-1) = 0.31 + 0.23z^-1
     L = [1]        # L(z^-1) = 1
 
     G = d_tfs((B, A))
@@ -33,22 +33,19 @@ def test_ls(params, K: float, U, Y):
     F = d_tfs((F, [1]))
     L = d_tfs((L, [1]))
 
-    G_0, H_0 = sps.transform_to_open_loop(G, H, F, L)
+    G_0, H_0 = sps.transform_to_open_loop(G, H, F, L, check_stability=False)
 
     YGU = Y - G_0 * U
     N_hat = (1/H_0) * YGU
 
-    Y_pred = G_0 * U + H_0 * N_hat
-
-    residual = Y - Y_pred
-    return np.sum([residual**2])  # Return SSE
+    return np.sum([N_hat**2]) # Return SSE
 
 if __name__ == "__main__":
     # Example usage
     A = [1, -0.33]  # A(z^-1) = 1 - 0.33z^-1
     B = [0.22]      # B(z^-1) = 0.22z^-1
     C = [1, 0.15]   # C(z^-1) = 1 + 0.15z^-1
-    F = [0.31, 0.23] # F(z^-1) = 0.31 + 0.23z^-1
+    F = [1] # F(z^-1) = 0.31 + 0.23z^-1
     L = [1]        # L(z^-1) = 1
 
 
@@ -57,11 +54,11 @@ if __name__ == "__main__":
 
     n_samples = 100
     R = 3*np.ones(n_samples)
-    Y, U, N, R = armax_model.simulate(n_samples, R, noise_std=0.2)
+    Y, U, N, R = armax_model.simulate(n_samples, R, noise_std=0.1)
     K = 1
 
     # sse = test_ls( (0.2, 0.2, 0.1), 1, U=U, Y=Y )
 
-    x0 = np.array([1, 0.1, 0.1])
+    x0 = np.array([1, 0.22, 0.15])
     res = optimize.least_squares(test_ls, x0, args=(K, U, Y))
     print(res)
