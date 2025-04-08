@@ -201,7 +201,7 @@ class Database:
 
     def write_controller(self, controller: SimpleNamespace) -> None:
         """Write controller data to the database."""
-        self.write_table("archive_controller", controller)
+        self.write_table("controller", controller)
 
     def write_table(self, table: str, data: Any) -> None:
         """Write data to the specified table."""
