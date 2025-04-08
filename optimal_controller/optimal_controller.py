@@ -2,6 +2,7 @@ import sys
 import numpy as np
 import mosek.fusion as mf
 import mosek.fusion.pythonic # Provides operators +, -, @, .T, slicing etc.
+import logging
 from scipy.optimize import minimize
 from scipy.spatial import ConvexHull
 from scipy.linalg import eigvals, solve_discrete_lyapunov, solve_discrete_are
@@ -17,11 +18,11 @@ def get_optimal_controller(A_list, B_list, method='LMI', Q=None, R=None, x_0=Non
     ocSolver.solve(method=method)
     if ocSolver.prosta == None:
         return ocSolver.K_opt
-    else:
-        raise RuntimeError (f"Could not find stabilising controller: {ocSolver.prosta}")
 
 class OptimalControlSolver:
-    def __init__(self, A_list, B_list):
+    def __init__(self, A_list, B_list, logger: logging.Logger = None):
+
+        self.logger = logger if logger else logging.getLogger(__name__)
         
         self.set_plants(A_list,B_list)
 
@@ -45,15 +46,14 @@ class OptimalControlSolver:
         self.n_plants = self.B_list.shape[0]
         self.n_states = self.B_list.shape[1]
         self.n_inputs = self.B_list.shape[2]
-        self.get_plant_hulls()
 
     def get_plant_hulls(self):
         # Using ConvexHull method for now - MVEE method will be implemented later as needed
         self.A_verts, self.n_A_verts = get_hull_matrices(self.A_list)
         self.B_verts, self.n_B_verts = get_hull_matrices(self.B_list)
-        print(f"> Convex hull of A set has {self.n_A_verts} vertices")
-        print(f"> Convex hull of B set has {self.n_B_verts} vertices")
-        print(f"> This will lead to {self.n_A_verts*self.n_B_verts} LMI constraints")
+        self.logger.info(f" Convex hull of A set has {self.n_A_verts} vertices")
+        self.logger.info(f" Convex hull of B set has {self.n_B_verts} vertices")
+        self.logger.info(f" This will lead to {self.n_A_verts*self.n_B_verts} LMI constraints")
     
     def solve(self, method='LMI'):
         if method == 'riccati':
@@ -65,11 +65,10 @@ class OptimalControlSolver:
 
     def solve_LMIs(self):
 
-        if self.A_verts is None or self.B_verts is None:
-            self.get_plant_hulls()
+        self.get_plant_hulls()
 
         M = mf.Model("Simultaneous stabilisation LMI solver")
-        M.setLogHandler(sys.stdout)
+        # M.setLogHandler(sys.stdout) # enable for verbose MOSEK status updates
         G = M.variable("G", [self.n_states, self.n_states], mf.Domain.unbounded())
         L = M.variable("L", [self.n_inputs, self.n_states], mf.Domain.unbounded())
         P_ij = [[M.variable(f"P_{i}_{j}", [self.n_states, self.n_states], mf.Domain.inPSDCone()) for j in range(self.n_B_verts)] for i in range(self.n_A_verts)]
@@ -86,7 +85,7 @@ class OptimalControlSolver:
                 )
                 pd_defn = self.pd_eps * np.eye(2 * self.n_states)
                 M.constraint(LMI_ij - pd_defn, mf.Domain.inPSDCone(2 * self.n_states))
-        print(f"> Defined {self.n_A_verts*self.n_B_verts} LMI constraints")
+        self.logger.info(f" Defined {self.n_A_verts*self.n_B_verts} LMI constraints")
 
         try:
             M.acceptedSolutionStatus(self.acceptableSoln)
@@ -97,18 +96,19 @@ class OptimalControlSolver:
             L_val = np.array(L.level()).reshape(self.n_inputs, self.n_states)
             self.K_stab = -L_val @ np.linalg.inv(G_val) # K = -L * inv(G)
 
-            print(f"> {solsta}, simultaneously stabilising feedback gain is K = {self.K_stab}")
+            self.logger.info(f" {solsta}, simultaneously stabilising feedback gain is K = {self.K_stab}")
 
         except:
+            self.logger.info(f" Could not find stabilising controller!")
             self.prosta = M.getProblemStatus()
             if self.prosta == mf.ProblemStatus.PrimalInfeasible:
-                print("> Infeasible problem: primal infeasibility certificate found.")
+                self.logger.info(" Infeasible problem: primal infeasibility certificate found.")
             elif self.prosta == mf.ProblemStatus.DualInfeasible:
-                print("> Infeasible problem: dual infeasibility certificate found.")
+                self.logger.info(" Infeasible problem: dual infeasibility certificate found.")
             elif self.prosta == mf.ProblemStatus.Unknown:
-                print("> MOSEK returned unknown problem status (invalid licence, or solver ran into stall/numerical issues).")
+                self.logger.info(" MOSEK returned unknown problem status (invalid licence, or solver ran into stall/numerical issues).")
             else:
-                print(f"Unknown error has occurred! MOSEK ProblemStatus: {self.prosta}")
+                self.logger.info(f"Unknown error has occurred! MOSEK ProblemStatus: {self.prosta}")
         
     
     def optimise_K(self):
@@ -124,22 +124,22 @@ class OptimalControlSolver:
         results = minimize(objective, self.K_stab.flatten(), method="BFGS", options={"disp": False, "xrtol": self.delta_J_tol}, callback=disp_current_J)
         np.seterr(invalid='warn')
         self.K_opt = results.x.reshape(self.n_inputs,self.n_states)
-        print(f"> Optimised the simultaneously stabilising feedback gain, yielding K = {self.K_opt}")
+        self.logger.info(f" Optimised the simultaneously stabilising feedback gain, yielding K = {self.K_opt}")
         
         worst_J = compute_worst_case_J(self.K_stab, self.A_list, self.B_list, self.Q, self.R, self.x_0)
         worst_J_optimized = compute_worst_case_J(self.K_opt, self.A_list, self.B_list, self.Q, self.R, self.x_0)
-        print(f"> Worst J using initial K: {worst_J:.4f}")
-        print(f"> Worst J using optimized K: {worst_J_optimized:.4f}")
+        self.logger.info(f" Worst J using initial K: {worst_J:.4f}")
+        self.logger.info(f" Worst J using optimized K: {worst_J_optimized:.4f}")
     
     def solve_heuristically(self):
         K_soln = get_optimal_controller_riccati_method(self.A_list, self.B_list, self.Q, self.R, self.x_0)
-        print(f"> Computed solution via Riccati heuristic, K = {K_soln}")
+        self.logger.info(f" Computed solution via Riccati heuristic, K = {K_soln}")
 
         worst_J = compute_worst_case_J(K_soln, self.A_list, self.B_list, self.Q, self.R, self.x_0)
         if worst_J == np.inf:
-            print("> Riccati heuristic did not return a stabilising controller!")
+            self.logger.info(" Riccati heuristic did not return a stabilising controller!")
         else:
-            print(f"> Worst J using Riccati heuristic K: {worst_J:.4f}")
+            self.logger.info(f" Worst J using Riccati heuristic K: {worst_J:.4f}")
             self.K_stab = K_soln
             self.optimise_K()
 

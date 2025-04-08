@@ -1,5 +1,158 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
+
+def sample_fused_conf_region(p_tensor, grid_axes, cumprob=0.95):
+    """
+    Find the confidence region for arbitrary-dimensional p_tensor using specified grid_axes.
+    Returns selected points and actual cumulative probability achieved.
+    
+    Args:
+        p_tensor: ndarray of probabilities (not necessarily 2D).
+        grid_axes: list of arrays for each axis (e.g., [a_vals, b_vals, ...]).
+        cumprob: desired cumulative probability (default: 0.95).
+        
+    Returns:
+        selected_points: np.ndarray of shape (N, D), D = number of dimensions
+        p: actual cumulative probability (float)
+    """
+    flat_p = p_tensor.flatten()
+    sorted_indices = np.argsort(flat_p)[::-1]  # sort high to low
+    sorted_probs = flat_p[sorted_indices]
+
+    # Get unique candidate thresholds from highest to lowest
+    candidate_thresholds = np.sort(np.unique(sorted_probs))[::-1]
+    cumsums = []
+    for threshold in candidate_thresholds:
+        above_threshold = sorted_probs >= threshold
+        cumsum = np.sum(sorted_probs[above_threshold])
+        cumsums.append(cumsum)
+    cumsums = np.array(cumsums)
+
+    # Find threshold whose cumulative probability is closest to target
+    idx = np.argmin(np.abs(cumsums - cumprob))
+    if idx == len(cumsums) - 1:
+        idx -= 1
+    threshold = candidate_thresholds[idx]
+    p = cumsums[idx]
+
+    # Indices of elements in tensor above the threshold
+    top_indices = np.where(sorted_probs >= threshold)[0]
+    in_set_flat = sorted_indices[top_indices]
+    unravelled = np.array(np.unravel_index(in_set_flat, p_tensor.shape)).T  # shape (N, D)
+
+    # Map each index to its corresponding coordinate
+    selected_points = np.stack(
+        [grid_axes[d][unravelled[:, d]] for d in range(len(grid_axes))],
+        axis=1
+    )
+
+    return selected_points, p
+
+# def sample_fused_conf_region(p_matrix,a_range,b_range,cumprob=0.95):
+#     """
+#     Find the 95% confidence region (a,b) points, given non-binary indicators.
+#     """
+
+#     # sort points by probability, storing the original indices so we can undo the mapping later
+#     flat_p_matrix = p_matrix.flatten()
+#     sorted_indices = np.argsort(flat_p_matrix)[::-1]  # sort from highest to lowest probability
+#     sorted_probs = flat_p_matrix[sorted_indices]
+    
+#     # find the threshold which gives set of plants that has approximately 0.95 cumulative probability
+#     candidate_thresholds = np.sort(np.unique(sorted_probs))[::-1]
+#     cumsums = []
+#     for threshold in candidate_thresholds:
+#         above_threshold = np.where(sorted_probs >= threshold)
+#         cumsum = np.cumsum(sorted_probs[above_threshold])[-1]
+#         cumsums.append(cumsum)
+#     cumsums = np.array(cumsums)
+#     idx = np.argmin(np.abs(cumsums - cumprob))
+#     if idx == len(cumsums) - 1:
+#         idx -= 1
+#     threshold = candidate_thresholds[idx]
+#     p = cumsums[idx]
+
+#     # apply this threshold and return the corresponding set of plants
+#     top_indices = np.where(sorted_probs >= threshold)[0]
+#     in_set = sorted_indices[top_indices]
+#     grid_positions = np.unravel_index(in_set, p_matrix.shape)
+#     selected_points = list(zip(grid_positions[0], grid_positions[1]))
+#     a_grid, b_grid = np.meshgrid(a_range, b_range, indexing='xy')
+#     a_selected = a_grid[grid_positions]
+#     b_selected = b_grid[grid_positions]
+
+#     return a_selected, b_selected, p
+
+def fuse(new_info, prior, forget=0.0):
+    # https://en.wikipedia.org/wiki/Recursive_Bayesian_estimation#Model
+    #  - not sure how to theoretically justify the forgetting factor part
+
+    # forget: forgetting factor such that
+    #   1 = disregard all past data
+    #   0 = assume past data is always relevant (no change in plant over time)
+
+    assert 0.0 <= forget and forget <= 1.0
+    
+    modified_prior = np.mean(prior) * np.ones(prior.shape) * forget + prior * (1-forget)
+    posterior = np.multiply(modified_prior, new_info) # Hadamard product
+    posterior /= np.sum(np.abs(posterior)) # normalisation
+    posterior = np.maximum(1e-8, posterior) # to avoid floating point error, this is the new "zero" value
+    return posterior
+
+def plot_fused_conf_region(p_matrix, fig, ax, a_values, b_values, true_a=None, true_b=None, title=None, colorbar=True):
+    # a_offset = (a_values[1] - a_values[0]) * 0.5
+    # b_offset = (b_values[1] - b_values[0]) * 0.5
+    a_offset = 0
+    b_offset = 0
+    
+    # PuBu_r
+    # Greys
+    im = ax.imshow(p_matrix, cmap="PuBu_r", origin="lower", norm=colors.LogNorm(vmin=1e-5, vmax=1e-1), extent=[b_values[0] - b_offset, b_values[-1]- b_offset, a_values[0]- a_offset, a_values[-1]- a_offset])
+    ax.set_aspect('auto')
+    ax.set_xticks(b_values[::10])
+    ax.set_yticks(a_values[::10])
+    ax.set_xlabel('b')
+    ax.set_ylabel('a')
+    if colorbar:
+        fig.colorbar(im, ax=ax)
+    if true_a is not None and true_b is not None:
+        ax.plot(true_b, true_a, 'rx')  # Plot the true values as a red dot
+    ax.set_title(title)
+
+def construct_p_tensor(points_in_conf_region, grid_axes, p=0.95, eps=1e-8):
+
+    mesh = np.meshgrid(*grid_axes, indexing='ij')
+    grid_shape = mesh[0].shape
+    n_dims = len(grid_axes)
+
+    # Initialize full p_tensor with p_bar = 1-p
+    p_tensor = np.ones(grid_shape) * (1 - p)
+
+    # Loop through all indices in the grid, amending p=0.95 for points in confidence region
+    for idx in np.ndindex(grid_shape):
+        pt = np.array([axis[idx] for axis in mesh])
+        if np.any(np.all(np.isclose(points_in_conf_region, pt, atol=eps), axis=1)):
+            p_tensor[idx] = p
+
+    # Normalize
+    p_tensor /= np.sum(np.abs(p_tensor))
+    return p_tensor
+
+# def construct_p_matrix(points_in_conf_region, a_range, b_range, p=0.95, eps=1e-6):
+#     a_grid, b_grid = np.meshgrid(a_range, b_range, indexing='xy')
+#     n_a = len(a_range)
+#     n_b = len(b_range)
+#     p_matrix = np.ones((n_a,n_b)) * (1-p)
+#     for i in range(n_a):
+#         for j in range(n_b):
+#             a = a_grid[i][j]
+#             b = b_grid[i][j]
+#             # Check if the current gridpoint (a, b) is in the confidence region, update p_matrix if so
+#             if np.any(np.all(np.isclose(points_in_conf_region, np.array([a, b]), atol=eps), axis=1)):
+#                 p_matrix[i][j] = p
+#     p_matrix /= np.sum(np.abs(p_matrix)) # normalise
+#     return p_matrix.copy()
 
 def get_conf_region(region_bounds, granularity, model, n_a, n_b, C, L, F, Y, R):
     
@@ -8,7 +161,7 @@ def get_conf_region(region_bounds, granularity, model, n_a, n_b, C, L, F, Y, R):
     
     # Create a meshgrid for A and B values
     grid_axes = [np.linspace(region_bounds[i][0], region_bounds[i][1], granularity[i]) for i in range(n_a+n_b)]
-    grid_vals = np.meshgrid(*grid_axes, indexing='ij')
+    grid_vals = np.meshgrid(*grid_axes, indexing='xy')
     grid_vals = np.array(grid_vals)
 
     # Flatten the meshgrid and iterate through each (A,B) candidate
@@ -39,7 +192,7 @@ def get_conf_region(region_bounds, granularity, model, n_a, n_b, C, L, F, Y, R):
     
     return np.array(pts_in_conf_region)
 
-def plot_pts_in_conf_region(pts_in_conf_region, x_dim, y_dim, true_param, fig=None, ax=None):
+def plot_pts_in_conf_region(pts_in_conf_region, x_dim, y_dim, fig=None, ax=None):
 
     if fig is None and ax is None:
         fig, ax = plt.subplots()
@@ -54,7 +207,6 @@ def plot_pts_in_conf_region(pts_in_conf_region, x_dim, y_dim, true_param, fig=No
     except AttributeError:
         pass  # already an np.ndarray
 
-    ax.plot(true_param[0], true_param[1], 'rx')  # Plot the true values as a red dot
     ax.plot(pts_in_conf_region[:, x_dim], pts_in_conf_region[:, y_dim], 'k.', markersize=3)
     
     return
