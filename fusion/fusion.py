@@ -2,6 +2,87 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
+def fuse_ranks(new_ranks, old_ranks, forget=0):
+    # new_ranks_weighting = 1 / (n+1)
+    # old_ranks_weighting = n / (n+1)
+    # fused_ranks = np.add(new_ranks_weighting * new_ranks, old_ranks_weighting * old_ranks)
+    
+    new_info = 1 - new_ranks
+    prior = 1 - old_ranks
+    new_info = np.maximum(1e-16, new_info)
+    prior = np.maximum(1e-16, prior)
+    modified_prior = np.mean(prior) * np.ones(prior.shape) * forget + prior * (1-forget)
+    fused_probs = np.multiply(new_info, modified_prior)
+    fused_probs = fused_probs / fused_probs.max()
+    fused_ranks = 1 - fused_probs
+    return fused_ranks
+
+def get_ranks(grid_axes, model, n_a, n_b, C, L, F, Y, R):
+
+    mesh = np.meshgrid(*grid_axes, indexing='ij')
+    grid_shape = mesh[0].shape
+    rank_tensor = np.zeros(grid_shape)
+
+    # Loop through all plant params and store the SPS ranks
+    for idx in np.ndindex(grid_shape):
+        # Current plant params
+        pt = np.array([axis[idx] for axis in mesh])
+        A = np.concatenate(([1], -pt[:n_a]))
+        B = np.concatenate(([0],  pt[n_a:]))
+        G = (B, A)
+        H = (C, A)
+        # Transform to open loop
+        try:
+            G_0, H_0 = model.transform_to_open_loop(G, H, F, L)
+            in_sps, float_rank, S1 = model.open_loop_sps(G_0, H_0, Y, R, n_a, n_b, return_rank=True)
+            rank_tensor[idx] = float_rank
+        except Exception as e:
+            rank_tensor[idx] = 1.0 # Unstable open loop system
+    
+    return rank_tensor
+
+def sample_fused_rank_tensor(rank_tensor, grid_axes, p=0.95):
+    """
+    """
+    mask = np.where(rank_tensor <= p)
+    mask = np.array(mask)
+    grid_vals = np.meshgrid(*grid_axes, indexing='ij')
+    grid_vals = np.array(grid_vals)
+    n_dims = grid_vals.shape[0]
+    in_conf_region = []
+    for idx in zip(*mask):  # idx is a tuple (x, y)
+        plant_params = [grid_vals[i][idx] for i in range(n_dims)]
+        in_conf_region.append(plant_params)
+
+    return np.array(in_conf_region)
+
+def scatter3d(conf_region, ax, plane_idx): #, show_true_val=True):
+    
+    ax.scatter(conf_region[:,0], conf_region[:,1], conf_region[:,2])
+
+    if plane_idx == 0:
+        title = 'xy plane'
+        ax.set_xlabel('a_1')
+        ax.set_ylabel('a_2')
+
+    elif plane_idx == 1:
+        title = 'xz plane'
+        ax.set_xlabel('a_1')
+        ax.set_zlabel('b_1')
+
+    elif plane_idx == 2:
+        title = 'yz plane'
+        ax.set_ylabel('a_2')
+        ax.set_zlabel('b_1')
+    
+    ax.set_title(title)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_zticks([])
+    elev = 90 if plane_idx == 0 else 0
+    azim = 0  if plane_idx == 2 else -90
+    ax.view_init(elev=elev, azim=azim, roll=0)
+
 def sample_fused_conf_region(p_tensor, grid_axes, cumprob=0.95):
     """
     Find the confidence region for arbitrary-dimensional p_tensor using specified grid_axes.
@@ -101,14 +182,7 @@ def fuse(new_info, prior, forget=0.0):
     return posterior
 
 def plot_fused_conf_region(p_matrix, fig, ax, a_values, b_values, true_a=None, true_b=None, title=None, colorbar=True):
-    # a_offset = (a_values[1] - a_values[0]) * 0.5
-    # b_offset = (b_values[1] - b_values[0]) * 0.5
-    a_offset = 0
-    b_offset = 0
-    
-    # PuBu_r
-    # Greys
-    im = ax.imshow(p_matrix, cmap="PuBu_r", origin="lower", norm=colors.LogNorm(vmin=1e-5, vmax=1e-1), extent=[b_values[0] - b_offset, b_values[-1]- b_offset, a_values[0]- a_offset, a_values[-1]- a_offset])
+    im = ax.imshow(p_matrix, cmap="PuBu_r", origin="lower", norm=colors.LogNorm(vmin=1e-5, vmax=1e-1), extent=[b_values[0], b_values[-1], a_values[0], a_values[-1]])
     ax.set_aspect('auto')
     ax.set_xticks(b_values[::10])
     ax.set_yticks(a_values[::10])
@@ -119,6 +193,7 @@ def plot_fused_conf_region(p_matrix, fig, ax, a_values, b_values, true_a=None, t
     if true_a is not None and true_b is not None:
         ax.plot(true_b, true_a, 'rx')  # Plot the true values as a red dot
     ax.set_title(title)
+
 
 def construct_p_tensor(points_in_conf_region, grid_axes, p=0.95, eps=1e-8):
 
@@ -139,20 +214,6 @@ def construct_p_tensor(points_in_conf_region, grid_axes, p=0.95, eps=1e-8):
     p_tensor /= np.sum(np.abs(p_tensor))
     return p_tensor
 
-# def construct_p_matrix(points_in_conf_region, a_range, b_range, p=0.95, eps=1e-6):
-#     a_grid, b_grid = np.meshgrid(a_range, b_range, indexing='xy')
-#     n_a = len(a_range)
-#     n_b = len(b_range)
-#     p_matrix = np.ones((n_a,n_b)) * (1-p)
-#     for i in range(n_a):
-#         for j in range(n_b):
-#             a = a_grid[i][j]
-#             b = b_grid[i][j]
-#             # Check if the current gridpoint (a, b) is in the confidence region, update p_matrix if so
-#             if np.any(np.all(np.isclose(points_in_conf_region, np.array([a, b]), atol=eps), axis=1)):
-#                 p_matrix[i][j] = p
-#     p_matrix /= np.sum(np.abs(p_matrix)) # normalise
-#     return p_matrix.copy()
 
 def get_conf_region(region_bounds, granularity, model, n_a, n_b, C, L, F, Y, R):
     

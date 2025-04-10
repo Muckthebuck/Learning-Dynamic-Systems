@@ -93,7 +93,7 @@ class SPS_indirect_model:
         H_0 = i_GF_plus_I * H
         return G_0, H_0
     
-    def open_loop_sps(self, G_0: 'd_tfs', H_0: 'd_tfs', Y_t: np.ndarray, U_t: np.ndarray, n_a: int, n_b: int) -> Tuple[bool, np.ndarray]:
+    def open_loop_sps(self, G_0: 'd_tfs', H_0: 'd_tfs', Y_t: np.ndarray, U_t: np.ndarray, n_a: int, n_b: int, return_rank=False) -> Tuple[bool, np.ndarray]:
         """
         Perform open-loop SPS.
         
@@ -136,6 +136,9 @@ class SPS_indirect_model:
             order = np.lexsort(combined.T)
             rank_R = np.where(order == 0)[0][0] + 1
             
-            return rank_R <= self.m - self.q, S
+            if return_rank:
+                return rank_R <= self.m - self.q, rank_R / self.m, S
+            else:
+                return rank_R <= self.m - self.q, S
         except Exception as e:
             raise ValueError(f"Error in open-loop SPS: {e}")

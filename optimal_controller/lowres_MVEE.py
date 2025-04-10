@@ -8,12 +8,20 @@ from scipy.spatial import ConvexHull
 
 class LowResMVEE:
     def __init__(self, pts, max_n_verts=6):
+        """
+        pts (array): set of points in the confidence region, shape (ndim,npoints).
+        """
         self.pts = np.array(pts)
         self.nD = self.pts.shape[0]
         self.n_pts = self.pts.shape[1]
+        self.khachiyan_tol = 1e-1
         self.vertices = self.compute_vertices(max_n_verts)
 
     def compute_vertices(self, max_n_verts):
+        """
+        Compute vertices of the low-res MVEE that encloses self.pts.
+        Returns the vertices as an array with shape (ndim, npoints).
+        """
         ##### Adjust mesh_density s.t. the approximation is as high-res as possible:
         #       - no more than max_n_verts vertices, and
         #       - precomputed scaling factor exists for this (nD, mesh_density) pair.
@@ -31,7 +39,7 @@ class LowResMVEE:
             raise RuntimeError("Unable to find precomputed scaling factor. Check nD and max_n_verts are realistic.")
 
         ##### Compute the MVEE using Khachiyan's Algorithm
-        A, c = min_vol_ellipse(self.pts,tolerance=1e-1)
+        A, c = min_vol_ellipse(self.pts,self.khachiyan_tol)
         [D, P] = eig(A)
         radii = 1 / sqrt(D)
 
@@ -62,7 +70,7 @@ class LowResMVEE:
 def plot_polyhedron(V,ax=None):
     """
     Convenient function for plotting a polytope.
-
+    V (array): vertices of the polytope, with shape (number of dimensions, number of vertices).
     """
     nD = V.shape[0]
     V = V.T # passed argument has vertices has column vectors, but ConvexHull expects them as row vectors
@@ -204,10 +212,10 @@ def scatter_nD(pts, ax=None):
         Warning("nD > 3: cannot scatter plot.")
     
 
-def min_vol_ellipse(pts, tolerance):
+def min_vol_ellipse(pts, tolerance=1e-1):
     """
     Uses Khachiyan's Algorithm to find the MVEE enclosing a set of points.
-    This is only an approximate algorithm.
+    NB: this is only an approximate algorithm, with no guarantee that it is enclosing, so some post-processing is required.
 
     Original MATLAB script by Nima Moshtagh (nima@seas.upenn.edu), University of Pennsylvania.
     https://www.mathworks.com/matlabcentral/fileexchange/9542-minimum-volume-enclosing-ellipsoid
@@ -222,8 +230,6 @@ def min_vol_ellipse(pts, tolerance):
     count = 1
     err = 1
     u = 1/N * np.ones((N,1))
-
-    tolerance = 1e-1
 
     while err > tolerance:
         X = Q @ diagflat(u) @ Q.T;       # X = \sum_i ( u_i * q_i * q_i')  is a (d+1)x(d+1) matrix
