@@ -131,6 +131,8 @@ class d_tfs:
             return d_tfs(_mul_scalar(self.num, self.den, other))
         elif isinstance(other, np.ndarray):
             if other.dtype == object:
+                if other.ndim !=1 or (other.ndim==2 and 1 not in other.shape):
+                    return NotImplementedError
                 if np.any([isinstance(x, d_tfs) for x in other.flat]):  # Check if any element is d_tfs
                     return np.array(self)*other
                 else:

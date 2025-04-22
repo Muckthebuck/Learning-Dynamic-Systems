@@ -11,7 +11,7 @@ import argparse
 import ast
 import logging
 import time
-import asyncio
+from indirect_identification.sps_utils import _construct_ss_from_params
 class SPS:
     """
     Sign Perturbed Sum (SPS) class.
@@ -19,7 +19,7 @@ class SPS:
 
 
     def __init__(self, n_states: int=2, n_inputs: int = 1, n_output: int = 1, 
-                 C: np.ndarray = None, n_noise_order: int = 3, n_points: List[int] = [11, 21, 11],
+                 C: np.ndarray = None, n_noise_order: int = 1, n_points: List[int] = [11, 21, 11],
                  m: int=100, q: int=5, N: int = 50, db: Database = None, 
                  debug: bool = False, epsilon: float = 1e-10, logger: logging.Logger = None):
         """"
@@ -36,10 +36,10 @@ class SPS:
         self.n_inputs = n_inputs
         self.n_output = n_output
         self.n_noise_order = n_noise_order
-        self.n_params = n_states + n_states*n_inputs + n_output*2*n_noise_order
+        self.n_params = n_states + n_states*n_inputs + n_output*(n_noise_order+1)
         self.nA = n_states
         self.nB = n_states*n_inputs
-        self.nH = n_output*2*n_noise_order
+        self.nH = n_output*(n_noise_order+1)
         self.n_points = np.repeat(n_points, [self.nA, self.nB, self.nH])
         # C matrix: n_output x n_state matrix
         self.C = C
@@ -136,21 +136,10 @@ class SPS:
         result_ss = np.apply_along_axis(self._construct_ss_from_params, 0, results)
         return result_ss
         
-    def _construct_ss_from_params(self, params):
-        # A: n_state x n_state matrix
-        A = np.vstack([np.hstack([np.zeros((self.n_states-1, 1)), 
-                                  np.eye(self.n_states-1)]), -params[:self.n_states]])
-        # B: n_state x n_input matrix
-        B = params[self.n_states:self.n_states*self.n_inputs].reshape(self.n_states, self.n_inputs)
-        # C: n_output x n_state matrix
-        C = self.C
-        # D: n_output x n_input matrix: zero matrix for now
-        D = np.zeros((self.n_output, self.n_inputs))
-
-        return A, B, C, D
 
     def construct_gh_from_params(self, params):
         """
+        Return G,H filter matrices and A,B,C polynomials matrices
         Construct state space matrices from the given parameters.
         State space matrices are in observable canonical form.
         Also checks all assumptions are satisfied.
@@ -160,22 +149,23 @@ class SPS:
             3. G and H are stable transfer functions
             4. H is invertible transfer function (H(0) != 0)
         """
-        A, B, C, D = self._construct_ss_from_params(params)
+        A_obs, B_obs, C_obs, D_obs, A,B = _construct_ss_from_params(params)
 
         # G Transfer function matrix
-        G = d_tfs.ss_to_tf(A, B, C, D, check_assumption=True, epsilon=self.epsilon)
+        G = d_tfs.ss_to_tf(A_obs, B_obs, C_obs, D_obs, check_assumption=True, epsilon=self.epsilon)
 
 
         # H Transfer function matrix
         # rest of params form H matrix, H is a n_state x n_state matrix
         # the diagonals of H are the noise transfer functions
         # each tf has numerator and denominator of order n_noise_order
+        C = np.empty((self.n_output, self.n_noise_order+1))
         if self.n_output == 1:
             # if only one output, H is a scalar transfer function
             # H = np.zeros((self.n_states, self.n_states), dtype=object)
             j = self.n_states + self.n_states*self.n_inputs
-            num = params[j:j+self.n_noise_order]
-            den = params[j+self.n_noise_order:j+2*self.n_noise_order]
+            num = params[j:j+(self.n_noise_order+1)]
+            den = A
             H = d_tfs((num, den))
             # test assumptions
             d_tfs.sps_assumption_check(tf=H, value=1, epsilon=self.epsilon)
@@ -183,15 +173,16 @@ class SPS:
         else:
             H = np.zeros((self.n_output, self.n_output), dtype=object)
             for i in range(self.n_output):
-                j = self.n_states + self.n_states*self.n_inputs + i*self.n_noise_order
+                j = self.n_states + self.n_states*self.n_inputs + i*(self.n_noise_order+1)
                 # numerator and denominator of the transfer function
-                num = params[j:j+self.n_noise_order]
-                den = params[j+self.n_noise_order:j+2*self.n_noise_order]
+                num = params[j:j+self.n_noise_order+1]
+                den = A
                 H[i,i] = d_tfs((num, den))
+                C[i] = num
                 # test assumptions
                 d_tfs.sps_assumption_check(tf=H[i,i], value=1, epsilon=self.epsilon)
                 d_tfs.sps_assumption_check(tf=d_tfs((den,num)), value=1, epsilon=self.epsilon)
-        return G, H
+        return G, H, A, B, C
 
 
     def open_loop_sps_search_fn(self, params):
@@ -200,7 +191,7 @@ class SPS:
         """
         # Transform to open loop
         try:
-            G, H = self.construct_gh_from_params(params)
+            G, H , A, B, C = self.construct_gh_from_params(params)
         except ValueError:
             # if self.debug:
             #     self.logger.debug("Assumptions not satisfied... skipping")
@@ -225,7 +216,7 @@ class SPS:
         Perform closed loop SPS search for the given parameters.
         """
         try:
-            G, H = self.construct_gh_from_params(params)
+            G, H, A, B, C = self.construct_gh_from_params(params)
     
             if self.controller is None:
                 raise RuntimeError("Controller not found in database")
