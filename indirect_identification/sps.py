@@ -12,6 +12,7 @@ import ast
 import logging
 import time
 from indirect_identification.sps_utils import _construct_ss_from_params
+from indirect_identification.tf_methods.fast_tfs_methods_fast_math import _is_stable
 class SPS:
     """
     Sign Perturbed Sum (SPS) class.
@@ -54,7 +55,9 @@ class SPS:
         self.db = db
         self.db.subscribe("data", self.data_callback)
         self.db.subscribe("controller", self.controller_callback)
-        self.model = SPS_indirect_model(m, q, N)
+        self.model = SPS_indirect_model(m=self.m, q=self.q, N=self.N, epsilon=self.epsilon,
+                                        n_states=self.n_states, n_inputs=self.n_inputs, 
+                                        n_outputs=self.n_output, n_noise=self.n_noise_order)
         
         
     
@@ -153,7 +156,13 @@ class SPS:
 
         # G Transfer function matrix
         G = d_tfs.ss_to_tf(A_obs, B_obs, C_obs, D_obs, check_assumption=True, epsilon=self.epsilon)
-
+        # test assumptions
+        # A is stable 
+        if not _is_stable(A, epsilon=self.epsilon):
+            raise ValueError("A is not stable")
+        # G(0) = 0
+        for tf in G:
+            d_tfs.sps_assumption_check(tf=tf, value=0, epsilon=self.epsilon) 
 
         # H Transfer function matrix
         # rest of params form H matrix, H is a n_state x n_state matrix
@@ -181,7 +190,7 @@ class SPS:
                 C[i] = num
                 # test assumptions
                 d_tfs.sps_assumption_check(tf=H[i,i], value=1, epsilon=self.epsilon)
-                d_tfs.sps_assumption_check(tf=d_tfs((den,num)), value=1, epsilon=self.epsilon)
+                d_tfs.sps_assumption_check(tf=d_tfs((den,num)), value=1, epsilon=self.epsilon, check_stability=True)
         return G, H, A, B, C
 
 
@@ -202,9 +211,9 @@ class SPS:
         if self.data is None:
             raise RuntimeError("Data not found in database")
         try:
-            in_sps, _ = self.model.open_loop_sps(G_0=G, H_0=H, 
-                                                Y_t=self.data.y, U_t=self.data.u, 
-                                                n_a=self.nA, n_b=self.nB)
+            in_sps = self.model.sps_indicator(G=G, H=H, A=A, B=B, C=C,
+                                             Y_t=self.data.y, U_t=self.data.u, 
+                                             sps_type=SPSType.OPEN_LOOP)
         except ValueError:
             self.logger.warning("SPS Failed")
             in_sps = False
@@ -217,13 +226,9 @@ class SPS:
         """
         try:
             G, H, A, B, C = self.construct_gh_from_params(params)
-    
             if self.controller is None:
                 raise RuntimeError("Controller not found in database")
-            G_0, H_0 = self.model.transform_to_open_loop(G, H, self.controller.F, self.controller.L)
         except ValueError:
-            if self.debug:
-                self.logger.debug("Assumptions not satisfied... skipping")
             return False
         except RuntimeError:
             if self.debug:
@@ -231,9 +236,15 @@ class SPS:
             raise
         if self.data is None:
             raise RuntimeError("Data not found in database")
-        in_sps, _ = self.model.open_loop_sps(G_=G_0, H=H_0, 
-                                             Y_t=self.data.y, U_t=self.data.r, 
-                                             n_a=self.nA, n_b=self.nB)
+        
+        try:
+            in_sps = self.model.sps_indicator(G=G, H=H, A=A, B=B, C=C,
+                                             Y_t=self.data.y, U_t=self.data.u, R_t=self.data.r,
+                                             sps_type=SPSType.CLOSED_LOOP,
+                                             F=self.controller.F, L=self.controller.L)
+        except ValueError:
+            in_sps = False
+        
         return in_sps
     
 

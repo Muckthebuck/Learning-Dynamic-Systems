@@ -15,7 +15,8 @@ __all__ = [
     '_div_tfs',
     '_poly_sub', 
     '_full_reduce_fraction_numpy',
-    '_is_stable'
+    '_is_stable',
+    'lfilter_numba'
 ]
 
 # Enabling fastmath for improved performance
@@ -176,3 +177,24 @@ def _full_reduce_fraction_numpy(num: np.ndarray, den: np.ndarray, tol: float = _
     den_reduced = den_reduced / gcd
     return _simplify(num_reduced, den_reduced)
 
+@jit(nopython=True, fastmath=True)
+def lfilter_numba(b, a, x):
+    N = len(a)
+    M = len(b)
+    n = len(x)
+
+    if a[0] != 1.0:
+        b = b / a[0]
+        a = a / a[0]
+
+    y = np.zeros(n)
+
+    for i in range(n):
+        for j in range(M):
+            if i - j >= 0:
+                y[i] += b[j] * x[i - j]
+        for j in range(1, N):
+            if i - j >= 0:
+                y[i] -= a[j] * y[i - j]
+
+    return y

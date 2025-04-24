@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Tuple, Union, List
-from scipy.signal import lfilter, ss2tf
+from scipy.signal import ss2tf
 from indirect_identification.tf_methods.fast_tfs_methods_fast_math import *
 
 __all__  = [
@@ -41,8 +41,8 @@ class d_tfs:
         A (tuple): A tuple containing two lists or arrays, the numerator and denominator coefficients.
         """
         self.epsilon = np.float64(1e-10)
-        self.num = np.asarray(A[0]).astype(self.epsilon.dtype)  # Ensure CuPy array
-        self.den = np.asarray(A[1]).astype(self.epsilon.dtype)   # Ensure CuPy array
+        self.num = np.asarray(A[0]).astype(self.epsilon.dtype)  # Ensure np array
+        self.den = np.asarray(A[1]).astype(self.epsilon.dtype)   # Ensure np array
 
     def __add__(self, other: Union['d_tfs', Union[int, float, np.float32, np.float64]]) -> 'd_tfs':
         """
@@ -115,7 +115,8 @@ class d_tfs:
         other (Union[d_tfs, Union[int, float, np.float32, np.float64], np.ndarray]): 
             - A `d_tfs` instance representing another transfer function.
             - A scalar value (int, float, np.float32, np.float64) to multiply with the transfer function.
-            - A NumPy array representing a discrete-time signal to which the transfer function is applied using `scipy.lfilter(self.num, self.den, U_t)`.
+            - A NumPy array representing a discrete-time signal to which the transfer function is applied using 
+              numba compiled `lfilter_numba(self.num, self.den, U_t)`.
             - A NumPy array of Tfs 
         Returns:
         Union[d_tfs, np.ndarray]: 
@@ -259,7 +260,7 @@ class d_tfs:
         try:
             # Ensure input is a np array
             U_t = np.asarray(U_t)
-            Y_t = lfilter(self.num + self.epsilon, self.den + self.epsilon, U_t)  # Use lfilter for filtering
+            Y_t = lfilter_numba(self.num + self.epsilon, self.den + self.epsilon, U_t)  # Use lfilter for filtering
             return np.asarray(Y_t)
         except Exception as e:
             raise ValueError(f"Error applying shift operator: {e}")
@@ -301,8 +302,10 @@ class d_tfs:
                     d_tfs.sps_assumption_check(G[i, j], 0, epsilon)  
         return G
     
+
     @staticmethod
-    def sps_assumption_check(tf: Union['d_tfs', float], value: float, epsilon: float = 0.001) -> None:
+    def sps_assumption_check(tf: Union['d_tfs', float], value: float=0, 
+                             epsilon: float = 0.001, value_check=True, check_stability=False) -> None:
         """
         Check if the transfer function satisfies the SPS assumptions.
 
@@ -319,13 +322,16 @@ class d_tfs:
             ValueError: If the transfer function does not satisfy the assumptions.
         """
         if isinstance(tf, d_tfs):
-            if np.abs(tf(0) - value) > epsilon:
-                raise ValueError(f"SPS assumption failed: tf(0) = {tf(0)} != {value} (tol={epsilon})")
-            if not tf.is_stable():
-                raise ValueError("SPS assumption failed: Transfer function is not stable.")
+            if value_check:
+                if np.abs(tf(0) - value) > epsilon:
+                    raise ValueError(f"SPS assumption failed: tf(0) = {tf(0)} != {value} (tol={epsilon})")
+            if check_stability:
+                if not tf.is_stable():
+                    raise ValueError("SPS assumption failed: Transfer function is not stable.")
         elif isinstance(tf, (int, float, np.float32, np.float64)):
-            if np.abs(tf - value) >= epsilon:
-                raise ValueError(f"SPS assumption failed: {tf} != {value} (tol={epsilon})")
+            if value_check:
+                if np.abs(tf - value) >= epsilon:
+                    raise ValueError(f"SPS assumption failed: {tf} != {value} (tol={epsilon})")
         else:
             raise TypeError(f"Unsupported type for assumption check: {type(tf)}")
 
@@ -353,15 +359,27 @@ def apply_tf_matrix(G: np.ndarray, U: np.ndarray) -> np.ndarray:
         >>> Y = apply_tf_matrix(G, U)
         >>> print(Y.shape)  # (2, 3), output has same time length as U
     """
-    m, n = G.shape  # m outputs, n inputs
-    k = U.shape[1]  # Time length of each input sequence
-    Y = np.zeros((m, k))  # Initialize output matrix
-
-    for i in range(m):
-        for j in range(n):
-            Y[i, :] += G[i, j] * U[j, :]  # Apply transfer function multiplication
-
+    if U.ndim == 2:
+        # in this case we are simply applying tf to a 2d input matrix
+        m, n = G.shape  # m outputs, n inputs
+        k = U.shape[-1]  # Time length of each input sequence
+        Y = np.zeros((m, k))  # Initialize output matrix
+        for i in range(m):
+            for j in range(n):
+                Y[i, :] += (G[i, j] * U[j, :]).reshape((k,))  # Apply transfer function multiplication
+    elif U.ndim == 3 and G.shape[0]==G.shape[1]:
+        # m x n_output x t to noutput x m x t
+        # this is H, which is assumed to be all on diagonal 
+        U = U.transpose(1, 0, 2)
+        n,m,t = U.shape
+        Y = np.empty_like(U)
+        for i in range(n):
+            H = G[i,i]
+            for j in range(n):
+                Y[j,:] = H*U[j,:]
+        Y=Y.transpose(1,0,2)  
     return Y
+
 
 
 def _lu_decomposition(A):

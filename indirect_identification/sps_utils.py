@@ -1,4 +1,6 @@
 from numba import njit, float64
+from indirect_identification.tf_methods.fast_tfs_methods_fast_math import lfilter_numba
+from dB.sim_db import SPSType
 import numpy as np
 
 
@@ -14,6 +16,34 @@ def get_phi_method(n_inputs: int, n_outputs: int, n_noise: int):
     else:
         return NotImplementedError
 
+@njit(cache=True, fastmath=True)
+def compute_phi_phiT(phi_tilde):
+    m, T, r, c = phi_tilde.shape  # (3, 5, 4, 2)
+    result = np.zeros((m, r, r))
+    for k in range(m):
+        for t in range(T):
+            phi = phi_tilde[k, t]  # shape (4, 2)
+            # phi @ phi.T -> (4, 4)
+            for i in range(r):
+                for j in range(r):
+                    for l in range(c):  # inner dimension
+                        result[k, i, j] += phi[i, l] * phi[j, l]
+    result/=T
+    return result
+
+@njit(cache=True, fastmath=True)
+def compute_phi_Y(phi, Y):
+    m, t, r, c = phi.shape  # (3, 5, 4, 2)
+    result = np.zeros((m, r, 1))  # (3, 4, 1)
+
+    for i in range(m):       # systems
+        for j in range(t):   # time
+            for k in range(r):     # output dim (4)
+                acc = 0.0
+                for l in range(c): # inner dim (2)
+                    acc += phi[i, j, k, l] * Y[i, l, j]  # note: Y is (m, 2, t)
+                result[i, k, 0] += acc
+    return result
 
 @njit(cache=True)
 def _construct_ss_from_params(params: np.array, n_states: int, n_inputs: int, n_outputs: int, C: np.array):
@@ -69,36 +99,16 @@ def create_phi_optimized_siso(Y: np.ndarray, U: np.ndarray, A: np.ndarray, B: np
 
     return phi
 
-@njit(cache=True)
-def lfilter_numba(b, a, x):
-    N = len(a)
-    M = len(b)
-    n = len(x)
 
-    if a[0] != 1.0:
-        b = b / a[0]
-        a = a / a[0]
-
-    y = np.zeros(n)
-
-    for i in range(n):
-        for j in range(M):
-            if i - j >= 0:
-                y[i] += b[j] * x[i - j]
-        for j in range(1, N):
-            if i - j >= 0:
-                y[i] -= a[j] * y[i - j]
-
-    return y
 
 
 
 @njit(cache=True, fastmath=True)
 def create_phi_optimized_general_siso(Y, U, A, B, C):
     m, t = Y.shape  # m perturbation, t time steps
-    n_a = len(A) - 1
-    n_b = len(B) - 1
-    n_c = len(C)
+    n_a = A.size - 1
+    n_b = B.size - 1
+    n_c = C.size
 
     idx_b = n_a
     idx_c = n_a + n_b
