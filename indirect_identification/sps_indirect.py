@@ -78,9 +78,9 @@ class SPS_indirect_model:
             G = d_tfs(G)
         if not isinstance(H, d_tfs):
             H = d_tfs(H)
-        if not isinstance(F, d_tfs):
+        if not isinstance(F, d_tfs) and len(np.array([F])) > 1:
             F = d_tfs(F)
-        if not isinstance(L, d_tfs):
+        if not isinstance(L, d_tfs) and len(np.array([L])) > 1:
             L = d_tfs(L)
 
         GF_plus_I = (G * F) + 1

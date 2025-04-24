@@ -30,7 +30,7 @@ Y, U, N, R = armax_model.simulate(n_samples, R, noise_std=0.2)
 
 def sps_test_function(params):
     print("Testing", params)
-    a, b, c = params
+    a, b = params
     a = -a
     A = [1, a]
     B = [0, b]
@@ -54,7 +54,7 @@ def sps_test_function(params):
 
 
 model = SPS_indirect_model(m, q)
-search = SPSSearch([0, 0, 0], [0.4, 0.4, 0.4], n_dimensions=3, n_points = [11, 51, 11], test_cb=sps_test_function)
+search = SPSSearch([0, 0], [0.4, 0.4], n_dimensions=2, n_points = [11, 51], test_cb=sps_test_function)
 search.go()
 
 results = search.get_results()

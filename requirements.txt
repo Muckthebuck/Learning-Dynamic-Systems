@@ -4,7 +4,7 @@ scipy
 cupy-cuda12x
 control
 opencv-python
+redis[hiredis]
 sqlite
 numba
 scikit-learn
-redis[hiredis]
