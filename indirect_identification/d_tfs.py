@@ -224,7 +224,8 @@ class d_tfs:
         Returns:
         float: The value of the transfer function at the given point.
         """
-        return np.polyval(self.num, z) / np.polyval(self.den, z)
+        
+        return _eval_tf(self.num, self.den, z)
     
     def __eq__(self, other: Union['d_tfs', Union[int, float, np.float32, np.float64]]) -> bool:
         """Check if two transfer function matrices are equal."""
@@ -260,7 +261,7 @@ class d_tfs:
         try:
             # Ensure input is a np array
             U_t = np.asarray(U_t)
-            Y_t = lfilter_numba(self.num + self.epsilon, self.den + self.epsilon, U_t)  # Use lfilter for filtering
+            Y_t = lfilter_numba(self.num, self.den, U_t)  # Use lfilter for filtering
             return np.asarray(Y_t)
         except Exception as e:
             raise ValueError(f"Error applying shift operator: {e}")
@@ -370,7 +371,7 @@ def apply_tf_matrix(G: np.ndarray, U: np.ndarray) -> np.ndarray:
     elif U.ndim == 3 and G.shape[0]==G.shape[1]:
         # m x n_output x t to noutput x m x t
         # this is H, which is assumed to be all on diagonal 
-        U = U.transpose(1, 0, 2)
+        U =np.ascontiguousarray(U.transpose(1, 0, 2))
         n,m,t = U.shape
         Y = np.empty_like(U)
         for i in range(n):

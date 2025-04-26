@@ -4,7 +4,7 @@ import numpy as np
 from dB.sim_db import SPSType
 from indirect_identification.d_tfs import d_tfs, invert_matrix, apply_tf_matrix
 from types import SimpleNamespace
-from indirect_identification.sps_utils import get_phi_method, compute_phi_phiT, compute_phi_Y
+from indirect_identification.sps_utils import *
 from indirect_identification.tf_methods.fast_tfs_methods_fast_math import lfilter_numba
 
 np.random.seed(42)
@@ -37,6 +37,8 @@ class SPS_indirect_model:
         self.n_noise = n_noise
         self.is_siso = n_inputs == 1 and n_outputs == 1
         self.epsilon = epsilon
+        self.max_order = max(self.n_states, self.n_inputs, self.n_outputs, self.n_noise)
+        self.N_max = self.N + self.max_order + 1
         self.create_phi_method = get_phi_method(n_inputs=n_inputs, n_outputs=n_outputs, n_noise=n_noise)
         self._initialise_alpha_phi_order()
 
@@ -45,10 +47,10 @@ class SPS_indirect_model:
         Initialize the alpha matrix and the permutation order for the SPS.
         """
         if self.is_siso:
-            self.alpha = np.random.randn(self.m,self.N)
+            self.alpha = np.random.randn(self.m,self.N_max)
             self.alpha = np.sign(self.alpha)
         else:
-            self.alpha = np.sign(np.random.randn(self.m,self.n_outputs,self.N))
+            self.alpha = np.sign(np.random.randn(self.m,self.n_outputs,self.N_max))
 
         self.alpha[0, :] = 1
         self.pi_order = np.random.permutation(np.arange(self.m))
@@ -72,10 +74,11 @@ class SPS_indirect_model:
             U = U_t
         else:
             raise ValueError("Invalid SPS type. Use SPSType.CLOSED_LOOP or SPSType.OPEN_LOOP.")
+        # TODO: in closed loop U_t = LR_t - F alpha_i Y_t with perturbation
         if self.is_siso:
-            phi_U_t = U_t[-self.N-1:-1]
+            phi_U_t = U_t[-self.N_max:][0]
         else:
-            phi_U_t = U_t[:, -self.N-1:-1]
+            phi_U_t = U_t[:, -self.N_max:]
         
         return self.open_loop_sps(G_0=G_0, H_0=H_0, 
                            Y_t=Y_t, U_t=U, phi_U_t=phi_U_t, 
@@ -156,20 +159,11 @@ class SPS_indirect_model:
             for i in range(self.n_outputs):
                 H_invert[i,i]=d_tfs((A, C[i]))
             N_hat = apply_tf_matrix(H_invert,YGU)
-            N_hat_par = N_hat[:, -self.N:]
-            U_t_par = U_t[:, -self.N-1:-1]
-            perturbed_N_hat = np.multiply(self.alpha, N_hat_par)
+            perturbed_N_hat, U_t_par, N_hat_par = get_U_perturbed_nhat(N_hat, U_t, self.alpha, self.N_max)
             y_bar = apply_tf_matrix(G_0, U_t_par) + apply_tf_matrix(H_0, perturbed_N_hat[:]) 
-
-            # compute S
             phi_tilde = self.create_phi_method(Y=y_bar, U=phi_U_t, A=A, B=B, C=C)
-            R = compute_phi_phiT(phi_tilde)
-            L = np.linalg.cholesky(R)
-            Q, R = np.linalg.qr(L)
-            R_root_inv = np.linalg.solve(R, Q.transpose(0, 2, 1))
-            weighted_sum = compute_phi_Y(phi_tilde, perturbed_N_hat)
-            S = np.sum(np.square(np.matmul(R_root_inv, weighted_sum)), axis=(1, 2))
-
+            # compute S
+            S = compute_S(N_hat_par, perturbed_N_hat, phi_tilde, self.N)
             # Ranking
             combined = np.array(list(zip(self.pi_order, S)))
             order = np.lexsort(combined.T)
@@ -197,23 +191,22 @@ class SPS_indirect_model:
         tuple: A boolean indicating if the rank is within the threshold and the S values.
         """
         try:
-            Y_t = np.asarray(Y_t)
-            U_t = np.asarray(U_t)
             YGU = Y_t - G_0*U_t
             N_hat = (1/H_0)*YGU
             
             # Extract relevant segments
-            N_hat_par = N_hat[-self.N:]
-            U_t_par = U_t[-self.N-1:-1]
+            N_hat_par = N_hat[:, -self.N_max:]
+            U_t_par = U_t[:, -self.N_max:]
             perturbed_N_hat = np.multiply(self.alpha, N_hat_par)
-            
             # Compute y_bar vectorized
             y_bar = G_0*U_t_par[None, :] + H_0*(perturbed_N_hat[:, None])
             y_bar = y_bar.transpose(1, 0, 2)[0]
             # Compute phi_tilde
             phi_tilde = self.create_phi_method(Y=y_bar, U=phi_U_t, A=A, B=B, C=C)
+            phi_tilde = phi_tilde[:,-self.N:,:]
+            perturbed_N_hat = perturbed_N_hat[:,-self.N:]
             # Compute Cholesky decomposition and norm squared
-            R = np.matmul(phi_tilde.transpose(0, 2, 1), phi_tilde) / len(Y_t)
+            R = np.matmul(phi_tilde.transpose(0, 2, 1), phi_tilde) / self.N
             L = np.linalg.cholesky(R)
             Q, R = np.linalg.qr(L)
             R_root_inv = np.linalg.solve(R, Q.transpose(0, 2, 1))

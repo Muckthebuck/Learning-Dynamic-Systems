@@ -1,8 +1,214 @@
-from numba import njit, float64
+from numba import njit, float64, prange
 from indirect_identification.tf_methods.fast_tfs_methods_fast_math import lfilter_numba
 from dB.sim_db import SPSType
 import numpy as np
+from typing import Optional, Union, Tuple, Callable
 
+all = [
+    'get_U_perturbed_nhat',
+    'compute_S',
+    'get_construct_ss_from_params_method',
+    'get_phi_method',
+]
+#---------------------------------------------------------------------------
+# SPS mimo methods
+#---------------------------------------------------------------------------
+@njit(cache=True, fastmath=True)
+def get_U_perturbed_nhat(N_hat: np.ndarray, 
+                         U_t: np.ndarray, 
+                         alpha: np.ndarray, 
+                         N: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    N_hat_par = N_hat[:, -N:]
+    U_t_par = U_t[:, -N:]
+    perturbed_N_hat = np.multiply(alpha, N_hat_par)
+    return perturbed_N_hat, U_t_par, N_hat_par
+
+@njit(cache=True, fastmath=True, parallel=True)
+def compute_S(N_hat_, N_hat_perturbed_, phi_tilde_, N):
+    """
+    Compute ranking matrix S using manual loops for matrix multiplications.
+    Keep Cholesky decomposition with numpy.
+    """
+    #trim all the matrices to the last N elements
+    N_hat = N_hat_[:, -N:]
+    N_hat_perturbed = N_hat_perturbed_[:, :, -N:]
+    phi_tilde = phi_tilde_[:, -N:, :, :]
+
+    Lambda_inv, Lambda_n = compute_cov_matrices(N_hat)
+    Delta_lambda, Delta_lambda_n, Delta_lambda_Y = compute_phi_lambda_phiT_and_phi_lambda_Y(
+                                                phi_tilde, Lambda_inv, Lambda_n, N_hat_perturbed)
+    
+    m, r, _ = Delta_lambda.shape
+    S = np.zeros((m, ))
+
+    for i in prange(m):
+        # Step 1: Invert Delta_lambda[i] (still using numpy)
+        Delta_inv = np.linalg.inv(Delta_lambda[i])
+
+        # Step 2: temp = Delta_inv @ Delta_lambda_n[i]
+        temp = np.zeros((r, r))
+        for a in range(r):
+            for b in range(r):
+                for c in range(r):
+                    temp[a, b] += Delta_inv[a, c] * Delta_lambda_n[i, c, b]
+
+        # Step 3: R_ = temp @ Delta_inv
+        R_ = np.zeros((r, r))
+        for a in range(r):
+            for b in range(r):
+                for c in range(r):
+                    R_[a, b] += temp[a, c] * Delta_inv[c, b]
+
+        # Step 4: Cholesky decomposition using numpy
+        W = np.linalg.cholesky(R_)
+
+        # Step 5: S_i = W @ Delta_lambda_Y[i]
+        S_i = np.zeros((r, 1))
+        for a in range(r):
+            for b in range(r):
+                S_i[a, 0] += W[a, b] * Delta_lambda_Y[i, b, 0]
+
+        # Step 6: Compute norm of S_i
+        norm = 0.0
+        for a in range(r):
+            norm += S_i[a, 0] ** 2
+        S[i] = np.sqrt(norm)
+
+    return S
+
+
+@njit(cache=True, fastmath=True)
+def compute_cov_matrices(epsilon: np.ndarray, shrink_factor=0.1, threshold=1e-5):
+    d, N = epsilon.shape
+
+    # Step 1: Compute Lambda (covariance matrix)
+    # Lambda = 1 / (N-1) * epsilon_centered @ epsilon_centered.T
+
+    # Step 1: Compute mean
+    mean_epsilon = np.zeros(d)
+    for i in range(d):
+        for n in range(N):
+            mean_epsilon[i] += epsilon[i, n]
+        mean_epsilon[i] /= N
+
+    # Step 2: Compute covariance and shrinkage together
+    Lambda = np.zeros((d, d))
+    for n in range(N):
+        for i in range(d):
+            centered_i = epsilon[i, n] - mean_epsilon[i]
+            for j in range(d):
+                centered_j = epsilon[j, n] - mean_epsilon[j]
+                Lambda[i, j] += centered_i * centered_j
+    Lambda /= (N - 1)
+    # for i in range(d):
+    #     for j in range(d):
+    #         if i == j:
+    #             # Keep diagonal as is
+    #             continue
+    #         else:
+    #             # Shrink and threshold off-diagonals
+    #             Lambda[i, j] = (1.0 - shrink_factor) * Lambda[i, j]
+    #             if np.abs(Lambda[i, j]) < threshold:
+    #                 Lambda[i, j] = 0.0
+
+    # Step 2: Compute Lambda_n = 1/N * epsilon @ epsilon.T
+    Lambda_n = np.zeros((d, d))
+    for i in range(d):
+        for j in range(d):
+            sum_ = 0.0
+            for n in range(N):
+                sum_ += epsilon[i, n] * epsilon[j, n]
+            Lambda_n[i, j] = sum_ / N
+
+    # Step 3: Compute Lambda_inv
+    Lambda_inv = np.linalg.inv(Lambda)
+
+    return Lambda_inv, Lambda_n
+
+
+@njit(cache=True, fastmath=True, parallel=True)
+def compute_phi_lambda_phiT_and_phi_lambda_Y(phi_tilde, Lambda_inv, Lambda_n, N_hat_perturbed):
+    """
+    Computes:
+      - Delta_lambda = phi @ Lambda_inv @ phi^T (averaged over T)
+      - Delta_lambda_n = phi @ Lambda_inv @ Lambda_n @ Lambda_inv @ phi^T (averaged over T)
+      - Delta_lambda_Y = phi @ Lambda_inv @ N_hat_perturbed (summed over T)
+    """
+    m, T, r, c = phi_tilde.shape
+    Delta_lambda = np.zeros((m, r, r))  # Previously result1
+    Delta_lambda_n = np.zeros((m, r, r))  # Previously result2
+    Delta_lambda_Y = np.zeros((m, r, 1))  # Previously result3
+
+    for k in prange(m):
+        for t in range(T):
+            phi = phi_tilde[k, t]  # (r, c)
+
+            # Precompute phi_Lambda_inv
+            phi_Lambda_inv = np.zeros((r, c))
+            for i in range(r):
+                for l in range(c):
+                    for q in range(c):
+                        phi_Lambda_inv[i, l] += phi[i, q] * Lambda_inv[q, l]
+
+            # Compute Delta_lambda and Delta_lambda_n
+            for i in range(r):
+                for j in range(r):
+                    sum1 = 0.0
+                    sum2 = 0.0
+                    for l in range(c):
+                        sum1 += phi_Lambda_inv[i, l] * phi[j, l]
+                        for p in range(c):
+                            sum2 += phi_Lambda_inv[i, l] * Lambda_n[l, p] * phi_Lambda_inv[j, p]
+                    Delta_lambda[k, i, j] += sum1
+                    Delta_lambda_n[k, i, j] += sum2
+
+            # Compute Delta_lambda_Y = phi_Lambda_inv @ N_hat_perturbed
+            for i in range(r):
+                acc = 0.0
+                for l in range(c):
+                    acc += phi_Lambda_inv[i, l] * N_hat_perturbed[k, l, t]
+                Delta_lambda_Y[k, i, 0] += acc
+
+    # Average over time T
+    Delta_lambda /= T
+    Delta_lambda_n /= T
+    Delta_lambda_Y /= T
+
+    return Delta_lambda, Delta_lambda_n, Delta_lambda_Y
+
+
+
+def get_construct_ss_from_params_method(n_states: int, n_inputs: int, n_outputs: int, C: np.array):
+    """
+    Returns the function to construct state space matrices from parameters.
+    """
+
+    @njit(cache=True)
+    def _construct_ss_from_params(params: np.array):
+        """
+        Returns state space matrices A_obs,B_obs,C_obs,D_obs and the A,B polynomials
+        """
+        # A: n_state x n_state matrix
+        A =  params[:n_states]
+        A_obs = np.hstack([np.vstack([np.zeros(n_states-1), np.eye(n_states-1)]), -np.flipud(A.reshape(A.size,-1))])
+        # B: n_state x n_input matrix
+        B = params[n_states:n_states+n_states*n_inputs].reshape(n_inputs,n_states)
+        B_obs = np.flipud(B.T)
+        # C: n_output x n_state matrix
+        C_obs = C
+        # D: n_output x n_input matrix: zero matrix for now
+        D_obs = np.zeros((n_outputs,n_inputs))
+
+        A = np.hstack([1, A])
+        B = np.hstack([np.zeros((n_inputs,1)), B])
+
+        return A_obs, B_obs, C_obs, D_obs, A, B
+    return _construct_ss_from_params
+
+
+#---------------------------------------------------------------------------
+# phi methods
+#---------------------------------------------------------------------------
 
 def get_phi_method(n_inputs: int, n_outputs: int, n_noise: int):
     if n_inputs == 1 and n_outputs==1:
@@ -15,56 +221,6 @@ def get_phi_method(n_inputs: int, n_outputs: int, n_noise: int):
         return create_phi_optimized_2states_1input
     else:
         return NotImplementedError
-
-@njit(cache=True, fastmath=True)
-def compute_phi_phiT(phi_tilde):
-    m, T, r, c = phi_tilde.shape  # (3, 5, 4, 2)
-    result = np.zeros((m, r, r))
-    for k in range(m):
-        for t in range(T):
-            phi = phi_tilde[k, t]  # shape (4, 2)
-            # phi @ phi.T -> (4, 4)
-            for i in range(r):
-                for j in range(r):
-                    for l in range(c):  # inner dimension
-                        result[k, i, j] += phi[i, l] * phi[j, l]
-    result/=T
-    return result
-
-@njit(cache=True, fastmath=True)
-def compute_phi_Y(phi, Y):
-    m, t, r, c = phi.shape  # (3, 5, 4, 2)
-    result = np.zeros((m, r, 1))  # (3, 4, 1)
-
-    for i in range(m):       # systems
-        for j in range(t):   # time
-            for k in range(r):     # output dim (4)
-                acc = 0.0
-                for l in range(c): # inner dim (2)
-                    acc += phi[i, j, k, l] * Y[i, l, j]  # note: Y is (m, 2, t)
-                result[i, k, 0] += acc
-    return result
-
-@njit(cache=True)
-def _construct_ss_from_params(params: np.array, n_states: int, n_inputs: int, n_outputs: int, C: np.array):
-    """
-    Returns state space matrices A_obs,B_obs,C_obs,D_obs and the A,B polynomials
-    """
-    # A: n_state x n_state matrix
-    A =  params[:n_states]
-    A_obs = np.hstack([np.vstack([np.zeros(n_states-1), np.eye(n_states-1)]), -np.flipud(A.reshape(A.size,-1))])
-    # B: n_state x n_input matrix
-    B = params[n_states:n_states+n_states*n_inputs].reshape(n_inputs,n_states)
-    B_obs = np.flipud(B.T)
-    # C: n_output x n_state matrix
-    C_obs = C
-    # D: n_output x n_input matrix: zero matrix for now
-    D_obs = np.zeros((n_outputs,n_inputs))
-
-    A = np.hstack([1, A])
-    B = np.hstack([np.zeros((n_inputs,1)), B])
-
-    return A_obs, B_obs, C_obs, D_obs, A, B
 
 
 @njit(cache=True)
@@ -203,3 +359,7 @@ def create_phi_optimized_2states_1input(Y, U, A, B, C):
             Jk1[3]= -(u_im1 + a1 * u_im2)
 
     return J.transpose(0,1,3,2)
+
+
+
+
