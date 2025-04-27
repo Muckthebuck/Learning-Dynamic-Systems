@@ -23,7 +23,7 @@ class SPS_indirect_model:
         m (int): .
         q (int): .
         N (int): The lngeth of sequences to be used for the SPS.
-        n_states (int): Number of states in the system.
+        n_states (int): Number of states in the system. if siso, it is the max order of the system.
         n_inputs (int): Number of inputs in the system.
         n_outputs (int): Number of outputs in the system.
         n_noise (int): order of the noise polynomial. -1 if the C(s) = 1. 
@@ -61,7 +61,7 @@ class SPS_indirect_model:
                   sps_type: SPSType,
                   F: Optional[Union['d_tfs', np.ndarray]] = None,
                   L: Optional[Union['d_tfs', np.ndarray]] = None,
-                  R_t: Optional[np.ndarray] = None
+                  R_t: Optional[np.ndarray] = None, Lambda: Optional[np.ndarray] = None
                   ) -> Tuple[bool, np.ndarray]:
     
         if sps_type == SPSType.CLOSED_LOOP:
@@ -74,15 +74,29 @@ class SPS_indirect_model:
             U = U_t
         else:
             raise ValueError("Invalid SPS type. Use SPSType.CLOSED_LOOP or SPSType.OPEN_LOOP.")
-        # TODO: in closed loop U_t = LR_t - F alpha_i Y_t with perturbation
+
         if self.is_siso:
-            phi_U_t = U_t[-self.N_max:][0]
+            phi_U_t = U[0]
+            if sps_type == SPSType.CLOSED_LOOP:
+                # check if L is a np array if its extract it
+                if isinstance(L, np.ndarray):
+                    L = L[0]
+                if isinstance(F, np.ndarray):
+                    F = F[0]
+                phi_U_t = L * phi_U_t
+            phi_U_t = phi_U_t[-self.N_max:]
         else:
-            phi_U_t = U_t[:, -self.N_max:]
+            phi_U_t = U
+            if sps_type == SPSType.CLOSED_LOOP:
+                phi_U_t = apply_tf_matrix(L, phi_U_t)
+            phi_U_t = phi_U_t[:, -self.N_max:]
         
-        return self.open_loop_sps(G_0=G_0, H_0=H_0, 
+        phi_U_t = np.broadcast_to(phi_U_t, (self.m, *phi_U_t.shape))
+  
+        return self.indirect_sps(G_0=G_0, H_0=H_0, 
                            Y_t=Y_t, U_t=U, phi_U_t=phi_U_t, 
-                           A=A, B=B, C=C)
+                           A=A, B=B, C=C, F=F, sps_type=sps_type, Lambda=Lambda)
+
 
     def transform_to_open_loop(self, G, H, F, L):
         if self.is_siso:
@@ -91,10 +105,10 @@ class SPS_indirect_model:
             return self.transform_to_open_loop_mimo(G, H, F, L)
     
     def transform_to_open_loop_siso(self, 
-                               G: Union['d_tfs', Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]]], 
-                               H: Union['d_tfs', Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]]], 
-                               F: Union['d_tfs', Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]]], 
-                               L: Union['d_tfs', Tuple[Union[List[float], np.ndarray], Union[List[float], np.ndarray]]]) -> Tuple['d_tfs', 'd_tfs']:
+                               G: Union['d_tfs', np.float64], 
+                               H: Union['d_tfs', np.float64], 
+                               F: Union['d_tfs', np.float64], 
+                               L: Union['d_tfs', np.float64]) -> Tuple['d_tfs', 'd_tfs']:
         """
         Transform the closed-loop system to an open-loop system.
         
@@ -107,50 +121,43 @@ class SPS_indirect_model:
         Returns:
         tuple: The open-loop transfer functions G_0 and H_0.
         """
-        if not isinstance(G, d_tfs):
-            G = d_tfs(G)
-        if not isinstance(H, d_tfs):
-            H = d_tfs(H)
-        if not isinstance(F, d_tfs):
-            F = d_tfs(F)
-        if not isinstance(L, d_tfs):
-            L = d_tfs(L)
-
         GF_plus_I = (G * F) + 1
         i_GF_plus_I = 1/GF_plus_I
-        
-        if not all(tf.is_stable() for tf in [L, i_GF_plus_I] if isinstance(tf, d_tfs)):
-            raise ValueError(f"Error transforming to open loop: stability conditions not satisfied.")
-        
+        for tf in [L, i_GF_plus_I]:
+            if isinstance(tf, d_tfs):
+                if not tf.is_stable():
+                    raise ValueError(f"Error transforming to open loop: stability conditions not satisfied. Failed for {tf}")
+
         G_0 = i_GF_plus_I * G * L
         H_0 = i_GF_plus_I * H
         return G_0, H_0
     
-    def transform_to_open_loop_mimo(self, G, H, F, L): 
+    def transform_to_open_loop_mimo(self, G, H, F, L: np.ndarray): 
         # L assumptions
-        for tf in L:
-            d_tfs.sps_assumption_check(tf=tf, value_check=False, stability_check=True)
+        for tf in L.flat:
+            d_tfs.sps_assumption_check(tf=tf, value_check=False, check_stability=True)
         GF_plus_I = (G @ F) + np.eye(G.shape[0])
         i_GF_plus_I = invert_matrix(GF_plus_I)
-
-        for tf in i_GF_plus_I:
-            d_tfs.sps_assumption_check(tf=tf, value_check=False, stability_check=True)
+        for tf in i_GF_plus_I.flat:
+                d_tfs.sps_assumption_check(tf=tf, value_check=False, check_stability=True)
         
         G_0 = i_GF_plus_I @ G @ L
         H_0 = i_GF_plus_I @ H
         return G_0, H_0
     
-    def open_loop_sps(self, G_0: Union['d_tfs', np.ndarray], H_0: Union['d_tfs', np.ndarray],
+    def indirect_sps(self, G_0: Union['d_tfs', np.ndarray], H_0: Union['d_tfs', np.ndarray],
                        Y_t: np.ndarray, U_t: np.ndarray, phi_U_t: np.ndarray,
-                          A: np.ndarray, B: np.ndarray, C: np.ndarray) -> bool:
+                          A: np.ndarray, B: np.ndarray, C: np.ndarray, 
+                          F: Union['d_tfs', np.ndarray], sps_type: SPSType, Lambda: np.ndarray) -> bool:
         if self.is_siso:
-            return self.open_loop_sps_siso(G_0, H_0, Y_t, U_t, phi_U_t, A, B, C)
+            return self.indirect_sps_siso(G_0, H_0, Y_t, U_t, phi_U_t, A, B, C, F, sps_type)
         else:
-            return self.open_loop_sps_mimo(G_0, H_0, Y_t, U_t, phi_U_t, A, B, C)
+            return self.indirect_sps_mimo(G_0, H_0, Y_t, U_t, phi_U_t, A, B, C, F, sps_type, Lambda)
 
-    def open_loop_sps_mimo(self, G_0: np.ndarray, H_0: np.ndarray,
+    def indirect_sps_mimo(self, G_0: np.ndarray, H_0: np.ndarray,
                        Y_t: np.ndarray, U_t: np.ndarray, phi_U_t: np.ndarray,
-                          A: np.ndarray, B: np.ndarray, C: np.ndarray) -> bool:
+                          A: np.ndarray, B: np.ndarray, C: np.ndarray, 
+                          F: np.ndarray, sps_type: SPSType, Lambda: np.ndarray) -> bool:
         
         try:
             # create the perturbed noise, y, u
@@ -161,9 +168,12 @@ class SPS_indirect_model:
             N_hat = apply_tf_matrix(H_invert,YGU)
             perturbed_N_hat, U_t_par, N_hat_par = get_U_perturbed_nhat(N_hat, U_t, self.alpha, self.N_max)
             y_bar = apply_tf_matrix(G_0, U_t_par) + apply_tf_matrix(H_0, perturbed_N_hat[:]) 
+            if sps_type == SPSType.CLOSED_LOOP:
+                FY = apply_tf_matrix(F, y_bar)
+                phi_U_t = phi_U_t - FY
             phi_tilde = self.create_phi_method(Y=y_bar, U=phi_U_t, A=A, B=B, C=C)
             # compute S
-            S = compute_S(N_hat_par, perturbed_N_hat, phi_tilde, self.N)
+            S = compute_S(N_hat_par, perturbed_N_hat, phi_tilde, self.N, Lambda)
             # Ranking
             combined = np.array(list(zip(self.pi_order, S)))
             order = np.lexsort(combined.T)
@@ -172,9 +182,10 @@ class SPS_indirect_model:
         except Exception as e:
             raise ValueError(f"Error in open-loop SPS: {e}")
 
-    def open_loop_sps_siso(self, G_0: 'd_tfs', H_0: 'd_tfs',
+    def indirect_sps_siso(self, G_0: 'd_tfs', H_0: 'd_tfs',
                        Y_t: np.ndarray, U_t: np.ndarray, phi_U_t: np.ndarray, 
-                      A: np.ndarray, B: np.ndarray, C: np.ndarray) -> bool:
+                      A: np.ndarray, B: np.ndarray, C: np.ndarray, 
+                      F: 'd_tfs', sps_type: SPSType) -> bool:
         """
         Perform open-loop SPS.
         
@@ -201,6 +212,9 @@ class SPS_indirect_model:
             # Compute y_bar vectorized
             y_bar = G_0*U_t_par[None, :] + H_0*(perturbed_N_hat[:, None])
             y_bar = y_bar.transpose(1, 0, 2)[0]
+            if sps_type == SPSType.CLOSED_LOOP:
+                FY = F*y_bar
+                phi_U_t = phi_U_t - FY
             # Compute phi_tilde
             phi_tilde = self.create_phi_method(Y=y_bar, U=phi_U_t, A=A, B=B, C=C)
             phi_tilde = phi_tilde[:,-self.N:,:]

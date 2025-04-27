@@ -11,7 +11,7 @@ import argparse
 import ast
 import logging
 import time
-from indirect_identification.sps_utils import _construct_ss_from_params
+from indirect_identification.sps_utils import get_construct_ss_from_params_method
 from indirect_identification.tf_methods.fast_tfs_methods_fast_math import _is_stable
 class SPS:
     """
@@ -19,13 +19,14 @@ class SPS:
     """
 
 
-    def __init__(self, n_states: int=2, n_inputs: int = 1, n_output: int = 1, 
+    def __init__(self, Lambda: np.ndarray, n_states: int=2, n_inputs: int = 1, n_output: int = 1, 
                  C: np.ndarray = None, n_noise_order: int = 1, n_points: List[int] = [11, 21, 11],
                  m: int=100, q: int=5, N: int = 50, db: Database = None, 
                  debug: bool = False, epsilon: float = 1e-10, logger: logging.Logger = None):
         """"
         Initialize the SPS model search."
         """
+        self.Lambda = Lambda
         self.logger = logger if logger else logging.getLogger(__name__)
         self.debug = debug
         self.epsilon = epsilon
@@ -58,6 +59,10 @@ class SPS:
         self.model = SPS_indirect_model(m=self.m, q=self.q, N=self.N, epsilon=self.epsilon,
                                         n_states=self.n_states, n_inputs=self.n_inputs, 
                                         n_outputs=self.n_output, n_noise=self.n_noise_order)
+        self._construct_ss_from_params = get_construct_ss_from_params_method(n_states=self.n_states, 
+                                                                             n_inputs=self.n_inputs,
+                                                                             n_outputs=self.n_output,
+                                                                             C=self.C)
         
         
     
@@ -152,46 +157,58 @@ class SPS:
             3. G and H are stable transfer functions
             4. H is invertible transfer function (H(0) != 0)
         """
-        A_obs, B_obs, C_obs, D_obs, A,B = _construct_ss_from_params(params)
+        A_obs, B_obs, C_obs, D_obs, A,B = self._construct_ss_from_params(params)
 
-        # G Transfer function matrix
-        G = d_tfs.ss_to_tf(A_obs, B_obs, C_obs, D_obs, check_assumption=True, epsilon=self.epsilon)
-        # test assumptions
-        # A is stable 
+        # G Transfer function matrix, no need to check value assumption, guaranteed to be 0
+        G = d_tfs.ss_to_tf(A_obs, B_obs, C_obs, D_obs, check_assumption=False, epsilon=self.epsilon)
         if not _is_stable(A, epsilon=self.epsilon):
-            raise ValueError("A is not stable")
-        # G(0) = 0
-        for tf in G:
-            d_tfs.sps_assumption_check(tf=tf, value=0, epsilon=self.epsilon) 
+            return False
+        
+        H, C = self._get_H_from_params(params, A)
 
-        # H Transfer function matrix
-        # rest of params form H matrix, H is a n_state x n_state matrix
-        # the diagonals of H are the noise transfer functions
-        # each tf has numerator and denominator of order n_noise_order
-        C = np.empty((self.n_output, self.n_noise_order+1))
-        if self.n_output == 1:
-            # if only one output, H is a scalar transfer function
-            # H = np.zeros((self.n_states, self.n_states), dtype=object)
-            j = self.n_states + self.n_states*self.n_inputs
-            num = params[j:j+(self.n_noise_order+1)]
-            den = A
-            H = d_tfs((num, den))
-            # test assumptions
-            d_tfs.sps_assumption_check(tf=H, value=1, epsilon=self.epsilon)
-            d_tfs.sps_assumption_check(tf=d_tfs((den,num)), value=1, epsilon=self.epsilon)
-        else:
-            H = np.zeros((self.n_output, self.n_output), dtype=object)
-            for i in range(self.n_output):
-                j = self.n_states + self.n_states*self.n_inputs + i*(self.n_noise_order+1)
-                # numerator and denominator of the transfer function
-                num = params[j:j+self.n_noise_order+1]
-                den = A
-                H[i,i] = d_tfs((num, den))
-                C[i] = num
-                # test assumptions
-                d_tfs.sps_assumption_check(tf=H[i,i], value=1, epsilon=self.epsilon)
-                d_tfs.sps_assumption_check(tf=d_tfs((den,num)), value=1, epsilon=self.epsilon, check_stability=True)
         return G, H, A, B, C
+    
+    def _get_H_from_params(self, params, A):
+        # H Transfer function matrix
+        if self.n_noise_order == -1:
+            # if noise order is -1 then H is a scalar transfer function
+            if self.n_output == 1:
+                C = np.array([1])
+                H = d_tfs((C, A))
+            else:
+                C = np.empty((self.n_output, 1))
+                H = np.zeros((self.n_output, self.n_output), dtype=object)
+                for i in range(self.n_output):
+                    C[i]=np.array([1])
+                    H[i,i]=d_tfs((np.array([1.0]),A))
+        else:
+            # rest of params form H matrix, H is a n_state x n_state matrix
+            # the diagonals of H are the noise transfer functions
+            # each tf has numerator and denominator of order n_noise_order
+            C = np.empty((self.n_output, self.n_noise_order+1))
+            if self.n_output == 1:
+                # if only one output, H is a scalar transfer function
+                # H = np.zeros((self.n_states, self.n_states), dtype=object)
+                j = self.n_states + self.n_states*self.n_inputs
+                num = params[j:j+(self.n_noise_order+1)]
+                den = A
+                H = d_tfs((num, den))
+                # test assumptions
+                d_tfs.sps_assumption_check(tf=H, value=1, epsilon=self.epsilon)
+                d_tfs.sps_assumption_check(tf=d_tfs((den,num)), value=1, epsilon=self.epsilon)
+            else:
+                H = np.zeros((self.n_output, self.n_output), dtype=object)
+                for i in range(self.n_output):
+                    j = self.n_states + self.n_states*self.n_inputs + i*(self.n_noise_order+1)
+                    # numerator and denominator of the transfer function
+                    num = params[j:j+self.n_noise_order+1]
+                    den = A
+                    H[i,i] = d_tfs((num, den))
+                    C[i] = num
+                    # test assumptions
+                    d_tfs.sps_assumption_check(tf=H[i,i], value=1, epsilon=self.epsilon)
+                    d_tfs.sps_assumption_check(tf=d_tfs((den,num)), value=1, epsilon=self.epsilon, check_stability=True)
+        return H, C
 
 
     def open_loop_sps_search_fn(self, params):
@@ -202,8 +219,6 @@ class SPS:
         try:
             G, H , A, B, C = self.construct_gh_from_params(params)
         except ValueError:
-            # if self.debug:
-            #     self.logger.debug("Assumptions not satisfied... skipping")
             return False
 
         # Check the condition and store the result if true
@@ -213,7 +228,7 @@ class SPS:
         try:
             in_sps = self.model.sps_indicator(G=G, H=H, A=A, B=B, C=C,
                                              Y_t=self.data.y, U_t=self.data.u, 
-                                             sps_type=SPSType.OPEN_LOOP)
+                                             sps_type=SPSType.OPEN_LOOP, Lambda=None)
         except ValueError:
             self.logger.warning("SPS Failed")
             in_sps = False
@@ -241,7 +256,7 @@ class SPS:
             in_sps = self.model.sps_indicator(G=G, H=H, A=A, B=B, C=C,
                                              Y_t=self.data.y, U_t=self.data.u, R_t=self.data.r,
                                              sps_type=SPSType.CLOSED_LOOP,
-                                             F=self.controller.F, L=self.controller.L)
+                                             F=self.controller.F, L=self.controller.L, Lambda=self.Lambda)
         except ValueError:
             in_sps = False
         
@@ -282,6 +297,7 @@ def parse_args(raw_args=None, db:Database = None):
     parser = argparse.ArgumentParser(description="SPS Indirect Identification")
     
     # Define arguments
+    parser.add_argument("--Lambda", type=parse_array, help="Weight matrix output by output as a list-like string")
     parser.add_argument("--n_states", type=int, default=2, help="Number of states")
     parser.add_argument("--n_inputs", type=int, default=1, help="Number of inputs")
     parser.add_argument("--n_output", type=int, default=1, help="Number of outputs")
@@ -309,6 +325,7 @@ def run_sps(raw_args=None, db:Database = None, args: argparse.Namespace = None, 
     if args is None:
         args, db = parse_args(raw_args=raw_args, db=db)
     sps = SPS(
+        Lambda=args.Lambda,
         n_states=args.n_states,
         n_inputs=args.n_inputs,
         n_output=args.n_output,

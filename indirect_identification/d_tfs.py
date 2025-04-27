@@ -300,7 +300,10 @@ class d_tfs:
                 G[i, j] = d_tfs((num[i], den))  # Store transfer function object
                 if check_assumption:
                     # Check assumptions for each transfer function
-                    d_tfs.sps_assumption_check(G[i, j], 0, epsilon)  
+                    try: 
+                        d_tfs.sps_assumption_check(G[i, j], 0, epsilon)
+                    except ValueError as e:
+                        raise ValueError(f"Transfer function G[{i}, {j}] does not satisfy the assumptions: {e}")
         return G
     
 
@@ -367,18 +370,25 @@ def apply_tf_matrix(G: np.ndarray, U: np.ndarray) -> np.ndarray:
         Y = np.zeros((m, k))  # Initialize output matrix
         for i in range(m):
             for j in range(n):
-                Y[i, :] += (G[i, j] * U[j, :]).reshape((k,))  # Apply transfer function multiplication
-    elif U.ndim == 3 and G.shape[0]==G.shape[1]:
+                try:
+                    Y[i, :] += (G[i, j] * U[j, :]).reshape((k,))  # Apply transfer function multiplication
+                except Exception as e:
+                    print(f"{e}")
+    elif U.ndim == 3:
         # m x n_output x t to noutput x m x t
-        # this is H, which is assumed to be all on diagonal 
         U =np.ascontiguousarray(U.transpose(1, 0, 2))
-        n,m,t = U.shape
-        Y = np.empty_like(U)
-        for i in range(n):
-            H = G[i,i]
+        m, n = G.shape
+        _, p, t = U.shape
+        Y = np.zeros((m, p, t))
+
+        for i in range(m):
             for j in range(n):
-                Y[j,:] = H*U[j,:]
-        Y=Y.transpose(1,0,2)  
+                Y[i, :, :] += G[i, j] * U[j, :, :]
+
+        # p m t
+        Y = Y.transpose(1,0,2)
+
+
     return Y
 
 
