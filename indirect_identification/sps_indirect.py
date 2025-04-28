@@ -63,7 +63,30 @@ class SPS_indirect_model:
                   L: Optional[Union['d_tfs', np.ndarray]] = None,
                   R_t: Optional[np.ndarray] = None, Lambda: Optional[np.ndarray] = None
                   ) -> Tuple[bool, np.ndarray]:
-    
+        """
+        SPS indicator, returns True if the tested transfer functions G and H are 
+        in the SPS region. The function handles both open-loop and closed-loop scenarios.
+
+        Parameters:
+            Y_t (np.ndarray): Output array n_outputs x t. 
+            U_t (np.ndarray): Input array  n_inputs x t.
+            A (np.ndarray): A polynomial np array.
+            B (np.ndarray): B polynomial/s np array.
+            C (np.ndarray): C polynomial/s np array.
+            G (Union['d_tfs', np.ndarray]): Transfer function G.
+            H (Union['d_tfs', np.ndarray]): Transfer function H.
+            sps_type (SPSType): Type of SPS (e.g., whether system is running in closed loop or open).
+            F (Optional[Union['d_tfs', np.ndarray]]): Transfer function F (required for closed loop).
+            L (Optional[Union['d_tfs', np.ndarray]]): Transfer function L (required for closed loop).
+            R_t (Optional[np.ndarray]): Reference array (required for closed loop).
+            Lambda (Optional[np.ndarray]): Regularization or weighting parameter of shape n_output x n_output.
+                                          If not provided, Lambda will be estimated from the estimated noise. 
+
+        Returns:
+            Tuple[bool, np.ndarray]: A tuple where the first element is a boolean indicating 
+            whether the system is in the SPS region (True or False), and the second element 
+            is the corresponding array of results (e.g., computed values related to the SPS region).
+        """
         if sps_type == SPSType.CLOSED_LOOP:
             if F is None or L is None or R_t is None:
                 raise ValueError("F and L must be provided for closed-loop SPS.")
@@ -112,14 +135,17 @@ class SPS_indirect_model:
         """
         Transform the closed-loop system to an open-loop system.
         
-        Parameters:
-        G (tuple): The transfer function G.
-        H (tuple): The transfer function H.
-        F (tuple): The transfer function F.
-        L (tuple): The transfer function L.
+        This function takes the closed-loop system transfer functions G, H, F, and L, and
+        returns the corresponding open-loop transfer functions G_0 and H_0.
         
+        Parameters:
+            G (tuple): The transfer function G (closed-loop).
+            H (tuple): The transfer function H (closed-loop).
+            F (tuple): The transfer function F (closed-loop).
+            L (tuple): The transfer function L (closed-loop).
+            
         Returns:
-        tuple: The open-loop transfer functions G_0 and H_0.
+            tuple: A tuple containing the open-loop transfer functions G_0 and H_0.
         """
         GF_plus_I = (G * F) + 1
         i_GF_plus_I = 1/GF_plus_I
