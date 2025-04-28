@@ -6,7 +6,9 @@ from dB.sim_db import Database, SPSType
 from indirect_identification.d_tfs import d_tfs
 from types import SimpleNamespace
 
-np.random.seed(42)
+class OpenLoopStabilityError(Exception):
+    """Raised when stability conditions are not satisfied during open-loop transformation."""
+    pass
 
 class SPS_indirect_model:
     """
@@ -87,7 +89,7 @@ class SPS_indirect_model:
         i_GF_plus_I = 1/GF_plus_I
         
         if not all(tf.is_stable() for tf in [L, G, H, 1/H, i_GF_plus_I] if isinstance(tf, d_tfs)):
-            raise ValueError(f"Error transforming to open loop: stability conditions not satisfied.")
+            raise OpenLoopStabilityError(f"Error transforming to open loop: stability conditions not satisfied.")
         
         G_0 = i_GF_plus_I * G * L
         H_0 = i_GF_plus_I * H
@@ -108,6 +110,9 @@ class SPS_indirect_model:
         Returns:
         tuple: A boolean indicating if the rank is within the threshold and the S values.
         """
+        if not all(tf.is_stable() for tf in [G_0, H_0] if isinstance(tf, d_tfs)):
+            raise OpenLoopStabilityError(f"Error transforming to open loop: stability conditions not satisfied.")
+        
         try:
             Y_t = np.asarray(Y_t)
             U_t = np.asarray(U_t)

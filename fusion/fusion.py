@@ -2,6 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
+import os
+if os.path.basename(os.getcwd()) != 'Learning-Dynamic-Systems': os.chdir(".\\..") 
+from indirect_identification.sps_indirect import OpenLoopStabilityError
+
+
 def fuse_ranks(new_ranks, old_ranks, forget=0):
     # new_ranks_weighting = 1 / (n+1)
     # old_ranks_weighting = n / (n+1)
@@ -18,6 +23,27 @@ def fuse_ranks(new_ranks, old_ranks, forget=0):
     return fused_ranks
 
 def get_ranks(grid_axes, model, n_a, n_b, C, L, F, Y, R):
+    """
+    Compute the SPS ranks over a grid of plant parameters.
+
+    Parameters
+    ----------
+    grid_axes : list of ndarray
+        Each entry represents a 1D array of values for one plant parameter.
+        Order: [a1 range, a2 range, ..., an range, b1 range, b2 range, ..., bn range]
+        Search occurs with B = [0,b1,b2] and A = [1,-a1,-a2] and so forth
+    model : object
+        Model object that implements `transform_to_open_loop` and `open_loop_sps` methods.
+    n_a : int
+        Number of denominator (A) coefficients excluding the leading 1.
+    n_b : int
+        Number of numerator (B) coefficients excluding the leading 0.
+
+    Returns
+    -------
+    rank_tensor : ndarray
+        Tensor of SPS float ranks with the same shape as the grid defined by `grid_axes`.
+    """
 
     mesh = np.meshgrid(*grid_axes, indexing='ij')
     grid_shape = mesh[0].shape
@@ -36,7 +62,7 @@ def get_ranks(grid_axes, model, n_a, n_b, C, L, F, Y, R):
             G_0, H_0 = model.transform_to_open_loop(G, H, F, L)
             in_sps, float_rank, S1 = model.open_loop_sps(G_0, H_0, Y, R, n_a, n_b, return_rank=True)
             rank_tensor[idx] = float_rank
-        except Exception as e:
+        except OpenLoopStabilityError as e:
             rank_tensor[idx] = 1.0 # Unstable open loop system
     
     return rank_tensor

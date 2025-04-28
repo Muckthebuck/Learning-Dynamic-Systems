@@ -40,17 +40,27 @@ class OptimalControlSolver:
         self.K_opt = None
     
     def set_plants(self,A_list,B_list):
-        self.A_list = np.array(A_list)
-        self.B_list = np.array(B_list)
-        assert self.A_list.shape[0] == self.B_list.shape[0] # must be (A,B) pairs
+        A_list = np.array(A_list)
+        B_list = np.array(B_list)
+
+        # Ensure number of plants is consistent, and reshape scalar plants as required
+        n_plants = B_list.shape[0]
+        assert A_list.shape[0] == B_list.shape[0]
+        if np.isscalar(A_list[0]):
+            A_list = A_list.reshape([n_plants,1,1])
+        if np.isscalar(B_list[0]):
+            B_list = B_list.reshape([n_plants,1,1])
+
+        self.A_list = A_list
+        self.B_list = B_list
         self.n_plants = self.B_list.shape[0]
         self.n_states = self.B_list.shape[1]
         self.n_inputs = self.B_list.shape[2]
 
     def get_plant_hulls(self):
         # Using ConvexHull method for now - MVEE method will be implemented later as needed
-        self.A_verts, self.n_A_verts = get_hull_matrices(self.A_list)
-        self.B_verts, self.n_B_verts = get_hull_matrices(self.B_list)
+        self.A_verts, self.n_A_verts, self.unc_A = get_hull_matrices(self.A_list)
+        self.B_verts, self.n_B_verts, self.unc_B = get_hull_matrices(self.B_list)
         self.logger.info(f" Convex hull of A set has {self.n_A_verts} vertices")
         self.logger.info(f" Convex hull of B set has {self.n_B_verts} vertices")
         self.logger.info(f" This will lead to {self.n_A_verts*self.n_B_verts} LMI constraints")
@@ -118,11 +128,14 @@ class OptimalControlSolver:
 
         assert compute_worst_case_J(self.K_stab, self.A_list, self.B_list, self.Q, self.R, self.x_0) != np.inf
 
+        # objective      = lambda K: compute_worst_case_J(K.reshape(self.n_inputs,self.n_states), self.A_list, self.B_list, self.Q, self.R, self.x_0)
+        objective      = lambda K: compute_worst_case_J(K.reshape(self.n_inputs,self.n_states), self.A_verts, self.B_verts, self.Q, self.R, self.x_0)
+        disp_current_J = lambda K: None # self.logger.info(f"\t Current worst-case J: {compute_worst_case_J(K.reshape(self.n_inputs,self.n_states), self.A_list, self.B_list, self.Q, self.R, self.x_0)}")
+
         np.seterr(invalid='ignore') # Suppress runtime warnings related to invalid values (J==Inf)
-        objective      = lambda K: compute_worst_case_J(K.reshape(self.n_inputs,self.n_states), self.A_list, self.B_list, self.Q, self.R, self.x_0)
-        disp_current_J = lambda K: None # print(f"\t Current worst-case J: {compute_worst_case_J(K.reshape(self.n_inputs,self.n_states), self.A_list, self.B_list, self.Q, self.R, self.x_0)}")
-        results = minimize(objective, self.K_stab.flatten(), method="BFGS", options={"disp": False, "xrtol": self.delta_J_tol}, callback=disp_current_J)
+        results = minimize(objective, self.K_stab.flatten(), method="BFGS", tol=self.delta_J_tol, options={"disp": True}, callback=disp_current_J)
         np.seterr(invalid='warn')
+        
         self.K_opt = results.x.reshape(self.n_inputs,self.n_states)
         self.logger.info(f" Optimised the simultaneously stabilising feedback gain, yielding K = {self.K_opt}")
         
@@ -156,14 +169,31 @@ def get_unc_entries(M):
     unc_entries = [M[i][where_unc] for i in range(n_plants)]
     return np.array(unc_entries)
 
-def get_hull(M):
-    M = np.array(M)
-    unc_entries = get_unc_entries(M)
-    v_idx = np.unique(ConvexHull(unc_entries).vertices) # Extract unique vertices of the convex hull
-    vertices = [unc_entries[i] for i in v_idx]
-    vertices = np.array(vertices)
-    n_vertices = vertices.shape[0]
-    return vertices, n_vertices
+def get_hull(M_list):
+    M_list = np.array(M_list)
+    unc_entries = get_unc_entries(M_list)
+
+    n_unc_entries = unc_entries.shape[1]
+    if n_unc_entries > 1:
+        v_idx = np.unique(ConvexHull(unc_entries, qhull_options='QJ').vertices) # Extract unique vertices of the convex hull
+        vertices = [unc_entries[i] for i in v_idx]
+        vertices = np.array(vertices)
+        n_vertices = vertices.shape[0]
+        return vertices, n_vertices
+    elif n_unc_entries == 1:
+        # Special case: scalar
+        max_idx = np.argmax(unc_entries)
+        min_idx = np.argmin(unc_entries)
+        max = unc_entries[max_idx]
+        min = unc_entries[min_idx]
+        vertices = np.array([min, max])
+        n_vertices = 2
+        return vertices, n_vertices
+    elif n_unc_entries == 0:
+        # Special case: no uncertain params
+        vertices = np.array(M_list[0])
+        n_vertices = 1
+        return vertices, n_vertices
 
 def get_hull_matrices(M):
     v, n = get_hull(M)
@@ -174,7 +204,7 @@ def get_hull_matrices(M):
     M_verts = [M0.copy() for _ in range(n)]
     for i in range(n):
         M_verts[i][where_unc] = v[i]
-    return M_verts, n
+    return np.array(M_verts), n, where_unc
 
 def compute_worst_case_J(K, A_in_set, B_in_set, Q, R, x_0=None):
     max_J = -np.inf
@@ -183,9 +213,12 @@ def compute_worst_case_J(K, A_in_set, B_in_set, Q, R, x_0=None):
     return max_J
 
 def calc_J(A, B, K, Q, R, x_0=None):
+    
     stability_radius = 1 - 1e-6  # Slightly stricter stability criterion
+
     Phi = A - B @ K
-    Q_tilde = Q + K.T @ (R * K) if np.isscalar(R) else Q + K.T @ R @ K
+    is_scalar_R = np.isscalar(R) or (isinstance(R, np.ndarray) and R.ndim == 0)
+    Q_tilde = Q + K.T @ (R * K) if is_scalar_R else Q + K.T @ R @ K
 
     if np.all(np.abs(eigvals(Phi)) < stability_radius):
         S = solve_discrete_lyapunov(Phi.T, Q_tilde)
@@ -214,7 +247,7 @@ def get_optimal_controller_riccati_method(A_in_set, B_in_set, Q, R, x_0=None):
     """
     Heuristic Riccati-based method.
     Evaluates the worst-case Riccati solution P, and returns the LQR controller associated with this plant.
-    This method is much faster than the LMI-based solution, but the controller is not guaranteed to be stabilising or optimal, particularly with large parameter uncertainty.
+    This method is often faster than the LMI-based solution, but the controller is not guaranteed to be stabilising or optimal, particularly with large parameter uncertainty.
     """
 
     # Ensure numpy arrays

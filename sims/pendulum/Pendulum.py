@@ -57,7 +57,8 @@ class Pendulum(PendulumSimBase):
         if isinstance(u, np.ndarray):
             u = u[0]
         theta, theta_dot = y
-        theta_ddot = (u - self.d * theta_dot - self.m * self.g * self.L * np.cos(theta)) / self.inertia
+        theta_ddot = (u - self.d * theta_dot - self.m * self.g * self.L * np.sin(theta)) / self.inertia # theta_ddot = u - d*theta_dot - mgL*sin(theta)/J
+        
         return np.array([theta_dot, theta_ddot])
 
     def draw(self, state_vec: np.ndarray, t: Optional[float] = None) -> np.ndarray:
