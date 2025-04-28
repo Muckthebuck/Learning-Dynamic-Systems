@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.polynomial.polynomial import polydiv
 from numpy.polynomial.polyutils import trimseq
-from numba import jit
+from numba import jit,njit
 from typing import Tuple, Union
 
 __all__ = [
@@ -15,11 +15,14 @@ __all__ = [
     '_div_tfs',
     '_poly_sub', 
     '_full_reduce_fraction_numpy',
-    '_is_stable'
+    '_is_stable',
+    'lfilter_numba',
+    '_eval_tf'
 ]
 
 # Enabling fastmath for improved performance
 _epsilon = 1e-12
+
 
 @jit(nopython=True)
 def _is_stable(den: np.ndarray, epsilon: float = 0.001) -> bool:   
@@ -31,6 +34,28 @@ def _is_stable(den: np.ndarray, epsilon: float = 0.001) -> bool:
     den = den.astype(np.complex128)
     poles = np.abs(np.roots(den))  # Compute poles (roots of denominator)
     return np.all(poles < 1-epsilon)  # Check if all poles are inside the unit circle
+
+@jit(nopython=True, fastmath=True)
+def _eval_tf(num: np.ndarray, den: np.ndarray, z_inv: float) -> float:
+    """
+    Efficiently evaluate H(z^{-1}) = num(z^{-1}) / den(z^{-1}) for real z^{-1}
+    """
+    num_val = 0.0
+    den_val = 0.0
+
+    # Numerator: starts at z^{-1}
+    z_pow = z_inv
+    for i in range(len(num)):
+        num_val += num[i] * z_pow
+        z_pow *= z_inv  # incrementally build z_inv^(i+2)
+
+    # Denominator: starts at z^0
+    z_pow = 1.0
+    for j in range(len(den)):
+        den_val += den[j] * z_pow
+        z_pow *= z_inv
+
+    return num_val / den_val
 
 @jit(nopython=True, fastmath=True)
 def _simplify_array(arr: np.ndarray, epsilon: float = _epsilon) -> np.ndarray:
@@ -176,3 +201,41 @@ def _full_reduce_fraction_numpy(num: np.ndarray, den: np.ndarray, tol: float = _
     den_reduced = den_reduced / gcd
     return _simplify(num_reduced, den_reduced)
 
+@njit(cache=True, fastmath=True)
+def lfilter_1d(b, a, x):
+    N = len(a)
+    M = len(b)
+    n = len(x)
+    y = np.zeros(n)
+
+    if a[0] != 1.0:
+        b = b / a[0]
+        a = a / a[0]
+
+    for i in range(n):
+        for j in range(M):
+            if i - j >= 0:
+                y[i] += b[j] * x[i - j]
+        for j in range(1, N):
+            if i - j >= 0:
+                y[i] -= a[j] * y[i - j]
+
+    return y
+
+@njit(cache=True, fastmath=True)
+def lfilter_nd(b, a, x_reshaped, n_signals, time_len):
+    y_reshaped = np.empty_like(x_reshaped)
+    for i in range(n_signals):
+        y_reshaped[i] = lfilter_1d(b, a, x_reshaped[i])
+    return y_reshaped
+
+@njit(cache=True, fastmath=True)
+def lfilter_numba(b, a, x:np.ndarray) -> np.ndarray:
+    orig_shape = x.shape
+    time_len = x.shape[-1]
+
+    # Collapse all leading dims to 1D signals
+    x_reshaped = x.reshape(-1, time_len)
+    y_reshaped = lfilter_nd(b, a, x_reshaped, x_reshaped.shape[0], time_len)
+    # Restore original shape
+    return y_reshaped.reshape(orig_shape)
