@@ -44,13 +44,14 @@ def compute_S(N_hat_, N_hat_perturbed_, phi_tilde_, N, Lambda=None):
     for i in prange(m):
         # Step 1: Invert Delta_lambda[i] (still using numpy)
         Delta_inv = np.linalg.inv(Delta_lambda[i])
+        Delta_lambda_n_i = np.linalg.inv(Delta_lambda_n[i])
 
         # Step 2: temp = Delta_inv @ Delta_lambda_n[i]
         temp = np.zeros((r, r))
         for a in range(r):
             for b in range(r):
                 for c in range(r):
-                    temp[a, b] += Delta_inv[a, c] * Delta_lambda_n[i, c, b]
+                    temp[a, b] += Delta_inv[a, c] * Delta_lambda_n_i[c, b]
 
         # Step 3: R_ = temp @ Delta_inv
         R_ = np.zeros((r, r))

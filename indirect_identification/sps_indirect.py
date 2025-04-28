@@ -46,13 +46,11 @@ class SPS_indirect_model:
         """
         Initialize the alpha matrix and the permutation order for the SPS.
         """
-        if self.is_siso:
-            self.alpha = np.random.randn(self.m,self.N_max)
-            self.alpha = np.sign(self.alpha)
-        else:
-            self.alpha = np.sign(np.random.randn(self.m,self.n_outputs,self.N_max))
-
+        self.alpha = np.sign(np.random.randn(self.m,self.N_max))
         self.alpha[0, :] = 1
+        if not self.is_siso:
+            self.alpha = np.broadcast_to(self.alpha,(self.n_outputs,self.m,self.N_max)).transpose(1,0,2)
+
         self.pi_order = np.random.permutation(np.arange(self.m))
 
     def sps_indicator(self, Y_t: np.ndarray, U_t: np.ndarray,
