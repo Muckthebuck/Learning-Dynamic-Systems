@@ -21,7 +21,7 @@ class PendulumSimBase(ABC):
     """
     def __init__(self, initial_state: np.ndarray, C: np.ndarray, 
                  labels: Optional[list[str]] = None, sim_title: str = "Sim", dt: float = 0.02, 
-                 plot_system: bool = False, history_limit: float = 2) -> None:
+                 plot_system: bool = False, history_limit: float = 2, noise_std: float = 0.002) -> None:
         """
         Initializes the pendulum simulation.
 
@@ -36,6 +36,7 @@ class PendulumSimBase(ABC):
         self.plot_system: bool = plot_system
         self.labels = labels
         self.sim_title = sim_title
+        self.noise_std = noise_std
         # initialise plotting
         if plot_system:
             self._initialise_plotting()
@@ -84,13 +85,13 @@ class PendulumSimBase(ABC):
             bool: Whether simulation is now stopped.
             np.ndarray: Also returns fully observed state if full_state arg is true
         """
-        self.state = self._rk4_step(self.state, u)
+        self.state = self._rk4_step(self.state, u) + np.random.normal(0, self.noise_std, self.state.shape)
         if self.plot_system:
             self.history.append(np.append(self.state,u))
             if len(self.history) > self.history_limit:
                 self.history = self.history[-self.history_limit:]  # Keep only the last N points
             self.update_plot(t)
-        done = not self.render() # if render returns False, simulation is manually stopped
+        done = not self.render(t) # if render returns False, simulation is manually stopped
         if not full_state:
             return np.dot(self.C, self.state), done
         if full_state:
@@ -127,14 +128,13 @@ class PendulumSimBase(ABC):
         angle = angle % (2 * np.pi)
         return angle - 2 * np.pi if angle > np.pi else angle
 
-    def render(self) -> bool:
+    def render(self, t) -> bool:
         """
         Renders the pendulum visualization.
 
         Returns:
             bool: False if user quits, True otherwise.
         """
-        t = len(self.history) * self.dt
         rendered = self.draw(self.state, t)
         cv2.imshow(self.sim_title, rendered)
         key = cv2.waitKey(1)

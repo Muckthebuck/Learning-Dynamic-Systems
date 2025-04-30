@@ -1,0 +1,3084 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   contentStyleType="text/css"
+   data-diagram-type="CLASS"
+   height="1479px"
+   preserveAspectRatio="none"
+   style="width:1442px;height:1479px;background:#FFFFFF;"
+   version="1.1"
+   viewBox="0 0 1442 1479"
+   width="1442px"
+   zoomAndPan="magnify"
+   id="svg715"
+   sodipodi:docname="arch_diag.svg"
+   inkscape:version="1.0.1 (3bc2e813f5, 2020-09-07)">
+  <metadata
+     id="metadata719">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="1920"
+     inkscape:window-height="1009"
+     id="namedview717"
+     showgrid="true"
+     inkscape:zoom="0.51040222"
+     inkscape:cx="428.1633"
+     inkscape:cy="694.05791"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="g713">
+    <inkscape:grid
+       type="xygrid"
+       id="grid721" />
+  </sodipodi:namedview>
+  <title
+     id="title10">Modular Control System Architecture for Simulation and Identification (SPS Framework)</title>
+  <defs
+     id="defs12" />
+  <g
+     id="g713">
+    <g
+       class="title"
+       data-source-line="1"
+       id="g16">
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         font-weight="bold"
+         lengthAdjust="spacing"
+         textLength="697.7852"
+         x="365.2543"
+         y="22.9951"
+         id="text14">Modular Control System Architecture for Simulation and Identification (SPS Framework)</text>
+    </g>
+    <!--class fast_tfs_methods-->
+    <g
+       class="entity"
+       data-entity="fast_tfs_methods"
+       data-source-line="4"
+       data-uid="ent0002"
+       id="entity_fast_tfs_methods">
+      <rect
+         fill="#F1F1F1"
+         height="276.4219"
+         rx="2.5"
+         ry="2.5"
+         style="stroke:#181818;stroke-width:0.5;"
+         width="240.416"
+         x="88.79"
+         y="44.2969"
+         id="rect18" />
+      <ellipse
+         cx="145.0669"
+         cy="64.4297"
+         fill="#DA70D6"
+         rx="11"
+         ry="11"
+         style="stroke:#181818;stroke-width:1;"
+         id="ellipse20" />
+      <path
+         d="M140.7856,58.0391 L143.7075,58.0391 L145.1762,63.4766 L146.645,58.0391 L149.5825,58.0391 L149.5825,70.4297 L147.4731,70.4297 L147.4731,60.5078 L146.1606,65.9297 L144.2231,65.9297 L142.895,60.5078 L142.895,70.4297 L140.7856,70.4297 L140.7856,58.0391 Z "
+         fill="#000000"
+         id="path22" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="12"
+         font-style="italic"
+         lengthAdjust="spacing"
+         textLength="58.3184"
+         x="196.0888"
+         y="60.4355"
+         id="text24">«Module»</text>
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="119.3623"
+         x="165.5669"
+         y="76.2607"
+         id="text26">fast_tfs_methods</text>
+      <line
+         style="stroke:#181818;stroke-width:0.5;"
+         x1="89.79"
+         x2="328.206"
+         y1="84.5625"
+         y2="84.5625"
+         id="line28" />
+      <ellipse
+         cx="99.79"
+         cy="98.2109"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse30" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="148.2988"
+         x="108.79"
+         y="101.5576"
+         id="text32">@jit _simplify_array()</text>
+      <ellipse
+         cx="99.79"
+         cy="114.5078"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse34" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="104.3438"
+         x="108.79"
+         y="117.8545"
+         id="text36">@jit _simplify()</text>
+      <ellipse
+         cx="99.79"
+         cy="130.8047"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse38" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="176.9346"
+         x="108.79"
+         y="134.1514"
+         id="text40">@jit _ensure_same_size()</text>
+      <ellipse
+         cx="99.79"
+         cy="147.1016"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse42" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="112.417"
+         x="108.79"
+         y="150.4482"
+         id="text44">@jit _convolve()</text>
+      <ellipse
+         cx="99.79"
+         cy="163.3984"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse46" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="100.707"
+         x="108.79"
+         y="166.7451"
+         id="text48">@jit _add_tfs()</text>
+      <ellipse
+         cx="99.79"
+         cy="179.6953"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse50" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="124.79"
+         x="108.79"
+         y="183.042"
+         id="text52">@jit _add_scalar()</text>
+      <ellipse
+         cx="99.79"
+         cy="195.9922"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse54" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="99.4082"
+         x="108.79"
+         y="199.3389"
+         id="text56">@jit _sub_tfs()</text>
+      <ellipse
+         cx="99.79"
+         cy="212.2891"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse58" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="100.7549"
+         x="108.79"
+         y="215.6357"
+         id="text60">@jit _mul_tfs()</text>
+      <ellipse
+         cx="99.79"
+         cy="228.5859"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse62" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="124.8379"
+         x="108.79"
+         y="231.9326"
+         id="text64">@jit _mul_scalar()</text>
+      <ellipse
+         cx="99.79"
+         cy="244.8828"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse66" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="95.416"
+         x="108.79"
+         y="248.2295"
+         id="text68">@jit _div_tfs()</text>
+      <ellipse
+         cx="99.79"
+         cy="261.1797"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse70" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="128.7207"
+         x="108.79"
+         y="264.5264"
+         id="text72">@jit _poly_divide()</text>
+      <ellipse
+         cx="99.79"
+         cy="277.4766"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse74" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="111.3232"
+         x="108.79"
+         y="280.8232"
+         id="text76">@jit _poly_sub()</text>
+      <ellipse
+         cx="99.79"
+         cy="293.7734"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse78" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="89.6602"
+         x="108.79"
+         y="297.1201"
+         id="text80">@jit _eGCD()</text>
+      <ellipse
+         cx="99.79"
+         cy="310.0703"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse82" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="214.416"
+         x="108.79"
+         y="313.417"
+         id="text84">@jit _reduce_fraction_numpy()</text>
+    </g>
+    <!--class d_tfs-->
+    <g
+       class="entity"
+       data-entity="d_tfs"
+       data-source-line="22"
+       data-uid="ent0003"
+       id="entity_d_tfs">
+      <rect
+         fill="#F1F1F1"
+         height="235.5625"
+         rx="2.5"
+         ry="2.5"
+         style="stroke:#181818;stroke-width:0.5;"
+         width="196.7686"
+         x="110.62"
+         y="401.0169"
+         id="rect87" />
+      <ellipse
+         cx="187.955"
+         cy="417.0169"
+         fill="#ADD1B2"
+         rx="11"
+         ry="11"
+         style="stroke:#181818;stroke-width:1;"
+         id="ellipse89" />
+      <path
+         d="M190.9237,422.6575 Q190.3456,422.9544 189.705,423.095 Q189.0643,423.2513 188.3612,423.2513 Q185.8612,423.2513 184.5331,421.6106 Q183.2206,419.9544 183.2206,416.8294 Q183.2206,413.7044 184.5331,412.0481 Q185.8612,410.3919 188.3612,410.3919 Q189.0643,410.3919 189.705,410.5481 Q190.3612,410.7044 190.9237,411.0013 L190.9237,413.72 Q190.2987,413.1419 189.705,412.8763 Q189.1112,412.595 188.4862,412.595 Q187.1425,412.595 186.455,413.6731 Q185.7675,414.7356 185.7675,416.8294 Q185.7675,418.9231 186.455,420.0013 Q187.1425,421.0638 188.4862,421.0638 Q189.1112,421.0638 189.705,420.7981 Q190.2987,420.5169 190.9237,419.9388 L190.9237,422.6575 Z "
+         fill="#000000"
+         id="path91" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="33.5986"
+         x="208.455"
+         y="421.8636"
+         id="text93">d_tfs</text>
+      <line
+         style="stroke:#181818;stroke-width:0.5;"
+         x1="111.62"
+         x2="306.3886"
+         y1="433.0169"
+         y2="433.0169"
+         id="line95" />
+      <rect
+         fill="#F24D5C"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="118.62"
+         y="443.6653"
+         id="rect97" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="65.2764"
+         x="130.62"
+         y="450.012"
+         id="text99">__add__()</text>
+      <rect
+         fill="#F24D5C"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="118.62"
+         y="459.9622"
+         id="rect101" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="63.9775"
+         x="130.62"
+         y="466.3089"
+         id="text103">__sub__()</text>
+      <rect
+         fill="#F24D5C"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="118.62"
+         y="476.2591"
+         id="rect105" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="69.7334"
+         x="130.62"
+         y="482.6057"
+         id="text107">__rsub__()</text>
+      <rect
+         fill="#F24D5C"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="118.62"
+         y="492.5559"
+         id="rect109" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="65.3242"
+         x="130.62"
+         y="498.9026"
+         id="text111">__mul__()</text>
+      <rect
+         fill="#F24D5C"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="118.62"
+         y="508.8528"
+         id="rect113" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="88.7168"
+         x="130.62"
+         y="515.1995"
+         id="text115">__truediv__()</text>
+      <rect
+         fill="#F24D5C"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="118.62"
+         y="525.1497"
+         id="rect117" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="79.8301"
+         x="130.62"
+         y="531.4964"
+         id="text119">__invert__()</text>
+      <rect
+         fill="#F24D5C"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="118.62"
+         y="541.4466"
+         id="rect121" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="65.2969"
+         x="130.62"
+         y="547.7932"
+         id="text123">__neg__()</text>
+      <rect
+         fill="#F24D5C"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="118.62"
+         y="557.7434"
+         id="rect125" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="56.4238"
+         x="130.62"
+         y="564.0901"
+         id="text127">__eq__()</text>
+      <rect
+         fill="#F24D5C"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="118.62"
+         y="574.0403"
+         id="rect129" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="161.1367"
+         x="130.62"
+         y="580.387"
+         id="text131">_apply_shift_operator()</text>
+      <rect
+         fill="#F24D5C"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="118.62"
+         y="590.3372"
+         id="rect133" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="71.8594"
+         x="130.62"
+         y="596.6839"
+         id="text135">is_stable()</text>
+      <ellipse
+         cx="121.62"
+         cy="609.6341"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse137" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="63.9844"
+         x="130.62"
+         y="612.9807"
+         id="text139">ss_to_tf()</text>
+      <ellipse
+         cx="121.62"
+         cy="625.9309"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse141" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="170.7686"
+         x="130.62"
+         y="629.2776"
+         id="text143">sps_assumption_check()</text>
+    </g>
+    <!--class SPS_indirect_model-->
+    <g
+       class="entity"
+       data-entity="SPS_indirect_model"
+       data-source-line="37"
+       data-uid="ent0004"
+       id="entity_SPS_indirect_model">
+      <rect
+         fill="#F1F1F1"
+         height="178.375"
+         rx="2.5"
+         ry="2.5"
+         style="stroke:#181818;stroke-width:0.5;"
+         width="208.4854"
+         x="104.76"
+         y="741.3269"
+         id="rect146" />
+      <ellipse
+         cx="137.5719"
+         cy="757.3269"
+         fill="#ADD1B2"
+         rx="11"
+         ry="11"
+         style="stroke:#181818;stroke-width:1;"
+         id="ellipse148" />
+      <path
+         d="M140.5407,762.9675 Q139.9625,763.2644 139.3219,763.405 Q138.6813,763.5613 137.9782,763.5613 Q135.4782,763.5613 134.15,761.9206 Q132.8375,760.2644 132.8375,757.1394 Q132.8375,754.0144 134.15,752.3581 Q135.4782,750.7019 137.9782,750.7019 Q138.6813,750.7019 139.3219,750.8581 Q139.9782,751.0144 140.5407,751.3113 L140.5407,754.03 Q139.9157,753.4519 139.3219,753.1863 Q138.7282,752.905 138.1032,752.905 Q136.7594,752.905 136.0719,753.9831 Q135.3844,755.0456 135.3844,757.1394 Q135.3844,759.2331 136.0719,760.3113 Q136.7594,761.3738 138.1032,761.3738 Q138.7282,761.3738 139.3219,761.1081 Q139.9157,760.8269 140.5407,760.2488 L140.5407,762.9675 Z "
+         fill="#000000"
+         id="path150" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="136.9033"
+         x="155.5301"
+         y="762.1736"
+         id="text152">SPS_indirect_model</text>
+      <line
+         style="stroke:#181818;stroke-width:0.5;"
+         x1="105.76"
+         x2="312.2454"
+         y1="773.3269"
+         y2="773.3269"
+         id="line154" />
+      <rect
+         fill="none"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="112.76"
+         y="783.9753"
+         id="rect156" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="10.4727"
+         x="124.76"
+         y="790.322"
+         id="text158">N</text>
+      <rect
+         fill="none"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="112.76"
+         y="800.2722"
+         id="rect160" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="13.6377"
+         x="124.76"
+         y="806.6189"
+         id="text162">m</text>
+      <rect
+         fill="none"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="112.76"
+         y="816.5691"
+         id="rect164" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="8.8867"
+         x="124.76"
+         y="822.9157"
+         id="text166">q</text>
+      <rect
+         fill="none"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="112.76"
+         y="832.8659"
+         id="rect168" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="49.7314"
+         x="124.76"
+         y="839.2126"
+         id="text170">alpha[]</text>
+      <line
+         style="stroke:#181818;stroke-width:0.5;"
+         x1="105.76"
+         x2="312.2454"
+         y1="846.5144"
+         y2="846.5144"
+         id="line172" />
+      <ellipse
+         cx="115.76"
+         cy="860.1628"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse174" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="179.7031"
+         x="124.76"
+         y="863.5095"
+         id="text176">transform_to_open_loop()</text>
+      <ellipse
+         cx="115.76"
+         cy="876.4597"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse178" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="113.2441"
+         x="124.76"
+         y="879.8064"
+         id="text180">open_loop_sps()</text>
+      <rect
+         fill="#F24D5C"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="112.76"
+         y="889.7566"
+         id="rect182" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="160.5283"
+         x="124.76"
+         y="896.1032"
+         id="text184">create_phi_optimized()</text>
+      <rect
+         fill="#F24D5C"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="112.76"
+         y="906.0534"
+         id="rect186" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="182.4854"
+         x="124.76"
+         y="912.4001"
+         id="text188">write_state_space_to_db()</text>
+    </g>
+    <!--class SPS-->
+    <g
+       class="entity"
+       data-entity="SPS"
+       data-source-line="52"
+       data-uid="ent0009"
+       id="entity_SPS">
+      <rect
+         fill="#F1F1F1"
+         height="145.7813"
+         rx="2.5"
+         ry="2.5"
+         style="stroke:#181818;stroke-width:0.5;"
+         width="168.3105"
+         x="417.84"
+         y="445.9069"
+         id="rect191" />
+      <ellipse
+         cx="484.6374"
+         cy="461.9069"
+         fill="#ADD1B2"
+         rx="11"
+         ry="11"
+         style="stroke:#181818;stroke-width:1;"
+         id="ellipse193" />
+      <path
+         d="M487.6061,467.5475 Q487.028,467.8444 486.3874,467.985 Q485.7467,468.1413 485.0436,468.1413 Q482.5436,468.1413 481.2155,466.5006 Q479.903,464.8444 479.903,461.7194 Q479.903,458.5944 481.2155,456.9381 Q482.5436,455.2819 485.0436,455.2819 Q485.7467,455.2819 486.3874,455.4381 Q487.0436,455.5944 487.6061,455.8913 L487.6061,458.61 Q486.9811,458.0319 486.3874,457.7663 Q485.7936,457.485 485.1686,457.485 Q483.8249,457.485 483.1374,458.5631 Q482.4499,459.6256 482.4499,461.7194 Q482.4499,463.8131 483.1374,464.8913 Q483.8249,465.9538 485.1686,465.9538 Q485.7936,465.9538 486.3874,465.6881 Q486.9811,465.4069 487.6061,464.8288 L487.6061,467.5475 Z "
+         fill="#000000"
+         id="path195" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="26.2158"
+         x="505.1374"
+         y="466.7536"
+         id="text197">SPS</text>
+      <line
+         style="stroke:#181818;stroke-width:0.5;"
+         x1="418.84"
+         x2="585.1505"
+         y1="477.9069"
+         y2="477.9069"
+         id="line199" />
+      <rect
+         fill="none"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="425.84"
+         y="488.5553"
+         id="rect201" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="58.6318"
+         x="437.84"
+         y="494.902"
+         id="text203">n_states</text>
+      <rect
+         fill="none"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="425.84"
+         y="504.8522"
+         id="rect205" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="59.1787"
+         x="437.84"
+         y="511.1989"
+         id="text207">n_inputs</text>
+      <rect
+         fill="none"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="425.84"
+         y="521.1491"
+         id="rect209" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="69.3438"
+         x="437.84"
+         y="527.4957"
+         id="text211">n_outputs</text>
+      <rect
+         fill="none"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="425.84"
+         y="537.4459"
+         id="rect213" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="97.6855"
+         x="437.84"
+         y="543.7926"
+         id="text215">n_noise_order</text>
+      <rect
+         fill="none"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="425.84"
+         y="553.7428"
+         id="rect217" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="68.6055"
+         x="437.84"
+         y="560.0895"
+         id="text219">n_params</text>
+      <line
+         style="stroke:#181818;stroke-width:0.5;"
+         x1="418.84"
+         x2="585.1505"
+         y1="567.3913"
+         y2="567.3913"
+         id="line221" />
+      <ellipse
+         cx="428.84"
+         cy="581.0397"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse223" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="142.3105"
+         x="437.84"
+         y="584.3864"
+         id="text225">update_sps_region()</text>
+    </g>
+    <!--class data-->
+    <g
+       class="entity"
+       data-entity="data"
+       data-source-line="61"
+       data-uid="ent0010"
+       id="entity_data">
+      <rect
+         fill="#F1F1F1"
+         height="80.8594"
+         rx="2.5"
+         ry="2.5"
+         style="stroke:#181818;stroke-width:0.5;"
+         width="183.2881"
+         x="624.36"
+         y="790.0769"
+         id="rect228" />
+      <ellipse
+         cx="690.3019"
+         cy="810.2097"
+         fill="#FFD700"
+         rx="11"
+         ry="11"
+         style="stroke:#181818;stroke-width:1;"
+         id="ellipse230" />
+      <path
+         d="M691.1456,816.9597 L688.6925,816.9597 L688.6925,806.7097 L685.5519,806.7097 L685.5519,804.5691 L694.2863,804.5691 L694.2863,806.7097 L691.1456,806.7097 L691.1456,816.9597 Z "
+         fill="#000000"
+         id="path232" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="12"
+         font-style="italic"
+         lengthAdjust="spacing"
+         textLength="46.9043"
+         x="708.8019"
+         y="806.2155"
+         id="text234">«Topic»</text>
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="31.5342"
+         x="716.487"
+         y="822.0407"
+         id="text236">data</text>
+      <line
+         style="stroke:#181818;stroke-width:0.5;"
+         x1="625.36"
+         x2="806.6481"
+         y1="830.3425"
+         y2="830.3425"
+         id="line238" />
+      <ellipse
+         cx="635.36"
+         cy="843.9909"
+         fill="none"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse240" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="75.3799"
+         x="644.36"
+         y="847.3376"
+         id="text242">data : blob</text>
+      <ellipse
+         cx="635.36"
+         cy="860.2878"
+         fill="none"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse244" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="157.2881"
+         x="644.36"
+         y="863.6345"
+         id="text246">timestamp : DateTime</text>
+    </g>
+    <!--class ss-->
+    <g
+       class="entity"
+       data-entity="ss"
+       data-source-line="62"
+       data-uid="ent0012"
+       id="entity_ss">
+      <rect
+         fill="#F1F1F1"
+         height="80.8594"
+         rx="2.5"
+         ry="2.5"
+         style="stroke:#181818;stroke-width:0.5;"
+         width="183.2881"
+         x="479.36"
+         y="1193.6269"
+         id="rect249" />
+      <ellipse
+         cx="545.3019"
+         cy="1213.7597"
+         fill="#FFD700"
+         rx="11"
+         ry="11"
+         style="stroke:#181818;stroke-width:1;"
+         id="ellipse251" />
+      <path
+         d="M546.1456,1220.5097 L543.6925,1220.5097 L543.6925,1210.2597 L540.5519,1210.2597 L540.5519,1208.1191 L549.2863,1208.1191 L549.2863,1210.2597 L546.1456,1210.2597 L546.1456,1220.5097 Z "
+         fill="#000000"
+         id="path253" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="12"
+         font-style="italic"
+         lengthAdjust="spacing"
+         textLength="46.9043"
+         x="563.8019"
+         y="1209.7655"
+         id="text255">«Topic»</text>
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="14.5879"
+         x="579.9601"
+         y="1225.5907"
+         id="text257">ss</text>
+      <line
+         style="stroke:#181818;stroke-width:0.5;"
+         x1="480.36"
+         x2="661.6481"
+         y1="1233.8925"
+         y2="1233.8925"
+         id="line259" />
+      <ellipse
+         cx="490.36"
+         cy="1247.5409"
+         fill="none"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse261" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="75.3799"
+         x="499.36"
+         y="1250.8876"
+         id="text263">data : blob</text>
+      <ellipse
+         cx="490.36"
+         cy="1263.8378"
+         fill="none"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse265" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="157.2881"
+         x="499.36"
+         y="1267.1845"
+         id="text267">timestamp : DateTime</text>
+    </g>
+    <!--class SPS_Search-->
+    <g
+       class="entity"
+       data-entity="SPS_Search"
+       data-source-line="64"
+       data-uid="ent0015"
+       id="entity_SPS_Search">
+      <rect
+         fill="#F1F1F1"
+         height="227.2656"
+         rx="2.5"
+         ry="2.5"
+         style="stroke:#181818;stroke-width:0.5;"
+         width="169.8008"
+         x="348.1"
+         y="716.8769"
+         id="rect270" />
+      <ellipse
+         cx="388.3809"
+         cy="732.8769"
+         fill="#ADD1B2"
+         rx="11"
+         ry="11"
+         style="stroke:#181818;stroke-width:1;"
+         id="ellipse272" />
+      <path
+         d="M391.3496,738.5175 Q390.7715,738.8144 390.1309,738.955 Q389.4902,739.1113 388.7871,739.1113 Q386.2871,739.1113 384.959,737.4706 Q383.6465,735.8144 383.6465,732.6894 Q383.6465,729.5644 384.959,727.9081 Q386.2871,726.2519 388.7871,726.2519 Q389.4902,726.2519 390.1309,726.4081 Q390.7871,726.5644 391.3496,726.8613 L391.3496,729.58 Q390.7246,729.0019 390.1309,728.7363 Q389.5371,728.455 388.9121,728.455 Q387.5684,728.455 386.8809,729.5331 Q386.1934,730.5956 386.1934,732.6894 Q386.1934,734.7831 386.8809,735.8613 Q387.5684,736.9238 388.9121,736.9238 Q389.5371,736.9238 390.1309,736.6581 Q390.7246,736.3769 391.3496,735.7988 L391.3496,738.5175 Z "
+         fill="#000000"
+         id="path274" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="81.6211"
+         x="407.9988"
+         y="737.7236"
+         id="text276">SPS_Search</text>
+      <line
+         style="stroke:#181818;stroke-width:0.5;"
+         x1="349.1"
+         x2="516.9008"
+         y1="748.8769"
+         y2="748.8769"
+         id="line278" />
+      <ellipse
+         cx="359.1"
+         cy="762.5253"
+         fill="none"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse280" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="33.6943"
+         x="368.1"
+         y="765.872"
+         id="text282">mins</text>
+      <ellipse
+         cx="359.1"
+         cy="778.8222"
+         fill="none"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse284" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="46.4092"
+         x="368.1"
+         y="782.1689"
+         id="text286">maxes</text>
+      <ellipse
+         cx="359.1"
+         cy="795.1191"
+         fill="none"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse288" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="95.6895"
+         x="368.1"
+         y="798.4657"
+         id="text290">n_dimensions</text>
+      <ellipse
+         cx="359.1"
+         cy="811.4159"
+         fill="none"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse292" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="65.8027"
+         x="368.1"
+         y="814.7626"
+         id="text294">n_epochs</text>
+      <ellipse
+         cx="359.1"
+         cy="827.7128"
+         fill="none"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse296" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="119.2256"
+         x="368.1"
+         y="831.0595"
+         id="text298">initialisation_size</text>
+      <ellipse
+         cx="359.1"
+         cy="844.0097"
+         fill="none"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse300" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="80.958"
+         x="368.1"
+         y="847.3564"
+         id="text302">search_size</text>
+      <line
+         style="stroke:#181818;stroke-width:0.5;"
+         x1="349.1"
+         x2="516.9008"
+         y1="854.6581"
+         y2="854.6581"
+         id="line304" />
+      <ellipse
+         cx="359.1"
+         cy="868.3066"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse306" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="28.376"
+         x="368.1"
+         y="871.6532"
+         id="text308">go()</text>
+      <ellipse
+         cx="359.1"
+         cy="884.6034"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse310" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="88.1221"
+         x="368.1"
+         y="887.9501"
+         id="text312">get_results()</text>
+      <rect
+         fill="#F24D5C"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="356.1"
+         y="897.9003"
+         id="rect314" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="102.1357"
+         x="368.1"
+         y="904.247"
+         id="text316">test_callback()</text>
+      <rect
+         fill="#F24D5C"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="356.1"
+         y="914.1972"
+         id="rect318" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="116.7578"
+         x="368.1"
+         y="920.5439"
+         id="text320">plot_results_2d()</text>
+      <rect
+         fill="#F24D5C"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="356.1"
+         y="930.4941"
+         id="rect322" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="143.8008"
+         x="368.1"
+         y="936.8407"
+         id="text324">store_plot_data_2d()</text>
+    </g>
+    <!--class Controller-->
+    <g
+       class="entity"
+       data-entity="Controller"
+       data-source-line="99"
+       data-uid="ent0017"
+       id="entity_Controller">
+      <rect
+         fill="#F1F1F1"
+         height="178.375"
+         rx="2.5"
+         ry="2.5"
+         style="stroke:#181818;stroke-width:0.5;"
+         width="108.8994"
+         x="842.55"
+         y="741.3269"
+         id="rect327" />
+      <ellipse
+         cx="861.027"
+         cy="757.3269"
+         fill="#ADD1B2"
+         rx="11"
+         ry="11"
+         style="stroke:#181818;stroke-width:1;"
+         id="ellipse329" />
+      <path
+         d="M863.9957,762.9675 Q863.4176,763.2644 862.777,763.405 Q862.1363,763.5613 861.4332,763.5613 Q858.9332,763.5613 857.6051,761.9206 Q856.2926,760.2644 856.2926,757.1394 Q856.2926,754.0144 857.6051,752.3581 Q858.9332,750.7019 861.4332,750.7019 Q862.1363,750.7019 862.777,750.8581 Q863.4332,751.0144 863.9957,751.3113 L863.9957,754.03 Q863.3707,753.4519 862.777,753.1863 Q862.1832,752.905 861.5582,752.905 Q860.2145,752.905 859.527,753.9831 Q858.8395,755.0456 858.8395,757.1394 Q858.8395,759.2331 859.527,760.3113 Q860.2145,761.3738 861.5582,761.3738 Q862.1832,761.3738 862.777,761.1081 Q863.3707,760.8269 863.9957,760.2488 L863.9957,762.9675 Z "
+         fill="#000000"
+         id="path331" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="69.1729"
+         x="875.7996"
+         y="762.1736"
+         id="text333">Controller</text>
+      <line
+         style="stroke:#181818;stroke-width:0.5;"
+         x1="843.55"
+         x2="950.4494"
+         y1="773.3269"
+         y2="773.3269"
+         id="line335" />
+      <ellipse
+         cx="853.55"
+         cy="786.9753"
+         fill="none"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse337" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="35.7178"
+         x="862.55"
+         y="790.322"
+         id="text339">plant</text>
+      <ellipse
+         cx="853.55"
+         cy="803.2722"
+         fill="none"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse341" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="51.9395"
+         x="862.55"
+         y="806.6189"
+         id="text343">desired</text>
+      <rect
+         fill="none"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="850.55"
+         y="816.5691"
+         id="rect345" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="11.0195"
+         x="862.55"
+         y="822.9157"
+         id="text347">Q</text>
+      <rect
+         fill="none"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="850.55"
+         y="832.8659"
+         id="rect349" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="9.7275"
+         x="862.55"
+         y="839.2126"
+         id="text351">R</text>
+      <rect
+         fill="none"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="850.55"
+         y="849.1628"
+         id="rect353" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="9.1807"
+         x="862.55"
+         y="855.5095"
+         id="text355">K</text>
+      <rect
+         fill="none"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="850.55"
+         y="865.4597"
+         id="rect357" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="44.8369"
+         x="862.55"
+         y="871.8064"
+         id="text359">armax</text>
+      <line
+         style="stroke:#181818;stroke-width:0.5;"
+         x1="843.55"
+         x2="950.4494"
+         y1="879.1081"
+         y2="879.1081"
+         id="line361" />
+      <ellipse
+         cx="853.55"
+         cy="892.7566"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse363" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="82.8994"
+         x="862.55"
+         y="896.1032"
+         id="text365">design_lqr()</text>
+      <ellipse
+         cx="853.55"
+         cy="909.0534"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse367" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="49.7861"
+         x="862.55"
+         y="912.4001"
+         id="text369">get_u()</text>
+    </g>
+    <!--class Plant-->
+    <g
+       class="entity"
+       data-entity="Plant"
+       data-source-line="110"
+       data-uid="ent0018"
+       id="entity_Plant">
+      <rect
+         fill="#F1F1F1"
+         height="129.4844"
+         rx="2.5"
+         ry="2.5"
+         style="stroke:#181818;stroke-width:0.5;"
+         width="115.8379"
+         x="803.08"
+         y="1004.1469"
+         id="rect372" />
+      <ellipse
+         cx="839.934"
+         cy="1020.1469"
+         fill="#ADD1B2"
+         rx="11"
+         ry="11"
+         style="stroke:#181818;stroke-width:1;"
+         id="ellipse374" />
+      <path
+         d="M842.9028,1025.7875 Q842.3246,1026.0844 841.684,1026.225 Q841.0434,1026.3813 840.3403,1026.3813 Q837.8403,1026.3813 836.5121,1024.7406 Q835.1996,1023.0844 835.1996,1019.9594 Q835.1996,1016.8344 836.5121,1015.1781 Q837.8403,1013.5219 840.3403,1013.5219 Q841.0434,1013.5219 841.684,1013.6781 Q842.3403,1013.8344 842.9028,1014.1313 L842.9028,1016.85 Q842.2778,1016.2719 841.684,1016.0063 Q841.0903,1015.725 840.4653,1015.725 Q839.1215,1015.725 838.434,1016.8031 Q837.7465,1017.8656 837.7465,1019.9594 Q837.7465,1022.0531 838.434,1023.1313 Q839.1215,1024.1938 840.4653,1024.1938 Q841.0903,1024.1938 841.684,1023.9281 Q842.2778,1023.6469 842.9028,1023.0688 L842.9028,1025.7875 Z "
+         fill="#000000"
+         id="path376" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="35.2734"
+         x="858.7904"
+         y="1024.9936"
+         id="text378">Plant</text>
+      <line
+         style="stroke:#181818;stroke-width:0.5;"
+         x1="804.08"
+         x2="917.9179"
+         y1="1036.1469"
+         y2="1036.1469"
+         id="line380" />
+      <rect
+         fill="none"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="811.08"
+         y="1046.7953"
+         id="rect382" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="14.376"
+         x="823.08"
+         y="1053.142"
+         id="text384">dt</text>
+      <rect
+         fill="none"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="811.08"
+         y="1063.0922"
+         id="rect386" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="14.5879"
+         x="823.08"
+         y="1069.4389"
+         id="text388">ss</text>
+      <rect
+         fill="none"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="811.08"
+         y="1079.3891"
+         id="rect390" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="17.7734"
+         x="823.08"
+         y="1085.7357"
+         id="text392">db</text>
+      <line
+         style="stroke:#181818;stroke-width:0.5;"
+         x1="804.08"
+         x2="917.9179"
+         y1="1093.0375"
+         y2="1093.0375"
+         id="line394" />
+      <ellipse
+         cx="814.08"
+         cy="1106.6859"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse396" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="78.0664"
+         x="823.08"
+         y="1110.0326"
+         id="text398">dynamics()</text>
+      <rect
+         fill="#F24D5C"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="811.08"
+         y="1119.9828"
+         id="rect400" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="89.8379"
+         x="823.08"
+         y="1126.3295"
+         id="text402">ss_callback()</text>
+    </g>
+    <!--class CarlaSPS-->
+    <g
+       class="entity"
+       data-entity="CarlaSPS"
+       data-source-line="118"
+       data-uid="ent0019"
+       id="entity_CarlaSPS"
+       transform="translate(198.4312,-110.07)">
+      <rect
+         fill="#f1f1f1"
+         height="56.296902"
+         rx="2.5"
+         ry="2.5"
+         style="stroke:#181818;stroke-width:0.5"
+         width="94.794899"
+         x="986.59998"
+         y="802.36688"
+         id="rect405" />
+      <circle
+         cx="1001.6"
+         cy="818.36688"
+         fill="#add1b2"
+         style="stroke:#181818;stroke-width:1"
+         id="ellipse407"
+         r="11" />
+      <path
+         d="m 1004.5688,824.0075 q -0.5782,0.2969 -1.2188,0.4375 -0.6406,0.1563 -1.3437,0.1563 -2.5,0 -3.8282,-1.6407 -1.3125,-1.6562 -1.3125,-4.7812 0,-3.125 1.3125,-4.7813 1.3282,-1.6562 3.8282,-1.6562 0.7031,0 1.3437,0.1562 0.6563,0.1563 1.2188,0.4532 v 2.7187 q -0.625,-0.5781 -1.2188,-0.8437 -0.5937,-0.2813 -1.2187,-0.2813 -1.3438,0 -2.0313,1.0781 -0.6875,1.0625 -0.6875,3.1563 0,2.0937 0.6875,3.1719 0.6875,1.0625 2.0313,1.0625 0.625,0 1.2187,-0.2657 0.5938,-0.2812 1.2188,-0.8593 z"
+         fill="#000000"
+         id="path409" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14px"
+         lengthAdjust="spacing"
+         textLength="62.794899"
+         x="1015.6"
+         y="823.21362"
+         id="text411">CarlaSPS</text>
+      <line
+         style="stroke:#181818;stroke-width:0.5"
+         x1="987.59998"
+         x2="1080.3949"
+         y1="834.36688"
+         y2="834.36688"
+         id="line413" />
+      <rect
+         fill="#f24d5c"
+         height="6"
+         style="stroke:#c82930;stroke-width:1"
+         width="6"
+         x="994.59998"
+         y="845.01532"
+         id="rect415" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14px"
+         lengthAdjust="spacing"
+         textLength="41.207001"
+         x="1006.6"
+         y="851.362"
+         id="text417">step()</text>
+    </g>
+    <!--class controller-->
+    <g
+       class="entity"
+       data-entity="controller"
+       data-source-line="124"
+       data-uid="ent0022"
+       id="entity_controller">
+      <rect
+         fill="#F1F1F1"
+         height="80.8594"
+         rx="2.5"
+         ry="2.5"
+         style="stroke:#181818;stroke-width:0.5;"
+         width="183.2881"
+         x="769.36"
+         y="1193.6269"
+         id="rect420" />
+      <ellipse
+         cx="823.2067"
+         cy="1213.7597"
+         fill="#FFD700"
+         rx="11"
+         ry="11"
+         style="stroke:#181818;stroke-width:1;"
+         id="ellipse422" />
+      <path
+         d="M824.0504,1220.5097 L821.5973,1220.5097 L821.5973,1210.2597 L818.4567,1210.2597 L818.4567,1208.1191 L827.1911,1208.1191 L827.1911,1210.2597 L824.0504,1210.2597 L824.0504,1220.5097 Z "
+         fill="#000000"
+         id="path424" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="12"
+         font-style="italic"
+         lengthAdjust="spacing"
+         textLength="46.9043"
+         x="853.8019"
+         y="1209.7655"
+         id="text426">«Topic»</text>
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="67.0947"
+         x="843.7067"
+         y="1225.5907"
+         id="text428">controller</text>
+      <line
+         style="stroke:#181818;stroke-width:0.5;"
+         x1="770.36"
+         x2="951.6481"
+         y1="1233.8925"
+         y2="1233.8925"
+         id="line430" />
+      <ellipse
+         cx="780.36"
+         cy="1247.5409"
+         fill="none"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse432" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="75.3799"
+         x="789.36"
+         y="1250.8876"
+         id="text434">data : blob</text>
+      <ellipse
+         cx="780.36"
+         cy="1263.8378"
+         fill="none"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse436" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="157.2881"
+         x="789.36"
+         y="1267.1845"
+         id="text438">timestamp : DateTime</text>
+    </g>
+    <!--class Sim-->
+    <g
+       class="entity"
+       data-entity="Sim"
+       data-source-line="129"
+       data-uid="ent0024"
+       id="entity_Sim">
+      <rect
+         fill="#F1F1F1"
+         height="276.1563"
+         rx="2.5"
+         ry="2.5"
+         style="stroke:#181818;stroke-width:0.5;"
+         width="183.2334"
+         x="805.38"
+         y="380.7169"
+         id="rect441" />
+      <ellipse
+         cx="879.5397"
+         cy="396.7169"
+         fill="#ADD1B2"
+         rx="11"
+         ry="11"
+         style="stroke:#181818;stroke-width:1;"
+         id="ellipse443" />
+      <path
+         d="M882.5084,402.3575 Q881.9303,402.6544 881.2897,402.795 Q880.649,402.9513 879.9459,402.9513 Q877.4459,402.9513 876.1178,401.3106 Q874.8053,399.6544 874.8053,396.5294 Q874.8053,393.4044 876.1178,391.7481 Q877.4459,390.0919 879.9459,390.0919 Q880.649,390.0919 881.2897,390.2481 Q881.9459,390.4044 882.5084,390.7013 L882.5084,393.42 Q881.8834,392.8419 881.2897,392.5763 Q880.6959,392.295 880.0709,392.295 Q878.7272,392.295 878.0397,393.3731 Q877.3522,394.4356 877.3522,396.5294 Q877.3522,398.6231 878.0397,399.7013 Q878.7272,400.7638 880.0709,400.7638 Q880.6959,400.7638 881.2897,400.4981 Q881.8834,400.2169 882.5084,399.6388 L882.5084,402.3575 Z "
+         fill="#000000"
+         id="path445" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="26.4141"
+         x="900.0397"
+         y="401.5636"
+         id="text447">Sim</text>
+      <line
+         style="stroke:#181818;stroke-width:0.5;"
+         x1="806.38"
+         x2="987.6134"
+         y1="412.7169"
+         y2="412.7169"
+         id="line449" />
+      <rect
+         fill="none"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="813.38"
+         y="423.3653"
+         id="rect451" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="17.7734"
+         x="825.38"
+         y="429.712"
+         id="text453">db</text>
+      <rect
+         fill="none"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="813.38"
+         y="439.6622"
+         id="rect455" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="109.8125"
+         x="825.38"
+         y="446.0089"
+         id="text457">controller_plant</text>
+      <rect
+         fill="none"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="813.38"
+         y="455.9591"
+         id="rect459" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="67.0947"
+         x="825.38"
+         y="462.3057"
+         id="text461">controller</text>
+      <rect
+         fill="none"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="813.38"
+         y="472.2559"
+         id="rect463" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="8.5518"
+         x="825.38"
+         y="478.6026"
+         id="text465">T</text>
+      <rect
+         fill="none"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="813.38"
+         y="488.5528"
+         id="rect467" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="14.376"
+         x="825.38"
+         y="494.8995"
+         id="text469">dt</text>
+      <rect
+         fill="none"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="813.38"
+         y="504.8497"
+         id="rect471" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="80.9648"
+         x="825.38"
+         y="511.1964"
+         id="text473">initial_state</text>
+      <rect
+         fill="none"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="813.38"
+         y="521.1466"
+         id="rect475" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="35.4648"
+         x="825.38"
+         y="527.4932"
+         id="text477">state</text>
+      <line
+         style="stroke:#181818;stroke-width:0.5;"
+         x1="806.38"
+         x2="987.6134"
+         y1="534.795"
+         y2="534.795"
+         id="line479" />
+      <rect
+         fill="#F24D5C"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="813.38"
+         y="545.4434"
+         id="rect481" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="133.0547"
+         x="825.38"
+         y="551.7901"
+         id="text483">parse_arguments()</text>
+      <rect
+         fill="#F24D5C"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="813.38"
+         y="561.7403"
+         id="rect485" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="111.9385"
+         x="825.38"
+         y="568.087"
+         id="text487">initialise_plant()</text>
+      <rect
+         fill="#F24D5C"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="813.38"
+         y="578.0372"
+         id="rect489" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="34.4258"
+         x="825.38"
+         y="584.3839"
+         id="text491">run()</text>
+      <rect
+         fill="#F24D5C"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="813.38"
+         y="594.3341"
+         id="rect493" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="130.4844"
+         x="825.38"
+         y="600.6807"
+         id="text495">write_data_to_db()</text>
+      <rect
+         fill="#F24D5C"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="813.38"
+         y="610.6309"
+         id="rect497" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="157.2334"
+         x="825.38"
+         y="616.9776"
+         id="text499">sim_model_response()</text>
+      <rect
+         fill="#F24D5C"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="813.38"
+         y="626.9278"
+         id="rect501" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="102.8535"
+         x="825.38"
+         y="633.2745"
+         id="text503">square_wave()</text>
+      <rect
+         fill="#F24D5C"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="813.38"
+         y="643.2247"
+         id="rect505" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="109.9355"
+         x="825.38"
+         y="649.5714"
+         id="text507">impulse_wave()</text>
+    </g>
+    <!--class Pendulum-->
+    <g
+       class="entity"
+       data-entity="Pendulum"
+       data-source-line="148"
+       data-uid="ent0026"
+       id="entity_Pendulum">
+      <rect
+         fill="#F1F1F1"
+         height="72.5938"
+         rx="2.5"
+         ry="2.5"
+         style="stroke:#181818;stroke-width:0.5;"
+         width="104.0664"
+         x="1193.97"
+         y="794.2169"
+         id="rect510" />
+      <ellipse
+         cx="1209.8599"
+         cy="810.2169"
+         fill="#ADD1B2"
+         rx="11"
+         ry="11"
+         style="stroke:#181818;stroke-width:1;"
+         id="ellipse512" />
+      <path
+         d="M1212.8286,815.8575 Q1212.2505,816.1544 1211.6099,816.295 Q1210.9693,816.4513 1210.2661,816.4513 Q1207.7661,816.4513 1206.438,814.8106 Q1205.1255,813.1544 1205.1255,810.0294 Q1205.1255,806.9044 1206.438,805.2481 Q1207.7661,803.5919 1210.2661,803.5919 Q1210.9693,803.5919 1211.6099,803.7481 Q1212.2661,803.9044 1212.8286,804.2013 L1212.8286,806.92 Q1212.2036,806.3419 1211.6099,806.0763 Q1211.0161,805.795 1210.3911,805.795 Q1209.0474,805.795 1208.3599,806.8731 Q1207.6724,807.9356 1207.6724,810.0294 Q1207.6724,812.1231 1208.3599,813.2013 Q1209.0474,814.2638 1210.3911,814.2638 Q1211.0161,814.2638 1211.6099,813.9981 Q1212.2036,813.7169 1212.8286,813.1388 L1212.8286,815.8575 Z "
+         fill="#000000"
+         id="path514" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="70.0889"
+         x="1224.0576"
+         y="815.0636"
+         id="text516">Pendulum</text>
+      <line
+         style="stroke:#181818;stroke-width:0.5;"
+         x1="1194.97"
+         x2="1297.0364"
+         y1="826.2169"
+         y2="826.2169"
+         id="line518" />
+      <ellipse
+         cx="1204.97"
+         cy="839.8653"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse520" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="78.0664"
+         x="1213.97"
+         y="843.212"
+         id="text522">dynamics()</text>
+      <ellipse
+         cx="1204.97"
+         cy="856.1622"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse524" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="45.5957"
+         x="1213.97"
+         y="859.5089"
+         id="text526">draw()</text>
+    </g>
+    <!--class CartPendulum-->
+    <g
+       class="entity"
+       data-entity="CartPendulum"
+       data-source-line="149"
+       data-uid="ent0028"
+       id="entity_CartPendulum"
+       transform="translate(15.151489,-117.58691)">
+      <rect
+         fill="#f1f1f1"
+         height="72.593803"
+         rx="2.5"
+         ry="2.5"
+         style="stroke:#181818;stroke-width:0.5"
+         width="131.68851"
+         x="1178.16"
+         y="1032.5869"
+         id="rect529" />
+      <ellipse
+         cx="1193.16"
+         cy="1048.5869"
+         fill="#add1b2"
+         style="stroke:#181818;stroke-width:1"
+         id="ellipse531"
+         r="11" />
+      <path
+         d="m 1196.1288,1054.2275 q -0.5782,0.2969 -1.2188,0.4375 -0.6406,0.1563 -1.3437,0.1563 -2.5,0 -3.8282,-1.6407 -1.3125,-1.6562 -1.3125,-4.7812 0,-3.125 1.3125,-4.7813 1.3282,-1.6562 3.8282,-1.6562 0.7031,0 1.3437,0.1562 0.6563,0.1563 1.2188,0.4532 v 2.7187 q -0.625,-0.5781 -1.2188,-0.8437 -0.5937,-0.2813 -1.2187,-0.2813 -1.3438,0 -2.0313,1.0781 -0.6875,1.0625 -0.6875,3.1563 0,2.0937 0.6875,3.1719 0.6875,1.0625 2.0313,1.0625 0.625,0 1.2187,-0.2657 0.5938,-0.2812 1.2188,-0.8593 z"
+         fill="#000000"
+         id="path533" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14px"
+         lengthAdjust="spacing"
+         textLength="99.688499"
+         x="1207.16"
+         y="1053.4336"
+         id="text535">CartPendulum</text>
+      <line
+         style="stroke:#181818;stroke-width:0.5"
+         x1="1179.16"
+         x2="1308.8485"
+         y1="1064.5869"
+         y2="1064.5869"
+         id="line537" />
+      <ellipse
+         cx="1189.16"
+         cy="1078.2354"
+         fill="#84be84"
+         style="stroke:#038048;stroke-width:1"
+         id="ellipse539"
+         r="3" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14px"
+         lengthAdjust="spacing"
+         textLength="78.066399"
+         x="1198.16"
+         y="1081.582"
+         id="text541">dynamics()</text>
+      <ellipse
+         cx="1189.16"
+         cy="1094.5322"
+         fill="#84be84"
+         style="stroke:#038048;stroke-width:1"
+         id="ellipse543"
+         r="3" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14px"
+         lengthAdjust="spacing"
+         textLength="45.595699"
+         x="1198.16"
+         y="1097.8789"
+         id="text545">draw()</text>
+    </g>
+    <!--class PendulumSimBase-->
+    <g
+       class="entity"
+       data-entity="PendulumSimBase"
+       data-source-line="159"
+       data-uid="ent0035"
+       id="entity_PendulumSimBase">
+      <rect
+         fill="#F1F1F1"
+         height="146.0469"
+         rx="2.5"
+         ry="2.5"
+         style="stroke:#181818;stroke-width:0.5;"
+         width="162.5938"
+         x="1272.7"
+         y="445.7769"
+         id="rect555" />
+      <ellipse
+         cx="1287.7"
+         cy="465.9097"
+         fill="#A9DCDF"
+         rx="11"
+         ry="11"
+         style="stroke:#181818;stroke-width:1;"
+         id="ellipse557" />
+      <path
+         d="M1287.8094,461.2534 L1286.6531,466.3316 L1288.9813,466.3316 L1287.8094,461.2534 Z M1286.325,459.0191 L1289.3094,459.0191 L1292.6688,471.4097 L1290.2156,471.4097 L1289.45,468.3472 L1286.1688,468.3472 L1285.4188,471.4097 L1282.9813,471.4097 L1286.325,459.0191 Z "
+         fill="#000000"
+         id="path559" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="12"
+         font-style="italic"
+         lengthAdjust="spacing"
+         textLength="98.6602"
+         x="1317.6668"
+         y="461.9155"
+         id="text561">«Abstract class»</text>
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         font-style="italic"
+         lengthAdjust="spacing"
+         textLength="130.5938"
+         x="1301.7"
+         y="477.7407"
+         id="text563">PendulumSimBase</text>
+      <line
+         style="stroke:#181818;stroke-width:0.5;"
+         x1="1273.7"
+         x2="1434.2938"
+         y1="486.0425"
+         y2="486.0425"
+         id="line565" />
+      <ellipse
+         cx="1283.7"
+         cy="499.6909"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse567" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="78.0664"
+         x="1292.7"
+         y="503.0376"
+         id="text569">dynamics()</text>
+      <ellipse
+         cx="1283.7"
+         cy="515.9878"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse571" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="41.207"
+         x="1292.7"
+         y="519.3345"
+         id="text573">step()</text>
+      <ellipse
+         cx="1283.7"
+         cy="532.2847"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse575" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="57.4219"
+         x="1292.7"
+         y="535.6314"
+         id="text577">render()</text>
+      <ellipse
+         cx="1283.7"
+         cy="548.5816"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse579" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="45.5957"
+         x="1292.7"
+         y="551.9282"
+         id="text581">draw()</text>
+      <ellipse
+         cx="1283.7"
+         cy="564.8784"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse583" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="94.083"
+         x="1292.7"
+         y="568.2251"
+         id="text585">update_plot()</text>
+      <ellipse
+         cx="1283.7"
+         cy="581.1753"
+         fill="#84BE84"
+         rx="3"
+         ry="3"
+         style="stroke:#038048;stroke-width:1;"
+         id="ellipse587" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="118.0977"
+         x="1292.7"
+         y="584.522"
+         id="text589">show_final_plot()</text>
+    </g>
+    <!--class Database-->
+    <g
+       class="entity"
+       data-entity="Database"
+       data-source-line="181"
+       data-uid="ent0038"
+       id="entity_Database">
+      <rect
+         fill="#F1F1F1"
+         height="137.75"
+         rx="2.5"
+         ry="2.5"
+         style="stroke:#181818;stroke-width:0.5;"
+         width="105.8916"
+         x="663.05"
+         y="1334.4869"
+         id="rect592" />
+      <ellipse
+         cx="681.0493"
+         cy="1354.6197"
+         fill="#FF7700"
+         rx="11"
+         ry="11"
+         style="stroke:#181818;stroke-width:1;"
+         id="ellipse594" />
+      <path
+         d="M680.5336,1355.1822 Q678.6743,1354.4791 678.018,1353.7134 Q677.3774,1352.9322 677.3774,1351.6197 Q677.3774,1349.9322 678.4555,1348.9634 Q679.5336,1347.9947 681.4086,1347.9947 Q682.268,1347.9947 683.1118,1348.1978 Q683.9711,1348.3853 684.8149,1348.7759 L684.8149,1351.1666 Q684.0336,1350.6041 683.2055,1350.3228 Q682.393,1350.0259 681.5961,1350.0259 Q680.7211,1350.0259 680.2368,1350.3853 Q679.768,1350.7447 679.768,1351.4009 Q679.768,1351.9166 680.1118,1352.2603 Q680.4555,1352.5884 681.5493,1352.9947 L682.6118,1353.4009 Q684.0961,1353.9478 684.7993,1354.8541 Q685.518,1355.7603 685.518,1357.1353 Q685.518,1359.0103 684.4086,1359.9322 Q683.2993,1360.8541 681.0493,1360.8541 Q680.1274,1360.8541 679.2055,1360.6353 Q678.2836,1360.4166 677.4243,1359.9947 L677.4243,1357.4634 Q678.393,1358.1509 679.3149,1358.4947 Q680.2368,1358.8384 681.1274,1358.8384 Q682.0336,1358.8384 682.5336,1358.4322 Q683.0336,1358.0103 683.0336,1357.2759 Q683.0336,1356.7134 682.6899,1356.3072 Q682.3618,1355.8853 681.7368,1355.6353 L680.5336,1355.1822 Z "
+         fill="#000000"
+         id="path596" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="12"
+         font-style="italic"
+         lengthAdjust="spacing"
+         textLength="71.2266"
+         x="693.7158"
+         y="1350.6255"
+         id="text598">«Singleton»</text>
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="66.8008"
+         x="695.9287"
+         y="1366.4507"
+         id="text600">Database</text>
+      <line
+         style="stroke:#181818;stroke-width:0.5;"
+         x1="664.05"
+         x2="767.9416"
+         y1="1374.7525"
+         y2="1374.7525"
+         id="line602" />
+      <rect
+         fill="none"
+         height="6"
+         style="stroke:#C82930;stroke-width:1;"
+         width="6"
+         x="671.05"
+         y="1385.4009"
+         id="rect604" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="79.8916"
+         x="683.05"
+         y="1391.7476"
+         id="text606">redis_client</text>
+      <line
+         style="stroke:#181818;stroke-width:0.5;"
+         x1="664.05"
+         x2="767.9416"
+         y1="1399.0494"
+         y2="1399.0494"
+         id="line608" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="67.71"
+         x="669.05"
+         y="1416.0445"
+         id="text610">write_ss()</text>
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="84.6563"
+         x="669.05"
+         y="1432.3414"
+         id="text612">write_data()</text>
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="89.1133"
+         x="669.05"
+         y="1448.6382"
+         id="text614">read_latest()</text>
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="14"
+         lengthAdjust="spacing"
+         textLength="78.1143"
+         x="669.05"
+         y="1464.9351"
+         id="text616">subscribe()</text>
+    </g>
+    <!--reverse link fast_tfs_methods to d_tfs-->
+    <g
+       class="link"
+       data-entity-1="fast_tfs_methods"
+       data-entity-2="d_tfs"
+       data-source-line="49"
+       data-uid="lnk6"
+       id="link_fast_tfs_methods_d_tfs">
+      <path
+         codeLine="49"
+         d="M209,326.7469 C209,353.2869 209,374.8569 209,400.6869"
+         fill="none"
+         id="fast_tfs_methods-backto-d_tfs"
+         style="stroke:#181818;stroke-width:1;" />
+      <polygon
+         fill="#181818"
+         points="209,320.7469,205,329.7469,209,325.7469,213,329.7469,209,320.7469"
+         style="stroke:#181818;stroke-width:1;"
+         id="polygon620" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="13px"
+         lengthAdjust="spacing"
+         textLength="201.39211"
+         x="7"
+         y="356.78381"
+         id="text622"
+         transform="translate(203.49166,-2.1128966)"><tspan
+           sodipodi:role="line"
+           id="tspan744"
+           x="7"
+           y="356.78381">uses to implement</tspan><tspan
+           sodipodi:role="line"
+           id="tspan746"
+           x="7"
+           y="373.03381">dunder fns</tspan></text>
+    </g>
+    <!--reverse link d_tfs to SPS_indirect_model-->
+    <g
+       class="link"
+       data-entity-1="d_tfs"
+       data-entity-2="SPS_indirect_model"
+       data-source-line="50"
+       data-uid="lnk8"
+       id="link_d_tfs_SPS_indirect_model">
+      <path
+         codeLine="50"
+         d="M176.21,642.6469 C176.21,677.2969 176.21,708.6169 176.21,741.1769"
+         fill="none"
+         id="d_tfs-backto-SPS_indirect_model"
+         style="stroke:#181818;stroke-width:1;" />
+      <polygon
+         fill="#181818"
+         points="176.21,636.6469,172.21,645.6469,176.21,641.6469,180.21,645.6469,176.21,636.6469"
+         style="stroke:#181818;stroke-width:1;"
+         id="polygon626" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="13"
+         lengthAdjust="spacing"
+         textLength="29.7832"
+         x="146.21"
+         y="684.9738"
+         id="text628">uses</text>
+    </g>
+    <!--link SPS to data-->
+    <g
+       class="link"
+       data-entity-1="SPS"
+       data-entity-2="data"
+       data-source-line="61"
+       data-uid="lnk11"
+       id="link_SPS_data">
+      <path
+         codeLine="61"
+         d="M563.4,592.0569 C563.4,684.3969 563.4,831.2369 563.4,831.2369 C563.4,831.2369 585.83,831.2369 618.15,831.2369"
+         fill="none"
+         id="SPS-to-data"
+         style="stroke:#181818;stroke-width:1;stroke-dasharray:7.0,7.0;" />
+      <polygon
+         fill="#181818"
+         points="624.15,831.2369,615.15,827.2369,619.15,831.2369,615.15,835.2369,624.15,831.2369"
+         style="stroke:#181818;stroke-width:1;"
+         id="polygon632" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="13"
+         lengthAdjust="spacing"
+         textLength="70.6431"
+         x="564.4"
+         y="738.0838"
+         id="text634">Subscribes</text>
+    </g>
+    <!--link SPS to ss-->
+    <g
+       class="link"
+       data-entity-1="SPS"
+       data-entity-2="ss"
+       data-source-line="62"
+       data-uid="lnk13"
+       id="link_SPS_ss">
+      <path
+         codeLine="62"
+         d="M540.65,591.9869 C540.65,741.3469 540.65,1070.9869 540.65,1187.3869"
+         fill="none"
+         id="SPS-to-ss"
+         style="stroke:#181818;stroke-width:1;stroke-dasharray:7.0,7.0;" />
+      <polygon
+         fill="#181818"
+         points="540.65,1193.3869,544.65,1184.3869,540.65,1188.3869,536.65,1184.3869,540.65,1193.3869"
+         style="stroke:#181818;stroke-width:1;"
+         id="polygon638" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="13"
+         lengthAdjust="spacing"
+         textLength="61.3374"
+         x="541.65"
+         y="888.7538"
+         id="text640">Publishes</text>
+    </g>
+    <!--link SPS to SPS_indirect_model-->
+    <g
+       class="link"
+       data-entity-1="SPS"
+       data-entity-2="SPS_indirect_model"
+       data-source-line="63"
+       data-uid="lnk14"
+       id="link_SPS_SPS_indirect_model">
+      <path
+         codeLine="63"
+         d="M 451.2,592.0269 450,670 H 240 v 65"
+         fill="none"
+         id="SPS-to-SPS_indirect_model"
+         style="stroke:#181818;stroke-width:1"
+         sodipodi:nodetypes="cccc" />
+      <polygon
+         fill="#181818"
+         points="241.79,736.0169 237.79,732.0169 241.79,741.0169 245.79,732.0169 "
+         style="stroke:#181818;stroke-width:1"
+         id="polygon644"
+         transform="translate(-1.79,-1.0169)" />
+    </g>
+    <!--link SPS to SPS_Search-->
+    <g
+       class="link"
+       data-entity-1="SPS"
+       data-entity-2="SPS_Search"
+       data-source-line="64"
+       data-uid="lnk16"
+       id="link_SPS_SPS_Search">
+      <path
+         codeLine="64"
+         d="M484.55,591.8769 C484.55,628.9469 484.55,668.8169 484.55,710.4069"
+         fill="none"
+         id="SPS-to-SPS_Search"
+         style="stroke:#181818;stroke-width:1;" />
+      <polygon
+         fill="#181818"
+         points="484.55,716.4069,488.55,707.4069,484.55,711.4069,480.55,707.4069,484.55,716.4069"
+         style="stroke:#181818;stroke-width:1;"
+         id="polygon648" />
+    </g>
+    <!--reverse link Controller to Plant-->
+    <g
+       class="link"
+       data-entity-1="Controller"
+       data-entity-2="Plant"
+       data-source-line="122"
+       data-uid="lnk20"
+       id="link_Controller_Plant">
+      <path
+         codeLine="122"
+         d="M880.73,931.9469 C880.73,959.8269 880.73,978.0169 880.73,1003.8869"
+         fill="none"
+         id="Controller-backto-Plant"
+         style="stroke:#181818;stroke-width:1;" />
+      <polygon
+         fill="#181818"
+         points="880.73,919.9469,876.73,925.9469,880.73,931.9469,884.73,925.9469,880.73,919.9469"
+         style="stroke:#181818;stroke-width:1;"
+         id="polygon652" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="13"
+         lengthAdjust="spacing"
+         textLength="35.0771"
+         x="844.73"
+         y="957.9838"
+         id="text654">has a</text>
+    </g>
+    <!--link Plant to ss-->
+    <g
+       class="link"
+       data-entity-1="Plant"
+       data-entity-2="ss"
+       data-source-line="123"
+       data-uid="lnk21"
+       id="link_Plant_ss">
+      <path
+         codeLine="123"
+         d="M802.71,1069.2369 C738.29,1069.2369 643.5,1069.2369 643.5,1069.2369 C643.5,1069.2369 643.5,1138.5069 643.5,1187.3169"
+         fill="none"
+         id="Plant-to-ss"
+         style="stroke:#181818;stroke-width:1;stroke-dasharray:7.0,7.0;" />
+      <polygon
+         fill="#181818"
+         points="643.5,1193.3169,647.5,1184.3169,643.5,1188.3169,639.5,1184.3169,643.5,1193.3169"
+         style="stroke:#181818;stroke-width:1;"
+         id="polygon658" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="13"
+         lengthAdjust="spacing"
+         textLength="70.6431"
+         x="590.07"
+         y="1065.3038"
+         id="text660">Subscribes</text>
+    </g>
+    <!--link Plant to controller-->
+    <g
+       class="link"
+       data-entity-1="Plant"
+       data-entity-2="controller"
+       data-source-line="124"
+       data-uid="lnk23"
+       id="link_Plant_controller">
+      <path
+         codeLine="124"
+         d="M861,1133.6869 C861,1153.7569 861,1169.2869 861,1187.2469"
+         fill="none"
+         id="Plant-to-controller"
+         style="stroke:#181818;stroke-width:1;stroke-dasharray:7.0,7.0;" />
+      <polygon
+         fill="#181818"
+         points="861,1193.2469,865,1184.2469,861,1188.2469,857,1184.2469,861,1193.2469"
+         style="stroke:#181818;stroke-width:1;"
+         id="polygon664" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="13"
+         lengthAdjust="spacing"
+         textLength="61.3374"
+         x="799"
+         y="1159.5338"
+         id="text666">Publishes</text>
+    </g>
+    <!--link Sim to CarlaSPS-->
+    <g
+       class="link"
+       data-entity-1="Sim"
+       data-entity-2="CarlaSPS"
+       data-source-line="147"
+       data-uid="lnk25"
+       id="link_Sim_CarlaSPS"
+       transform="translate(11.755435)">
+      <path
+         codeLine="147"
+         d="m 968.24456,657.40239 0,52.59761 h 87.27074 112.7293"
+         fill="none"
+         id="Sim-to-CarlaSPS"
+         style="stroke:#181818;stroke-width:1;stroke-dasharray:7, 7"
+         sodipodi:nodetypes="cccc" />
+      <polygon
+         fill="#181818"
+         points="981.12,831.2369 977.12,835.2369 986.12,831.2369 977.12,827.2369 "
+         style="stroke:#181818;stroke-width:1"
+         id="polygon670"
+         transform="translate(187.12456,-121.2369)" />
+    </g>
+    <!--link Sim to Pendulum-->
+    <g
+       class="link"
+       data-entity-1="Sim"
+       data-entity-2="Pendulum"
+       data-source-line="148"
+       data-uid="lnk27"
+       id="link_Sim_Pendulum"
+       transform="matrix(1.0825519,0,0,1.0537273,-98.535745,-35.3312)">
+      <path
+         codeLine="148"
+         d="m 987.05267,657.03071 0,145.19886 H 1187.48"
+         fill="none"
+         id="Sim-to-Pendulum"
+         style="stroke:#181818;stroke-width:1;stroke-dasharray:7, 7"
+         sodipodi:nodetypes="ccc" />
+      <polygon
+         fill="#181818"
+         points="1184.48,803.2369 1193.48,799.2369 1184.48,795.2369 1188.48,799.2369 "
+         style="stroke:#181818;stroke-width:1"
+         id="polygon674"
+         transform="translate(-1,2.99267)" />
+    </g>
+    <!--link Sim to CartPendulum-->
+    <g
+       class="link"
+       data-entity-1="Sim"
+       data-entity-2="CartPendulum"
+       data-source-line="149"
+       data-uid="lnk29"
+       id="link_Sim_CartPendulum" />
+    <!--reverse link Sim to Controller-->
+    <g
+       class="link"
+       data-entity-1="Sim"
+       data-entity-2="Controller"
+       data-source-line="156"
+       data-uid="lnk33"
+       id="link_Sim_Controller">
+      <path
+         codeLine="156"
+         d="M897,669.3369 C897,697.7869 897,715.0269 897,741.1769"
+         fill="none"
+         id="Sim-backto-Controller"
+         style="stroke:#181818;stroke-width:1;" />
+      <polygon
+         fill="#181818"
+         points="897,657.3369,893,663.3369,897,669.3369,901,663.3369,897,657.3369"
+         style="stroke:#181818;stroke-width:1;"
+         id="polygon682" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="13"
+         lengthAdjust="spacing"
+         textLength="110.8301"
+         x="786"
+         y="695.32379"
+         id="text684"
+         transform="translate(-2)">creates and uses</text>
+    </g>
+    <!--link Sim to data-->
+    <g
+       class="link"
+       data-entity-1="Sim"
+       data-entity-2="data"
+       data-source-line="157"
+       data-uid="lnk34"
+       id="link_Sim_data">
+      <path
+         codeLine="157"
+         d="M 805,620 H 710 V 790"
+         fill="none"
+         id="Sim-to-data"
+         style="stroke:#181818;stroke-width:1;stroke-dasharray:7, 7"
+         sodipodi:nodetypes="ccc" />
+      <polygon
+         fill="#181818"
+         points="808.05,831.2369 817.05,835.2369 813.05,831.2369 817.05,827.2369 "
+         style="stroke:#181818;stroke-width:1"
+         id="polygon688"
+         transform="rotate(-90,737.90655,859.14345)" />
+      <text
+         fill="#000000"
+         font-family="sans-serif"
+         font-size="13px"
+         lengthAdjust="spacing"
+         textLength="61.337399"
+         x="763.09998"
+         y="748.81378"
+         id="text690"
+         transform="translate(-93.756454,-133.71807)">Publishes</text>
+    </g>
+    <!--reverse link PendulumSimBase to Pendulum-->
+    <g
+       class="link"
+       data-entity-1="PendulumSimBase"
+       data-entity-2="Pendulum"
+       data-source-line="169"
+       data-uid="lnk36"
+       id="link_PendulumSimBase_Pendulum"
+       transform="translate(8)">
+      <path
+         d="m 1285.37,610.2769 c 0,63.36 0,134.2 0,183.54"
+         fill="none"
+         id="PendulumSimBase-backto-Pendulum"
+         style="stroke:#181818;stroke-width:1" />
+      <polygon
+         fill="none"
+         points="1279.37,610.2769 1291.37,610.2769 1285.37,592.2769 "
+         style="stroke:#181818;stroke-width:1"
+         id="polygon694" />
+    </g>
+    <!--reverse link PendulumSimBase to CartPendulum-->
+    <g
+       class="link"
+       data-entity-1="PendulumSimBase"
+       data-entity-2="CartPendulum"
+       data-source-line="174"
+       data-uid="lnk37"
+       id="link_PendulumSimBase_CartPendulum"
+       transform="matrix(1,0,0,0.73350245,8,157.80036)">
+      <path
+         d="m 1303.94,610.1269 c 0,119.2 0,332.66 0,422.18"
+         fill="none"
+         id="PendulumSimBase-backto-CartPendulum"
+         style="stroke:#181818;stroke-width:1" />
+      <polygon
+         fill="none"
+         points="1303.94,592.1269 1297.94,610.1269 1309.94,610.1269 "
+         style="stroke:#181818;stroke-width:1"
+         id="polygon698" />
+    </g>
+    <!--reverse link ss to Database-->
+    <g
+       class="link"
+       data-entity-1="ss"
+       data-entity-2="Database"
+       data-source-line="204"
+       data-uid="lnk40"
+       id="link_ss_Database">
+      <path
+         codeLine="204"
+         d="M668.93,1221.2369 C684.38,1221.2369 689.53,1221.2369 689.53,1221.2369 C689.53,1221.2369 689.53,1282.5169 689.53,1333.9869"
+         fill="none"
+         id="ss-backto-Database"
+         style="stroke:#181818;stroke-width:1;" />
+      <polygon
+         fill="#181818"
+         points="662.93,1221.2369,671.93,1225.2369,667.93,1221.2369,671.93,1217.2369,662.93,1221.2369"
+         style="stroke:#181818;stroke-width:1;"
+         id="polygon702" />
+    </g>
+    <!--reverse link data to Database-->
+    <g
+       class="link"
+       data-entity-1="data"
+       data-entity-2="Database"
+       data-source-line="205"
+       data-uid="lnk42"
+       id="link_data_Database">
+      <path
+         codeLine="205"
+         d="M716,877.2469 C716,974.2569 716,1213.7969 716,1334.3869"
+         fill="none"
+         id="data-backto-Database"
+         style="stroke:#181818;stroke-width:1;" />
+      <polygon
+         fill="#181818"
+         points="716,871.2469,712,880.2469,716,876.2469,720,880.2469,716,871.2469"
+         style="stroke:#181818;stroke-width:1;"
+         id="polygon706" />
+    </g>
+    <!--reverse link controller to Database-->
+    <g
+       class="link"
+       data-entity-1="controller"
+       data-entity-2="Database"
+       data-source-line="206"
+       data-uid="lnk44"
+       id="link_controller_Database">
+      <path
+         codeLine="206"
+         d="M763.07,1248.2369 C747.62,1248.2369 742.47,1248.2369 742.47,1248.2369 C742.47,1248.2369 742.47,1292.9869 742.47,1334.4169"
+         fill="none"
+         id="controller-backto-Database"
+         style="stroke:#181818;stroke-width:1;" />
+      <polygon
+         fill="#181818"
+         points="769.07,1248.2369,760.07,1244.2369,764.07,1248.2369,760.07,1252.2369,769.07,1248.2369"
+         style="stroke:#181818;stroke-width:1;"
+         id="polygon710" />
+    </g>
+    <!--SRC=[hLTBRzms4BxhLn3kOUt66mIz12W2ewa35qMRrl7wLXG29SwkM5CaJLAxsGRvxvqH7zBAJays38lyXfhtDwA330hOHoC6nHsxDZeuezZcw0FqxBrhEncW3OC3jZMERMIFvu8qcd4jsAy2T91RsKReV7ExOJUEzt0mxk6YMZ42LfL_aDfon9cI6iBH0ZCkTAPg5VUURRaFTTZwkWS4XMVlth7pZvU6Z8kBw1kmgolsfMBuyuhzz8yChFQojqfkZpLtZX_FBvuLBc3G7aEfFRg8H_w5XRWrUc_KVWbp8SY_Pr3VSapRqlRGF7CS4_SDz5abGkwVEMwDEf982dXEWfQN0Vzo_M41EH132_NMyPQgLkkXjvIdhnKMx0wi0qzLrJiMEc0zbvh5EgrIlSPaf6AiMJqceav6Q4_np_Tk2L3Gytrm0r2ySqpgFRXm0cdOdUpXSRxbrb86EhaDjR7WU32kIAMlVU2DchBcVHqC1Z81rjSO7IPZp4hRGViGinAZnbP6fuHqI8UwDm9Kpi0VwTcdvsDwScKx_jVVLJ8G7DSUITIJOVHGryeOM-mNf4PFYkEj0nwWjft4LuBiiMT54HuSafC2ex-MOr5HisYYrx5Awy6khvuox4TsDdZmB1X6H84UAyx4e0KujjM-UXfiqXIrfjVFPhaf_Q2ZGxviaVj3cBPc22TxRQI7sZWqNR1nMFYKcC6A6A37rjrXRM9yPFFrQ_I81quEROR6jqusv5QKaTIFpjuEZPA-ow8r1l8qmXFH1ZYEdsfU_0YL8THBdJti-MV8Qutqn6nwz7E2m9gsorkfPP0S_Hc7vZY6SWkE5YAIe9qf3RA3W0dmWmfJUs2UGutZGpLyxDQ8McNAqVg7gLyyKW9xYQIKjIZ2L5R4_3pwLxYEGV_PU738GWnvnQ8FjsNrgQpkokgwh7ulgmCcsHnYJ1a3wwKoEks_nARycWfzVh74CKRPKmlqm6byKxFYgDvp9xbk_-y5wqmBoFJ5uSBf5BCQOuo-MSLrI6i17lj3fEnzIi-xzFmjqznX_MTlx936Z-waRCDyaDoIXK8N4N9nCYL4avKTDUzbErMR8fbgFKN1dU9p2kAtsyO3im2_Nw-JQIH4nptZPrNSJpoPSsYIjPEIKovHsynk1Al25jbFyJLvaXKjzPJZEPo0-sLY4b_YM2aHqZgtEtSuGRZR3TGPKxeAqI1QB08twCKC7UcGXsSo8Viu5uX95jaCa-Xnu4Ya0zzF68xHGVa2qe32B53wIdaASWiQhpH3dv5uA4nmfKq0vkIk2yniAPzePGCAnYyspXi1R2yv4t84k3jM-2wZjwfecAfzVLAt-2Nnuxqj3k_iJfwWyyhonWUw8AHHa5t3Ltxc7l26zlxamEnojkZQLxaRuyO1VMFALZX-A9iqw6a-JIztE3osKcFz4pxnAASBFWTSFdNocnubgtC2XPVGHdpuWCbiwFoe6gPRKn6CrzlDvNStDs_VldbpWTNLEmK1wrgoY2sA5o9akvAGc5A6M_heP_iBd6gvb63XHQse-64fyfdmytJWx-ZZ_UNEABo0tnihs_dzEpLCeqmULJXlKJllBS8OADpZ7XMc-o8TVnc5IUDi8hs4Nb9SoXFlEJYD5mZfMcApuLLL-CyACC3huv7rq3VW_7y0]-->
+    <g
+       class="link"
+       data-entity-1="Sim"
+       data-entity-2="Pendulum"
+       data-source-line="148"
+       data-uid="lnk27"
+       id="link_Sim_Pendulum-8"
+       transform="matrix(1.0825519,0,0,1.0537273,-98.53575,85.6688)">
+      <path
+         codeLine="148"
+         d="m 977.81524,540.30222 v 260.97834 l 207.84226,0"
+         fill="none"
+         id="Sim-to-Pendulum-8"
+         style="stroke:#181818;stroke-width:1;stroke-dasharray:7, 7"
+         sodipodi:nodetypes="ccc" />
+      <polygon
+         fill="#181818"
+         points="1193.48,799.2369 1184.48,795.2369 1188.48,799.2369 1184.48,803.2369 "
+         style="stroke:#181818;stroke-width:1"
+         id="polygon674-8"
+         transform="translate(-0.97504065,2.043659)" />
+    </g>
+  </g>
+</svg>
