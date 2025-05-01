@@ -90,7 +90,7 @@ class SPSSearch:
         # Otherwise, expose hyperparameters
         self.knn = KNeighborsClassifier(n_neighbors=k_neighbours, weights="distance")
 
-        self.is_store_results = False
+        self.is_store_results = True
         if self.is_store_results:
             self.plot_data = {}
             self.confusion_coords = set()
@@ -225,28 +225,18 @@ class SPSSearch:
 
             plt.scatter(self.plot_data["pred_out_x_%d" % n_epoch],      self.plot_data["pred_out_y_%d" % n_epoch], color='b')
             plt.scatter(self.plot_data["incorrect_x_%d" % n_epoch],      self.plot_data["incorrect_y_%d" % n_epoch], color='g')
-            plt.scatter(self.plot_data["pred_in_x_%d" % n_epoch],   self.plot_data["pred_in_y_%d" % n_epoch], color='y')
             plt.scatter(self.plot_data["correct_x_%d" % n_epoch],        self.plot_data["correct_y_%d" % n_epoch], color='r')
+            plt.scatter(self.plot_data["pred_in_x_%d" % n_epoch],   self.plot_data["pred_in_y_%d" % n_epoch], color='y')
         plt.legend(['Predicted incorrect', 'Tested incorrect', 'Predicted correct', 'Tested correct'])
 
-        # TODO: Plot confusion matrix
-        # Currently plotting f score
+        # Plot the final output region
         plt.figure()
-        # plt.subplot(5, 5, n_epoch+1)
-        x_vals = np.arange(1, self.NUM_EPOCHS)
-        f_scores = []
-
-        for n_epoch in range(self.NUM_EPOCHS-1):
-            tn, fp, fn, tp = confusion_matrix(*self.confusion_data[n_epoch]).ravel()
-            f_scores.append(f1_score(*self.confusion_data[n_epoch]))
-
-
-        plt.scatter(x_vals, f_scores)
-        plt.title("F Score over epochs of KNN search")
-        plt.xlabel("Epoch Number")
-        plt.ylabel("F Score")
+        plt.scatter(self.plot_data["pred_out_x_%d" % self.NUM_EPOCHS],      self.plot_data["pred_out_y_%d" % self.NUM_EPOCHS], color='b')
+        plt.scatter(self.plot_data["incorrect_x_%d" % self.NUM_EPOCHS],      self.plot_data["incorrect_y_%d" % self.NUM_EPOCHS], color='g')
+        plt.scatter(self.plot_data["correct_x_%d" % self.NUM_EPOCHS],        self.plot_data["correct_y_%d" % self.NUM_EPOCHS], color='r')
+        plt.scatter(self.plot_data["pred_in_x_%d" % self.NUM_EPOCHS],   self.plot_data["pred_in_y_%d" % self.NUM_EPOCHS], color='y')
         plt.show()
-        plt.waitforbuttonpress()
+        
 
     def go(self):
         # Perform random search
@@ -281,5 +271,13 @@ if __name__ == "__main__":
         p_success = 0.6
         return np.random.random() > 1 - p_success
 
-    search = SPSSearch(-1, 1, 3, test_cb=test)
+    n_params = 2
+    
+    search = SPSSearch(
+            mins=[0]*n_params,
+            maxes=[1]*n_params,
+            n_dimensions=n_params,
+            n_points=[20]*n_params,
+            test_cb=test,
+        )
     search.go()
