@@ -225,16 +225,18 @@ class SPSSearch:
 
             plt.scatter(self.plot_data["pred_out_x_%d" % n_epoch],      self.plot_data["pred_out_y_%d" % n_epoch], color='b')
             plt.scatter(self.plot_data["incorrect_x_%d" % n_epoch],      self.plot_data["incorrect_y_%d" % n_epoch], color='g')
-            plt.scatter(self.plot_data["correct_x_%d" % n_epoch],        self.plot_data["correct_y_%d" % n_epoch], color='r')
             plt.scatter(self.plot_data["pred_in_x_%d" % n_epoch],   self.plot_data["pred_in_y_%d" % n_epoch], color='y')
-        plt.legend(['Predicted incorrect', 'Tested incorrect', 'Predicted correct', 'Tested correct'])
+            plt.scatter(self.plot_data["correct_x_%d" % n_epoch],        self.plot_data["correct_y_%d" % n_epoch], color='r')
+        plt.legend(['Predicted out', 'Tested out', 'Predicted in', 'Tested in'])
 
         # Plot the final output region
         plt.figure()
-        plt.scatter(self.plot_data["pred_out_x_%d" % self.NUM_EPOCHS],      self.plot_data["pred_out_y_%d" % self.NUM_EPOCHS], color='b')
-        plt.scatter(self.plot_data["incorrect_x_%d" % self.NUM_EPOCHS],      self.plot_data["incorrect_y_%d" % self.NUM_EPOCHS], color='g')
-        plt.scatter(self.plot_data["correct_x_%d" % self.NUM_EPOCHS],        self.plot_data["correct_y_%d" % self.NUM_EPOCHS], color='r')
-        plt.scatter(self.plot_data["pred_in_x_%d" % self.NUM_EPOCHS],   self.plot_data["pred_in_y_%d" % self.NUM_EPOCHS], color='y')
+        plt.scatter(self.plot_data["pred_out_x_%d" % (self.NUM_EPOCHS-1)],      self.plot_data["pred_out_y_%d" % (self.NUM_EPOCHS-1)], color='b')
+        plt.scatter(self.plot_data["incorrect_x_%d" % (self.NUM_EPOCHS-1)],      self.plot_data["incorrect_y_%d" % (self.NUM_EPOCHS-1)], color='g')
+        plt.scatter(self.plot_data["pred_in_x_%d" % (self.NUM_EPOCHS-1)],   self.plot_data["pred_in_y_%d" % (self.NUM_EPOCHS-1)], color='y')
+        plt.scatter(self.plot_data["correct_x_%d" % (self.NUM_EPOCHS-1)],        self.plot_data["correct_y_%d" % (self.NUM_EPOCHS-1)], color='r')
+        plt.legend(['Predicted out', 'Tested out', 'Predicted in', 'Tested in'])
+        plt.title("Final output at end of KNN search")
         plt.show()
         
 
