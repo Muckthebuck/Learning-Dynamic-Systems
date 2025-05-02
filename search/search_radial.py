@@ -13,7 +13,7 @@ class RadialSearch:
                  sps_test_function: callable = None, # Test function which should accept only an n_dim length coordinate
                  max_iter = 100,                 # Maximum iterations per direction
                  epsilon = 0.01,                 # Convergence value
-                 max_radius = 10,                # Maximum radius to include in the confidence region
+                 max_radius = 2,                # Maximum radius to include in the confidence region
                  ):
         self.n_dim = n_dim
         self.n_vectors = n_vectors
@@ -37,6 +37,8 @@ class RadialSearch:
         # Test function
         self.sps_test_function = sps_test_function
 
+        self._generate_unit_vectors()
+
 
     def _generate_unit_vectors(self):
         """Generates N unit vectors of length n_dim."""
@@ -45,7 +47,7 @@ class RadialSearch:
         vectors = []
         vectors.extend(basis_vectors)
         
-        for _ in range(self.n_vectors):
+        for _ in range(self.n_vectors - self.n_dim):
             rand_vec = np.random.uniform(-1, 1, self.n_dim) * basis_vectors
             rand_vec = np.sum(rand_vec, axis=1)
             rand_vec /= np.linalg.norm(rand_vec)    # Normalise to create unit vector
@@ -61,8 +63,8 @@ class RadialSearch:
         boundaries = []
 
         # Test each direction
-        for vector in self.vectors:
-            new_ins, new_outs, boundary= self._test_one_direction(vector)
+        for idx in range(self.n_vectors):
+            new_ins, new_outs, boundary = self._test_one_direction(idx)
             ins.extend(new_ins)
             outs.extend(new_outs)
             boundaries.append(boundary)
@@ -70,7 +72,6 @@ class RadialSearch:
         # Get results
         ins = np.array(ins)
         outs = np.array(outs)
-        boundaries.append(boundaries[0])
         boundaries = np.array(boundaries)
 
         hull = []
@@ -130,9 +131,9 @@ class RadialSearch:
             if highest_true and lowest_false:
                 current_error = lowest_false - highest_true
 
-            boundary = radius * vector
-            self.search_radii[vector_index] = radius    # Set the next starting radius for this direction
-            return (ins, outs, boundary)
+        boundary = radius * vector
+        self.search_radii[vector_index] = radius    # Set the next starting radius for this direction
+        return (ins, outs, boundary)
 
 
     def plot_unit_vectors_2d(self):
