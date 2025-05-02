@@ -225,20 +225,28 @@ class SPSSearch:
         """Plots the data from an epoch"""
         if self.n_dimensions != 2:
             raise "Cannot plot non-2d data"
+        
+        epoch_label = "epoch %d" % epoch_number if epoch_number > 0 else "random initialisation"
 
         plt.figure()
         plt.scatter(self.plot_data["incorrect_x_%d" % epoch_number],      self.plot_data["incorrect_y_%d" % epoch_number], color='g', label="Tested Out")
         plt.scatter(self.plot_data["correct_x_%d" % epoch_number],        self.plot_data["correct_y_%d" % epoch_number], color='r', label="Tested In")
         plt.legend()
-        plt.title("Tested points after epoch %d" % epoch_number)
+        plt.title("Tested points after %s" % epoch_label)
+        plt.xlabel("a")
+        plt.ylabel("b")
+        plt.savefig("figures/knn_search_epoch_%d.png" % epoch_number)
 
         plt.figure()
-        plt.scatter(self.plot_data["pred_out_x_%d" % epoch_number],      self.plot_data["pred_out_y_%d" % epoch_number], color='b', label='Predicted Out', marker="s", s=20)
-        plt.scatter(self.plot_data["pred_in_x_%d" % epoch_number],   self.plot_data["pred_in_y_%d" % epoch_number], color='y', label="Predicted In", marker="s", s=20)
+        plt.scatter(self.plot_data["pred_out_x_%d" % epoch_number],      self.plot_data["pred_out_y_%d" % epoch_number], color='b', label='Predicted Out', marker="s", alpha=0.3)
+        plt.scatter(self.plot_data["pred_in_x_%d" % epoch_number],   self.plot_data["pred_in_y_%d" % epoch_number], color='y', label="Predicted In", marker="s", alpha=0.3)
         plt.scatter(self.plot_data["incorrect_x_%d" % epoch_number],      self.plot_data["incorrect_y_%d" % epoch_number], color='g', label="Tested Out")
         plt.scatter(self.plot_data["correct_x_%d" % epoch_number],        self.plot_data["correct_y_%d" % epoch_number], color='r', label="Tested In")
-        plt.title("Tested points and predicted values after epoch %d" % epoch_number)
+        plt.title("Tested points and predicted values after %s" % epoch_label)
         plt.legend()
+        plt.xlabel("a")
+        plt.ylabel("b")
+        plt.savefig("figures/knn_search_epoch_%d_predicted.png" % epoch_number)
 
         plt.show()
 
