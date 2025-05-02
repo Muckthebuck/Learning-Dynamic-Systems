@@ -2,9 +2,9 @@
 from indirect_identification.armax import ARMAX
 
 # True parameters
-a1_true = 0.1
+a1_true = 0.7
 a2_true = 0.2
-b1_true = 0
+b1_true = 0.4
 b2_true = 0.3
 
 # First order open-loop system
