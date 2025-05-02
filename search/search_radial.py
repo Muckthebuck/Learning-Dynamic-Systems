@@ -130,8 +130,8 @@ class RadialSearch:
             if highest_true and lowest_false:
                 current_error = lowest_false - highest_true
 
-            # TODO: Calculate n-dimensional boundary point
-            boundary = radius
+            boundary = radius * vector
+            self.search_radii[vector_index] = radius    # Set the next starting radius for this direction
             return (ins, outs, boundary)
 
 
