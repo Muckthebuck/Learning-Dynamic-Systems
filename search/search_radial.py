@@ -51,7 +51,7 @@ class RadialSearch:
             rand_vec /= np.linalg.norm(rand_vec)    # Normalise to create unit vector
             vectors.extend(np.array([rand_vec]))
 
-        self.vectors = np.array(self.vectors)
+        self.vectors = np.array(vectors)
 
 
     def search(self):
