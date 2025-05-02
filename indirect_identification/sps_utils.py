@@ -247,7 +247,7 @@ def create_phi_optimized_siso(Y: np.ndarray, U: np.ndarray, A: np.ndarray, B: np
     for j in range(m):  # for each output dimension
         for lag in range(1, n_a + 1):
             for i in range(lag, t):
-                phi[j, i, lag - 1] = -Y[j, i - lag] 
+                phi[j, i, lag - 1] = Y[j, i - lag] 
 
     for lag in range(1, n_b + 1):
         for i in range(lag, t):
@@ -256,7 +256,7 @@ def create_phi_optimized_siso(Y: np.ndarray, U: np.ndarray, A: np.ndarray, B: np
                     _U = U[j, i-lag]
                 else:
                     _U = U[i - lag]
-                phi[j, i, n_a + lag - 1] = _U
+                phi[j, i, n_a + lag - 1] = -_U
 
     return phi
 
