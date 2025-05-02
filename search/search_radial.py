@@ -1,5 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.spatial import ConvexHull
+from search.hull_helpers import expand_convex_hull
+
 
 class RadialSearch:
     def __init__(self,
@@ -24,10 +27,19 @@ class RadialSearch:
 
         self.center = np.zeros(n_dim) if center is None else center
 
+        # Outputs
+        self.ins = []
+        self.outs = []
+        self.boundaries = []
+        self.hull = []
+        self.expanded_hull = []
+
+        # Test function
         self.sps_test_function = sps_test_function
 
+
     def _generate_unit_vectors(self):
-        """Generates N unit vectors of length n_dim"""
+        """Generates N unit vectors of length n_dim."""
         basis_vectors = np.eye(self.n_dim)
 
         vectors = []
@@ -41,7 +53,40 @@ class RadialSearch:
 
         self.vectors = np.array(self.vectors)
 
+
+    def search(self):
+        """Perform an epoch of the search."""
+        ins = []
+        outs = []
+        boundaries = []
+
+        # Test each direction
+        for vector in self.vectors:
+            new_ins, new_outs, boundary= self._test_one_direction(vector)
+            ins.extend(new_ins)
+            outs.extend(new_outs)
+            boundaries.append(boundary)
+
+        # Get results
+        ins = np.array(ins)
+        outs = np.array(outs)
+        boundaries.append(boundaries[0])
+        boundaries = np.array(boundaries)
+
+        hull = []
+        expanded_hull = []
+
+        try:
+            hull = ConvexHull(ins)
+            expanded_hull = expand_convex_hull(ins[hull.vertices], expansion_factor=0.01)
+        except:
+            pass
+        
+        return (ins, outs, boundaries, hull, expanded_hull)
+
+
     def _test_one_direction(self, vector_index):
+        """Find the boundary in one direction from the search center."""
         vector = self.vectors[vector_index]
         radius = self.search_radii[vector_index]
 
@@ -61,7 +106,6 @@ class RadialSearch:
 
             # Convert coordinates to cartesian
             coords = radius * vector + self.center
-
             in_sps = self.sps_test_function( tuple(coords) )
 
             # Update search params
@@ -87,7 +131,7 @@ class RadialSearch:
                 current_error = lowest_false - highest_true
 
             # TODO: Calculate n-dimensional boundary point
-            boundary = None
+            boundary = radius
             return (ins, outs, boundary)
 
 
@@ -102,6 +146,32 @@ class RadialSearch:
             for i in range(len(self.vectors)):
                 ax.plot([0, self.vectors[i, 0]], [0, self.vectors[i, 1]])
 
+    # Plot the results
+    def plot_2d_results(self, a_true, b_true):
+        if self.n_dim == 2:
+            a0 = self.center[0]
+            b0 = self.center[1]
+
+            fig, ax = plt.subplots()
+            ax.plot(a0, b0, 'o', label="Least Squares Estimate")
+
+            if len(self.ins) > 0:
+                ax.scatter(self.ins[:, 0], self.ins[:, 1], marker='.', c='red', label="Tested in SPS")
+            if len(self.outs) > 0:
+                ax.scatter(self.outs[:, 0], self.outs[:, 1], marker='.', c='blue', label="Tested not in SPS")
+            # if len(boundaries) > 0:
+            #     ax.plot(boundaries[:, 0], boundaries[:, 1], marker='.', c='green', label="linear boundary")
+            if len(self.boundaries) > 0:
+                ax.plot(self.expanded_hull[:, 0], self.expanded_hull[:, 1], marker='.', c='orange', label="Convex Hull (expanded)")
+            ax.plot(a_true, b_true, '*', c='black', label="True Parameter", markersize=10)
+            ax.legend()
+
+            ax.set_xlim(0, 1)
+            ax.set_ylim(0, 1)
+            ax.set_xlabel("a")
+            ax.set_ylabel("b")
+            ax.set_title("Radial search output")
+            plt.savefig("figures/radial_output.png")
 
 if __name__ == "__main__":
     search = RadialSearch()
