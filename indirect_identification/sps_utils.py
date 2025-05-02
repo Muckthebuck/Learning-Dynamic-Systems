@@ -44,7 +44,7 @@ def compute_S(N_hat_, N_hat_perturbed_, phi_tilde_, N, Lambda=None):
     for i in prange(m):
         # Step 1: Invert Delta_lambda[i] (still using numpy)
         Delta_inv = np.linalg.inv(Delta_lambda[i])
-        Delta_lambda_n_i = np.linalg.inv(Delta_lambda_n[i])
+        Delta_lambda_n_i = Delta_lambda_n[i]
 
         # Step 2: temp = Delta_inv @ Delta_lambda_n[i]
         temp = np.zeros((r, r))
@@ -247,7 +247,7 @@ def create_phi_optimized_siso(Y: np.ndarray, U: np.ndarray, A: np.ndarray, B: np
     for j in range(m):  # for each output dimension
         for lag in range(1, n_a + 1):
             for i in range(lag, t):
-                phi[j, i, lag - 1] = -Y[j, i - lag] 
+                phi[j, i, lag - 1] = Y[j, i - lag] 
 
     for lag in range(1, n_b + 1):
         for i in range(lag, t):
@@ -256,7 +256,7 @@ def create_phi_optimized_siso(Y: np.ndarray, U: np.ndarray, A: np.ndarray, B: np
                     _U = U[j, i-lag]
                 else:
                     _U = U[i - lag]
-                phi[j, i, n_a + lag - 1] = _U
+                phi[j, i, n_a + lag - 1] = -_U
 
     return phi
 
