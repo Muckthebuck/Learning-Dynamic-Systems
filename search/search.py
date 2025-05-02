@@ -184,8 +184,16 @@ class SPSSearch:
     def get_results(self):
         """Return values for which SPS was tested TRUE"""
         return self.parameter_map[:,*(np.array(np.where(self.results == 1)))]
+    
+    def get_mapped_output(self):
+        """Returns output values remapped from index coordinates to values"""
+        coords = np.array(self.output, dtype="int")
+        coords = coords[:,0:2]
+        sps_values = np.array(self.output, dtype="int")[:,2]
+        sps_values = sps_values[:, None]
+        mapped_values =  [self.parameter_map[:,*x] for x in coords]
 
-
+        return np.hstack([mapped_values, sps_values])
 
     def store_plot_data_2d(self, epoch_number):
         """Preprocess and store data for plots."""
@@ -238,19 +246,23 @@ class SPSSearch:
         plt.legend(['Predicted out', 'Tested out', 'Predicted in', 'Tested in'])
         plt.title("Final output at end of KNN search")
         plt.show()
+
         
 
     def go(self):
         # Perform random search
         self.random_search()
+        self.calculate_knn_predictions()
+        self.store_plot_data_2d(epoch_number=0)
+
         self.logger.debug("Random search complete")
         for i in range(1, self.NUM_EPOCHS):
             self.logger.debug(f"Epoch: {i}")
             # Perform KNN
-            self.calculate_knn_predictions()
 
             # Search KNN
             self.knn_search()
+            self.calculate_knn_predictions()
             self.store_plot_data_2d(epoch_number=i)
 
         return self.parameter_map, self.results
@@ -283,3 +295,5 @@ if __name__ == "__main__":
             test_cb=test,
         )
     search.go()
+    search.plot_results_2d()
+
