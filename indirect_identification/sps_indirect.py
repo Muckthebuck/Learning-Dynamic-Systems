@@ -258,7 +258,7 @@ class SPS_indirect_model:
             Q, R = np.linalg.qr(L)
             R_root_inv = np.linalg.solve(R, Q.transpose(0, 2, 1))
             weighted_sum = np.matmul(phi_tilde.transpose(0, 2, 1), perturbed_N_hat[:, :, None])
-            S = np.sum(np.square(np.matmul(R_root_inv, weighted_sum)), axis=(1, 2))
+            S = np.sum(np.square(weighted_sum), axis=(1, 2))
             # Ranking
             combined = np.array(list(zip(self.pi_order, S)))
             order = np.lexsort(combined.T)

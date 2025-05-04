@@ -43,7 +43,6 @@ def _eval_tf(num: np.ndarray, den: np.ndarray, z_inv: float) -> float:
     num_val = 0.0
     den_val = 0.0
 
-    # Numerator: starts at z^{-1}
     z_pow = 1.0
     for i in range(len(num)):
         num_val += num[i] * z_pow

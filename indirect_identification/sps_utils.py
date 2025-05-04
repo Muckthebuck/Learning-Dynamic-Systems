@@ -73,7 +73,7 @@ def compute_S(N_hat_, N_hat_perturbed_, phi_tilde_, N, Lambda=None):
         norm = 0.0
         for a in range(r):
             norm += S_i[a, 0] ** 2
-        S[i] = np.sqrt(norm)
+        S[i] = norm
 
     return S
 
@@ -136,9 +136,9 @@ def compute_phi_lambda_phiT_and_phi_lambda_Y(phi_tilde, Lambda_inv, Lambda_n, N_
       - Delta_lambda_Y = phi @ Lambda_inv @ N_hat_perturbed (summed over T)
     """
     m, T, r, c = phi_tilde.shape
-    Delta_lambda = np.zeros((m, r, r))  # Previously result1
-    Delta_lambda_n = np.zeros((m, r, r))  # Previously result2
-    Delta_lambda_Y = np.zeros((m, r, 1))  # Previously result3
+    Delta_lambda = np.zeros((m, r, r))  
+    Delta_lambda_n = np.zeros((m, r, r)) 
+    Delta_lambda_Y = np.zeros((m, r, 1)) 
 
     for k in prange(m):
         for t in range(T):
