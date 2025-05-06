@@ -4,6 +4,7 @@
 usage() {
     echo "Usage: $0 [options]"
     echo "Options:"
+    echo "  --Lambda LAMBDA    Lambda weight matrix as a list-like string (e.g., '[[1, 0], [0 1]]')"
     echo "  --n_states N       Number of states (default: 2)"
     echo "  --n_inputs N       Number of inputs (default: 1)"
     echo "  --n_output N       Number of outputs (default: 1)"
@@ -33,6 +34,7 @@ N=50
 db="sim_data.db"
 debug=false
 epsilon=1e-10
+LAMBDA="[[1, 0], [0, 1]]"
 
 # Parse the command-line arguments
 while [ $# -gt 0 ]; do
@@ -85,6 +87,10 @@ while [ $# -gt 0 ]; do
             epsilon="$2"
             shift 2
             ;;
+        --Lambda)
+            LAMBDA="$2"
+            shift 2
+            ;;
         *)
             echo "Unknown option: $1"
             usage
@@ -105,4 +111,5 @@ python -m indirect_identification.sps \
     --N "$N" \
     --dB "$db" \
     --debug  \
-    --epsilon "$epsilon"
+    --epsilon "$epsilon" \
+    --Lambda "$LAMBDA" \

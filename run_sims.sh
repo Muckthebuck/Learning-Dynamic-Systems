@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Default parameters
-SIM_TYPE="Pendulum"
+SIM_TYPE="Cart-Pendulum"
 T=10  # Simulation time in seconds
 dT=0.02  # Time step
 PLOT_ARG="--plot_system"  # Whether to plot the system

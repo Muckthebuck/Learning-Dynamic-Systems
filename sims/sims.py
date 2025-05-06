@@ -200,10 +200,10 @@ class Sim:
         """
         state = self.sim.state
         y = np.dot(self.sim.C, state)
-        history_y = []
-        history_u = []
         r = np.pi/2
         buffer_len = 1000
+        history_y = []
+        history_u = []
         for _ in range(int(self.T / self.dt)):
             # get the controller output
             u = self.controller.get_u(state, r=r)
@@ -213,8 +213,8 @@ class Sim:
                 history_y.append(y.copy())
                 history_u.append(u.copy())
             if len(history_y) == buffer_len:
-                self.write_data_to_db(y=np.array(history_y), 
-                                      u=np.array(history_u), 
+                self.write_data_to_db(y=np.array(history_y).reshape(self.n[0],buffer_len), 
+                                      u=np.array(history_u).reshape(self.n[1],buffer_len), 
                                       r=np.array([r]*buffer_len), 
                                       sps_type=SPSType.CLOSED_LOOP)
                 history_y = []

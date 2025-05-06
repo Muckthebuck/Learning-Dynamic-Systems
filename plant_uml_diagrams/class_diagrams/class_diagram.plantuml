@@ -1,5 +1,5 @@
 @startuml
-title Learning Dynamical Systems - April 2025
+title Modular Control System Architecture for Simulation and Identification (SPS Framework)
 ' SPS '
 
 class fast_tfs_methods << (M,orchid) Module >> {
@@ -59,7 +59,8 @@ class SPS {
     + update_sps_region()
 }
 
-SPS ..> Database : "Subscribes to data and Writes to ss table"
+SPS ..> data : "Subscribes"
+SPS ....> ss : "Publishes"
 SPS --> SPS_indirect_model
 SPS --> SPS_Search
 
@@ -120,7 +121,9 @@ class CarlaSPS {
 }
 
 Controller *-- Plant : "has a"
-Plant ..> Database : "subscribes to ss and writes to controller tablescan"
+Plant ..> ss : "Subscribes"
+Plant ..> controller : "Publishes"
+
 
 ' Simulation '
 
@@ -142,16 +145,17 @@ class Sim {
     - impulse_wave()
 }
 
-Sim ..> CarlaSPS : "selected dynamically"
-Sim ..> Pendulum : "selected dynamically"
-Sim ..> CartPendulum : "selected dynamically"
+Sim ..> CarlaSPS 
+Sim ..> Pendulum 
+Sim ..> CartPendulum 
 
 note right of Sim
   Selection made via dictionary
 end note
 
-Sim ..> Database : "writes to data table"
+
 Sim *-- Controller : "creates and uses"
+Sim ..> data : "Publishes"
 
 abstract class PendulumSimBase <<Abstract class>> {
     + dynamics()
@@ -174,32 +178,33 @@ class CartPendulum extends PendulumSimBase {
 
 
 
-' database classes '
+' Database classes '
 class Database  << (S,#FF7700) Singleton >> {
+    - redis_client
     {method} write_ss()
     {method} write_data()
     {method} read_latest()
     {method} subscribe()
 }
 
-class ss  << (T,gold) Table >> {
+class ss  << (T,gold) Topic >> {
     + data : blob
     + timestamp : DateTime
 }
-class data << (T,gold) Table >> {
+class data << (T,gold) Topic >> {
     + data : blob
     + timestamp : DateTime
 }
 
-class controller << (T,gold) Table >> {
+class controller << (T,gold) Topic >> {
     + data : blob
     + timestamp : DateTime
 
 }
 
-Database --> ss
-Database --> data
-Database --> controller
+Database -up-> ss
+Database -up-> data
+Database -up-> controller
 
 
 hide empty members
