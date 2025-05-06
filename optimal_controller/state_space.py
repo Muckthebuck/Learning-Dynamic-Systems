@@ -49,7 +49,7 @@ def generate_perturbed(matrix, n_samples, pct):
         for i, mat in enumerate(perturbed_matrices):
             print(f'perturbed_matrices[{i}] =\n', mat)
     
-    return perturbed_matrices
+    return np.array(perturbed_matrices)
 
 def tf_to_ccf(num,den):
     """
