@@ -6,7 +6,7 @@ import logging
 from scipy.optimize import minimize
 from scipy.spatial import ConvexHull
 from scipy.linalg import eigvals, solve_discrete_lyapunov, solve_discrete_are
-from lowres_MVEE import *
+from optimal_controller.lowres_MVEE import *
 
 np.set_printoptions(precision=3, floatmode='fixed', suppress=True)
 
