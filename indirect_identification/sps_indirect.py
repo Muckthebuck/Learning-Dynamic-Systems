@@ -61,8 +61,8 @@ class SPS_indirect_model:
                   sps_type: SPSType,
                   F: Optional[Union['d_tfs', np.ndarray]] = None,
                   L: Optional[Union['d_tfs', np.ndarray]] = None,
-                  R_t: Optional[np.ndarray] = None, Lambda: Optional[np.ndarray] = None
-                  ) -> Tuple[bool, np.ndarray]:
+                  R_t: Optional[np.ndarray] = None, Lambda: Optional[np.ndarray] = None,
+                  return_rank: bool=False) -> Union[bool, Tuple[bool, float]]:
         """
         SPS indicator, returns True if the tested transfer functions G and H are 
         in the SPS region. The function handles both open-loop and closed-loop scenarios.
@@ -83,9 +83,9 @@ class SPS_indirect_model:
                                           If not provided, Lambda will be estimated from the estimated noise. 
 
         Returns:
-            Tuple[bool, np.ndarray]: A tuple where the first element is a boolean indicating 
+            Union[bool, Tuple[bool, float]]: A tuple where the first element is a boolean indicating 
             whether the system is in the SPS region (True or False), and the second element 
-            is the corresponding array of results (e.g., computed values related to the SPS region).
+            is the normalised SPS rank.
         """
         if sps_type == SPSType.CLOSED_LOOP:
             if F is None or L is None or R_t is None:
@@ -117,8 +117,8 @@ class SPS_indirect_model:
         phi_U_t = np.broadcast_to(phi_U_t, (self.m, *phi_U_t.shape))
   
         return self.indirect_sps(G_0=G_0, H_0=H_0, 
-                           Y_t=Y_t, U_t=U, phi_U_t=phi_U_t, 
-                           A=A, B=B, C=C, F=F, sps_type=sps_type, Lambda=Lambda)
+                           Y_t=Y_t, U_t=U, phi_U_t=phi_U_t,
+                           A=A, B=B, C=C, F=F, sps_type=sps_type, Lambda=Lambda, return_rank=return_rank)
 
 
     def transform_to_open_loop(self, G, H, F, L):
@@ -174,11 +174,11 @@ class SPS_indirect_model:
     def indirect_sps(self, G_0: Union['d_tfs', np.ndarray], H_0: Union['d_tfs', np.ndarray],
                        Y_t: np.ndarray, U_t: np.ndarray, phi_U_t: np.ndarray,
                           A: np.ndarray, B: np.ndarray, C: np.ndarray, 
-                          F: Union['d_tfs', np.ndarray], sps_type: SPSType, Lambda: np.ndarray) -> bool:
+                          F: Union['d_tfs', np.ndarray], sps_type: SPSType, Lambda: np.ndarray, return_rank: bool=False) -> Union[bool, Tuple[bool, float]]:
         if self.is_siso:
-            return self.indirect_sps_siso(G_0, H_0, Y_t, U_t, phi_U_t, A, B, C, F, sps_type)
+            return self.indirect_sps_siso(G_0, H_0, Y_t, U_t, phi_U_t, A, B, C, F, sps_type, return_rank)
         else:
-            return self.indirect_sps_mimo(G_0, H_0, Y_t, U_t, phi_U_t, A, B, C, F, sps_type, Lambda)
+            return self.indirect_sps_mimo(G_0, H_0, Y_t, U_t, phi_U_t, A, B, C, F, sps_type, Lambda, return_rank)
 
     def indirect_sps_mimo(self, G_0: np.ndarray, H_0: np.ndarray,
                        Y_t: np.ndarray, U_t: np.ndarray, phi_U_t: np.ndarray,
