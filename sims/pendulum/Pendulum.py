@@ -21,7 +21,7 @@ class Pendulum(PendulumSimBase):
         C (np.ndarray): Output matrix for measuring the system state.
     """
     def __init__(self, dt: float = 0.02, initial_state: Optional[np.ndarray] = np.array([np.pi/4, 0.0]), 
-                 plot_system: bool = False, history_limit: int = 200) -> None:
+                 plot_system: bool = False, history_limit: int = 200, noise_std: float = 0.02) -> None:
         """
         Initializes the pendulum simulation.
 
@@ -33,7 +33,7 @@ class Pendulum(PendulumSimBase):
         super().__init__(initial_state=initial_state, C=np.array([[1, 0]]), 
                          labels=["Pendulum Angle", "Pendulum Angular Velocity", "Input"], 
                          sim_title="Pendulum Simulation", dt=dt, 
-                         plot_system=plot_system, history_limit=history_limit)
+                         plot_system=plot_system, history_limit=history_limit, noise_std=noise_std)
 
         self.g: float = 9.81
         self.L: float = 1.1
