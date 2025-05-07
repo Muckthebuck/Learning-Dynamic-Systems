@@ -3,6 +3,7 @@ from numba import njit, jit, prange
 
 
 from search.hull_sutherland_hodgman import PolygonClipper
+from scipy.spatial import ConvexHull
 
 # TODO: JIT THESE
 def expand_convex_hull(hull_points, expansion_factor=0.05):
@@ -14,7 +15,6 @@ def expand_convex_hull(hull_points, expansion_factor=0.05):
         direction = point - hull_center
         expanded_point = point + direction * expansion_factor
         expanded_points.append(expanded_point)
-        # expanded_points.append(expanded_point)
     
     return np.array(expanded_points)
 
