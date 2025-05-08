@@ -179,32 +179,45 @@ def compute_phi_lambda_phiT_and_phi_lambda_Y(phi_tilde, Lambda_inv, Lambda_n, N_
 
 
 
-def get_construct_ss_from_params_method(n_states: int, n_inputs: int, n_outputs: int, C: np.array):
+def get_construct_ss_from_params_method(n_states: int, n_inputs: int, n_outputs: int, C: np.ndarray):
     """
     Returns the function to construct state space matrices from parameters.
     """
 
     @njit(cache=True)
-    def _construct_ss_from_params(params: np.array):
+    def _construct_ss_from_params(params: np.ndarray):
         """
-        Returns state space matrices A_obs,B_obs,C_obs,D_obs and the A,B polynomials
+        Returns state space matrices A_obs, B_obs, C_obs, D_obs and the A, B polynomials.
         """
-        # A: n_state x n_state matrix
-        A =  params[:n_states]
-        A_obs = np.hstack([np.vstack([np.zeros(n_states-1), np.eye(n_states-1)]), -np.flipud(A.reshape(A.size,-1))])
-        # B: n_state x n_input matrix
-        B = params[n_states:n_states+n_states*n_inputs].reshape(n_inputs,n_states)
+        # Extract A parameters
+        A = params[:n_states]
+        # A_obs: Observable canonical form of A
+        top_block = np.zeros((1, n_states - 1))
+        bottom_block = np.eye(n_states - 1)
+        A_obs_left = np.vstack((top_block, bottom_block))
+        A_obs_right = -np.flipud(A.reshape(-1, 1))
+        A_obs = np.hstack((A_obs_left, A_obs_right))
+
+        # Extract B parameters and build B_obs
+        B = params[n_states:n_states + n_states * n_inputs].reshape(n_inputs, n_states)
         B_obs = np.flipud(B.T)
-        # C: n_output x n_state matrix
+
+        # C and D matrices
         C_obs = C
-        # D: n_output x n_input matrix: zero matrix for now
-        D_obs = np.zeros((n_outputs,n_inputs))
+        D_obs = np.zeros((n_outputs, n_inputs))
 
-        A = np.hstack([1, A])
-        B = np.hstack([np.zeros((n_inputs,1)), B])
+        # Polynomial form
+        A_poly = np.hstack((np.array([1.0]), A))  # Ensure array concatenation
+        B_poly = np.hstack((np.zeros((n_inputs, 1)), B))
 
-        return A_obs, B_obs, C_obs, D_obs, A, B
+        if n_inputs == 1 and n_outputs == 1:
+            A_poly = A_poly.flatten()
+            B_poly = B_poly.flatten()
+
+        return A_obs, B_obs, C_obs, D_obs, A_poly, B_poly
+
     return _construct_ss_from_params
+
 
 
 #---------------------------------------------------------------------------
