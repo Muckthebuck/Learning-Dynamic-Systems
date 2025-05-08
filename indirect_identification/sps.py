@@ -173,7 +173,7 @@ class SPS:
         if self.n_noise_order == -1:
             # if noise order is -1 then H is a scalar transfer function
             if self.n_output == 1:
-                C = np.array([1])
+                C = np.array([1.0])
                 H = d_tfs((C, A))
             else:
                 C = np.empty((self.n_output, 1))

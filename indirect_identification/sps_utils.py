@@ -203,6 +203,9 @@ def get_construct_ss_from_params_method(n_states: int, n_inputs: int, n_outputs:
         A = np.hstack([1, A])
         B = np.hstack([np.zeros((n_inputs,1)), B])
 
+        if n_inputs==1 and n_outputs ==1:
+            A = A.flatten()
+            B = B.flatten()
         return A_obs, B_obs, C_obs, D_obs, A, B
     return _construct_ss_from_params
 
