@@ -46,7 +46,7 @@ class RadialSearch:
 
         vectors = []
         vectors.extend(basis_vectors)
-        
+
         for _ in range(self.n_vectors - self.n_dim):
             rand_vec = np.random.uniform(-1, 1, self.n_dim) * basis_vectors
             rand_vec = np.sum(rand_vec, axis=1)
@@ -61,6 +61,9 @@ class RadialSearch:
         ins = []
         outs = []
         boundaries = []
+
+        # Validate that the center is in the confidence region
+        self._test_center()
 
         # Test each direction
         for idx in range(self.n_vectors):
@@ -82,8 +85,29 @@ class RadialSearch:
             expanded_hull = expand_convex_hull(ins[hull.vertices], expansion_factor=0.01)
         except:
             pass
-        
+
         return (ins, outs, boundaries, hull, expanded_hull)
+
+    def _test_center(self):
+        """Test whether the search center is in the SPS region.
+        If not, perform a coarse grid search around the center until we find points in the confidence region."""
+        center_in_sps_region = self.sps_test_function(np.array(self.center))
+
+        # print("Testing center point:", self.center)
+
+        if not center_in_sps_region:
+            # Generate a coarse grid 0.1*max_radius around the LSE
+            size = 0.05 * self.max_radius
+            mins = self.center - size
+            maxes = self.center + size
+
+            num_points = 10
+
+
+            nx = np.linspace(mins, maxes, num_points)
+            ny = np.linspace(mins, maxes, num_points)
+            grid = np.meshgrid(nx, ny)
+
 
 
     def _test_one_direction(self, vector_index):
@@ -92,7 +116,7 @@ class RadialSearch:
         radius = self.search_radii[vector_index]
 
         attempt_no = 0
-        
+
         highest_true = None
         lowest_false = None
 
@@ -107,7 +131,7 @@ class RadialSearch:
 
             # Convert coordinates to cartesian
             coords = radius * vector + self.center
-            in_sps = self.sps_test_function( tuple(coords) )
+            in_sps = self.sps_test_function( np.array   (coords) )
 
             # Update search params
             if in_sps:

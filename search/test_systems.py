@@ -8,38 +8,38 @@ b1_true = 0.4
 b2_true = 0.3
 
 # First order open-loop system
-A = [1, a1_true]
+A = [1.0, a1_true]
 B = [b1_true]
-C = [1]
-F = [0]
-L = [1]
+C = [1.0]
+F = [0.0]
+L = [1.0]
 
 OpenLoop1 = ARMAX(A, B, C, F, L)
 
 # Second order open-loop system
-A = [1, a1_true, a2_true]
+A = [1.0, a1_true, a2_true]
 B = [b1_true, b2_true]
-C = [1]
-F = [0]
-L = [1]
+C = [1.0]
+F = [0.0]
+L = [1.0]
 
 OpenLoop2 = ARMAX(A, B, C, F, L)
 
 # First order closed-loop system
-A = [1, a1_true]
+A = [1.0, a1_true]
 B = [b1_true]
-C = [1]
-F = [1]
-L = [1]
+C = [1.0]
+F = [-1.0]
+L = [1.0]
 
 ClosedLoop1 = ARMAX(A, B, C, F, L)
 
 
 # Second order closed-loop system
-A = [1, a1_true, a2_true]
+A = [1.0, a1_true, a2_true]
 B = [b1_true, b2_true]
-C = [1]
-F = [1]
-L = [1]
+C = [1.0]
+F = [-1.0]
+L = [1.0]
 
 ClosedLoop2 = ARMAX(A, B, C, F, L)
