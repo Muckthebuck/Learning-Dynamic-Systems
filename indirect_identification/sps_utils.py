@@ -264,7 +264,7 @@ def create_phi_optimized_siso(Y: np.ndarray, U: np.ndarray, A: np.ndarray, B: np
 
 
 
-# @njit(cache=True, fastmath=True)
+@njit(cache=True, fastmath=True)
 def create_phi_optimized_general_siso(Y, U, A, B, C):
     m, t = Y.shape  # m perturbation, t time steps
     n_a = A.size - 1
