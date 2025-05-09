@@ -8,3 +8,4 @@ redis[hiredis]
 sqlite
 numba
 scikit-learn
+pandas
