@@ -264,7 +264,7 @@ def create_phi_optimized_siso(Y: np.ndarray, U: np.ndarray, A: np.ndarray, B: np
 
 
 
-@njit(cache=True, fastmath=True)
+# @njit(cache=True, fastmath=True)
 def create_phi_optimized_general_siso(Y, U, A, B, C):
     m, t = Y.shape  # m perturbation, t time steps
     n_a = A.size - 1
@@ -280,11 +280,14 @@ def create_phi_optimized_general_siso(Y, U, A, B, C):
     ones = np.empty(1, dtype=np.float64)
     ones[0] = 1.0
 
-    # Input filtered once (shared across outputs)
-    filtered_U = lfilter_numba(ones, C, U)
-    B_U = lfilter_numba(B, C, filtered_U)
 
     for j in range(m):  # loop over each output dimension
+
+        # Input filtered once (shared across outputs)
+        u = U[j]
+        filtered_U = lfilter_numba(ones, C, u)
+        B_U = lfilter_numba(B, C, filtered_U)
+        
         y = Y[j]
 
         filtered_Y = lfilter_numba(ones, C, y)

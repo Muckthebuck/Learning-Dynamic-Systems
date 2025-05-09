@@ -7,6 +7,8 @@ from types import SimpleNamespace
 from indirect_identification.sps_utils import *
 from indirect_identification.tf_methods.fast_tfs_methods_fast_math import lfilter_numba
 
+np.random.seed(42)
+
 class OpenLoopStabilityError(Exception):
     """Raised when stability conditions are not satisfied during open-loop transformation."""
     pass
