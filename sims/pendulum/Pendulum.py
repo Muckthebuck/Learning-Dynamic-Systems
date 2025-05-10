@@ -58,6 +58,8 @@ class Pendulum(PendulumSimBase):
             u = u[0]
         theta, theta_dot = y
         theta_ddot = (u - self.d * theta_dot - self.m * self.g * self.L * np.cos(theta)) / self.inertia
+        # theta is measured from the x axis, so stable equilibrium is at -90 degrees
+        
         return np.array([theta_dot, theta_ddot])
 
     def draw(self, state_vec: np.ndarray, t: Optional[float] = None) -> np.ndarray:

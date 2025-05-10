@@ -85,13 +85,14 @@ class PendulumSimBase(ABC):
             bool: Whether simulation is now stopped.
             np.ndarray: Also returns fully observed state if full_state arg is true
         """
-        self.state = self._rk4_step(self.state, u) + np.random.normal(0, self.noise_std, self.state.shape)
+        done = False
+        self.state = self._rk4_step(self.state, u)
         if self.plot_system:
             self.history.append(np.append(self.state,u))
             if len(self.history) > self.history_limit:
                 self.history = self.history[-self.history_limit:]  # Keep only the last N points
             self.update_plot(t)
-        done = not self.render(t) # if render returns False, simulation is manually stopped
+            done = not self.render(t) # if render returns False, simulation is manually stopped
         if not full_state:
             return np.dot(self.C, self.state), done
         if full_state:

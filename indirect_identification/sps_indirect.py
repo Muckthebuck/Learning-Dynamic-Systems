@@ -9,6 +9,10 @@ from indirect_identification.tf_methods.fast_tfs_methods_fast_math import lfilte
 
 np.random.seed(42)
 
+class OpenLoopStabilityError(Exception):
+    """Raised when stability conditions are not satisfied during open-loop transformation."""
+    pass
+
 class SPS_indirect_model:
     """
     Indirect Sign Perturbed Sum (SPS) model class.
@@ -59,8 +63,8 @@ class SPS_indirect_model:
                   sps_type: SPSType,
                   F: Optional[Union['d_tfs', np.ndarray]] = None,
                   L: Optional[Union['d_tfs', np.ndarray]] = None,
-                  R_t: Optional[np.ndarray] = None, Lambda: Optional[np.ndarray] = None
-                  ) -> Tuple[bool, np.ndarray]:
+                  R_t: Optional[np.ndarray] = None, Lambda: Optional[np.ndarray] = None,
+                  return_rank: bool=False) -> Union[bool, Tuple[bool, float]]:
         """
         SPS indicator, returns True if the tested transfer functions G and H are 
         in the SPS region. The function handles both open-loop and closed-loop scenarios.
@@ -81,9 +85,9 @@ class SPS_indirect_model:
                                           If not provided, Lambda will be estimated from the estimated noise. 
 
         Returns:
-            Tuple[bool, np.ndarray]: A tuple where the first element is a boolean indicating 
+            Union[bool, Tuple[bool, float]]: A tuple where the first element is a boolean indicating 
             whether the system is in the SPS region (True or False), and the second element 
-            is the corresponding array of results (e.g., computed values related to the SPS region).
+            is the normalised SPS rank.
         """
         if sps_type == SPSType.CLOSED_LOOP:
             if F is None or L is None or R_t is None:
@@ -115,8 +119,8 @@ class SPS_indirect_model:
         phi_U_t = np.broadcast_to(phi_U_t, (self.m, *phi_U_t.shape))
   
         return self.indirect_sps(G_0=G_0, H_0=H_0, 
-                           Y_t=Y_t, U_t=U, phi_U_t=phi_U_t, 
-                           A=A, B=B, C=C, F=F, sps_type=sps_type, Lambda=Lambda)
+                           Y_t=Y_t, U_t=U, phi_U_t=phi_U_t,
+                           A=A, B=B, C=C, F=F, sps_type=sps_type, Lambda=Lambda, return_rank=return_rank)
 
 
     def transform_to_open_loop(self, G, H, F, L):
@@ -150,7 +154,7 @@ class SPS_indirect_model:
         for tf in [L, i_GF_plus_I]:
             if isinstance(tf, d_tfs):
                 if not tf.is_stable():
-                    raise ValueError(f"Error transforming to open loop: stability conditions not satisfied. Failed for {tf}")
+                    raise OpenLoopStabilityError(f"Error transforming to open loop: stability conditions not satisfied. Failed for {tf}")
 
         G_0 = i_GF_plus_I * G * L
         H_0 = i_GF_plus_I * H
@@ -172,16 +176,16 @@ class SPS_indirect_model:
     def indirect_sps(self, G_0: Union['d_tfs', np.ndarray], H_0: Union['d_tfs', np.ndarray],
                        Y_t: np.ndarray, U_t: np.ndarray, phi_U_t: np.ndarray,
                           A: np.ndarray, B: np.ndarray, C: np.ndarray, 
-                          F: Union['d_tfs', np.ndarray], sps_type: SPSType, Lambda: np.ndarray) -> bool:
+                          F: Union['d_tfs', np.ndarray], sps_type: SPSType, Lambda: np.ndarray, return_rank: bool=False) -> Union[bool, Tuple[bool, float]]:
         if self.is_siso:
-            return self.indirect_sps_siso(G_0, H_0, Y_t, U_t, phi_U_t, A, B, C, F, sps_type)
+            return self.indirect_sps_siso(G_0, H_0, Y_t, U_t, phi_U_t, A, B, C, F, sps_type, return_rank)
         else:
-            return self.indirect_sps_mimo(G_0, H_0, Y_t, U_t, phi_U_t, A, B, C, F, sps_type, Lambda)
+            return self.indirect_sps_mimo(G_0, H_0, Y_t, U_t, phi_U_t, A, B, C, F, sps_type, Lambda, return_rank)
 
     def indirect_sps_mimo(self, G_0: np.ndarray, H_0: np.ndarray,
                        Y_t: np.ndarray, U_t: np.ndarray, phi_U_t: np.ndarray,
                           A: np.ndarray, B: np.ndarray, C: np.ndarray, 
-                          F: np.ndarray, sps_type: SPSType, Lambda: np.ndarray) -> bool:
+                          F: np.ndarray, sps_type: SPSType, Lambda: np.ndarray, return_rank: bool=False) -> Union[bool, Tuple[bool, float]]:
         
         try:
             # create the perturbed noise, y, u
@@ -202,14 +206,14 @@ class SPS_indirect_model:
             combined = np.array(list(zip(self.pi_order, S)))
             order = np.lexsort(combined.T)
             rank_R = np.where(order == 0)[0][0] + 1
-            return rank_R <= self.m - self.q
+            return rank_R <= self.m - self.q if not return_rank else rank_R <= self.m - self.q, rank_R/self.m
         except Exception as e:
             raise ValueError(f"Error in open-loop SPS: {e}")
 
     def indirect_sps_siso(self, G_0: 'd_tfs', H_0: 'd_tfs',
                        Y_t: np.ndarray, U_t: np.ndarray, phi_U_t: np.ndarray, 
                       A: np.ndarray, B: np.ndarray, C: np.ndarray, 
-                      F: 'd_tfs', sps_type: SPSType) -> bool:
+                      F: 'd_tfs', sps_type: SPSType, return_rank: bool=False) -> Union[bool, Tuple[bool, float]]:
         """
         Perform open-loop SPS.
         
@@ -225,6 +229,7 @@ class SPS_indirect_model:
         Returns:
         tuple: A boolean indicating if the rank is within the threshold and the S values.
         """
+        
         try:
             YGU = Y_t - G_0*U_t
             N_hat = (1/H_0)*YGU
@@ -255,6 +260,6 @@ class SPS_indirect_model:
             order = np.lexsort(combined.T)
             rank_R = np.where(order == 0)[0][0] + 1
             
-            return rank_R <= self.m - self.q
+            return rank_R <= self.m - self.q if not return_rank else rank_R <= self.m - self.q, rank_R/self.m
         except Exception as e:
             raise ValueError(f"Error in open-loop SPS: {e}")
