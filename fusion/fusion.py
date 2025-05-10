@@ -10,10 +10,10 @@ from dB.sim_db import SPSType
 
 PDF_FLOOR = 1e-16   # to avoid numerical stability issues, this is the new "zero" value
 
-def fuse_ranks(new_ranks: np.ndarray, old_ranks: np.ndarray, forget=0, logger: logging.Logger = None):
+def fuse_ranks(new_ranks: np.ndarray, old_ranks: np.ndarray, forget=0):
 
     # Ensure forget parameter is valid
-    logger = logger if logger else logging.getLogger(__name__)
+    logger = logging.getLogger(__name__)
     if not 0.0 <= forget <= 1.0:
         forget = max(min(forget, 1), 0)
         logger.warning(f" Warning: invalid forget parameter (0 <= forget <= 1 not satisfied). Proceeding with forget={forget}.")
@@ -212,7 +212,7 @@ def sample_fused_conf_region(p_tensor, grid_axes, cumprob=0.95):
 
     return selected_points, p
 
-def fuse(new_info: np.ndarray, prior: np.ndarray, forget = 0.0,  logger: logging.Logger = None):
+def fuse(new_info: np.ndarray, prior: np.ndarray, forget = 0.0):
     # https://en.wikipedia.org/wiki/Recursive_Bayesian_estimation#Model
     #  - not sure how to theoretically justify the forgetting factor part
 
@@ -220,7 +220,7 @@ def fuse(new_info: np.ndarray, prior: np.ndarray, forget = 0.0,  logger: logging
     #   1 = disregard all past data
     #   0 = assume past data is always relevant (no change in plant over time)
 
-    logger = logger if logger else logging.getLogger(__name__)
+    logger = logging.getLogger(__name__)
     if not 0.0 <= forget <= 1.0:
         forget = max(min(forget, 1), 0)
         logger.warning(f" Warning: invalid forget parameter (0 <= forget <= 1 not satisfied). Proceeding with forget={forget}.")
