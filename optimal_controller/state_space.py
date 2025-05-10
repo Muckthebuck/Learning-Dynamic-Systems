@@ -1,56 +1,5 @@
 import numpy as np
 
-def generate_perturbed(matrix, n_samples, pct):
-    """
-    Generates a list of perturbed versions of a given matrix (A or B).
-    The original matrix is always included, stored as the first element of the list.
-    Perturbations are applied assuming OCF state space matrices, i.e. if an A matrix, only the final column is perturbed.
-
-    Parameters:
-    ----------
-    matrix : np.ndarray
-        The original matrix to perturb. Should be either square (interpreted as an A matrix) or Nx1 rectangular (interpreted as a B matrix).
-    n_samples : int
-        Number of perturbed matrices to generate, including the original matrix.
-    pct : float
-        Maximum percentage perturbation (relative to the absolute value of each element) applied to the matrix.
-        For example, pct = 0.2 allows ±20% perturbations.
-
-    Returns:
-    -------
-    perturbed_matrices : list of np.ndarray
-        List containing the original matrix and (n_samples - 1) perturbed versions. Perturbations are random but bounded as follows:
-        - For A matrices (square), only the last column is perturbed.
-        - For B matrices (non-square), all elements are perturbed independently.
-        This corresponds to perturbing the transfer function coefficients.
-    """    
-    display_generated_matrices = False
-
-    if matrix.shape[0] == matrix.shape[1]:
-        # Square matrix (A matrix)
-        n_states = matrix.shape[0]
-        delta_A_min = -pct * np.hstack((np.zeros((n_states, n_states - 1)), np.abs(matrix[:, n_states - 1:n_states])))
-        delta_A_max = pct * np.hstack((np.zeros((n_states, n_states - 1)), np.abs(matrix[:, n_states - 1:n_states])))
-        perturbed_matrices = [matrix]
-        for _ in range(1, n_samples):
-            delta_A = delta_A_min + (delta_A_max - delta_A_min) * np.random.randn(n_states, n_states)
-            perturbed_matrices.append(matrix + delta_A)
-    else:
-        # Non-square matrix (B matrix)
-        n_states, n_inputs = matrix.shape
-        delta_B_min = -pct * np.abs(matrix)
-        delta_B_max = pct * np.abs(matrix)
-        perturbed_matrices = [matrix]
-        for _ in range(1, n_samples):
-            delta_B = delta_B_min + (delta_B_max - delta_B_min) * np.random.randn(n_states, n_inputs)
-            perturbed_matrices.append(matrix + delta_B)
-    
-    if display_generated_matrices:
-        for i, mat in enumerate(perturbed_matrices):
-            print(f'perturbed_matrices[{i}] =\n', mat)
-    
-    return np.array(perturbed_matrices)
-
 def tf_to_ccf(num,den):
     """
     Convert a strictly proper SISO discrete-time transfer function to its

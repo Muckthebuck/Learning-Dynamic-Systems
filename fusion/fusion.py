@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
+import logging
 
 from indirect_identification.sps_indirect import OpenLoopStabilityError, SPS_indirect_model
 from indirect_identification.d_tfs import d_tfs
@@ -9,7 +10,13 @@ from dB.sim_db import SPSType
 
 PDF_FLOOR = 1e-16   # to avoid numerical stability issues, this is the new "zero" value
 
-def fuse_ranks(new_ranks, old_ranks, forget=0):
+def fuse_ranks(new_ranks: np.ndarray, old_ranks: np.ndarray, forget=0, logger: logging.Logger = None):
+
+    # Ensure forget parameter is valid
+    logger = logger if logger else logging.getLogger(__name__)
+    if not 0.0 <= forget <= 1.0:
+        forget = max(min(forget, 1), 0)
+        logger.warning(f" Warning: invalid forget parameter (0 <= forget <= 1 not satisfied). Proceeding with forget={forget}.")
 
     # Convert to probabilities
     new_info = 1 - new_ranks
@@ -205,7 +212,7 @@ def sample_fused_conf_region(p_tensor, grid_axes, cumprob=0.95):
 
     return selected_points, p
 
-def fuse(new_info, prior, forget=0.0):
+def fuse(new_info: np.ndarray, prior: np.ndarray, forget = 0.0,  logger: logging.Logger = None):
     # https://en.wikipedia.org/wiki/Recursive_Bayesian_estimation#Model
     #  - not sure how to theoretically justify the forgetting factor part
 
@@ -213,7 +220,10 @@ def fuse(new_info, prior, forget=0.0):
     #   1 = disregard all past data
     #   0 = assume past data is always relevant (no change in plant over time)
 
-    assert 0.0 <= forget <= 1.0
+    logger = logger if logger else logging.getLogger(__name__)
+    if not 0.0 <= forget <= 1.0:
+        forget = max(min(forget, 1), 0)
+        logger.warning(f" Warning: invalid forget parameter (0 <= forget <= 1 not satisfied). Proceeding with forget={forget}.")
     
     modified_prior = np.mean(prior) * np.ones(prior.shape) * forget + prior * (1-forget)
     posterior = np.multiply(modified_prior, new_info) # Hadamard product
@@ -320,17 +330,15 @@ def get_conf_region(search_ranges, search_resolutions, model: SPS_indirect_model
         G = d_tfs((B, A))
         H = d_tfs((C, A))
 
+        # Check the SPS indicator and store the parameters if true
         try:
-            # Check the SPS indicator and store the parameters if true
             in_sps = model.sps_indicator(G=G, H=H, A=A, B=B, C=C,
                                          F = F, L = L,
                                          Y_t = Y.reshape(1,-1),
                                          U_t = None,
                                          R_t = R.reshape(1,-1),
                                          sps_type = SPSType.CLOSED_LOOP)
-            if in_sps:
-                pts_in_conf_region.append(point)
-
+            if in_sps: pts_in_conf_region.append(point)
         except OpenLoopStabilityError:
             # Unstable open loop system - ignore this infeasible parameter combination
             continue
