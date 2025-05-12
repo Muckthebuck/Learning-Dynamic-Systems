@@ -206,11 +206,10 @@ class SPS_indirect_model:
             combined = np.array(list(zip(self.pi_order, S)))
             order = np.lexsort(combined.T)
             rank_R = np.where(order == 0)[0][0] + 1
-
             if return_rank:
-                    return rank_R <= self.m - self.q, rank_R/self.m
+                return rank_R <= self.m - self.q, rank_R/self.m
             else:
-                return rank_R <= self.m - self.q
+                return rank_R <= self.m - self.q 
         except Exception as e:
             raise ValueError(f"Error in open-loop SPS: {e}")
 
@@ -263,7 +262,6 @@ class SPS_indirect_model:
             combined = np.array(list(zip(self.pi_order, S)))
             order = np.lexsort(combined.T)
             rank_R = np.where(order == 0)[0][0] + 1
-
             if return_rank:
                 return rank_R <= self.m - self.q, rank_R/self.m
             else:
