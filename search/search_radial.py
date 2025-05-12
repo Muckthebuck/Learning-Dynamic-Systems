@@ -95,19 +95,20 @@ class RadialSearch:
     def _test_center(self):
         """Test whether the search center is in the SPS region.
         If not, perform a coarse grid search around the center until we find points in the confidence region."""
-        if len(np.array(self.center_options).shape) > 1:    # Check if 2d or greater array is passed in 
-            for point in np.array(self.center_options[0, :]):
+        self.center_options = np.array(self.center_options)
+
+        if len(self.center_options.shape) > 1:    # Check if 2d or greater array is passed in 
+            for point in self.center_options:
                 if self.sps_test_function(point):
                     self.center = point
                     return
                 
         else:
             if self.sps_test_function(self.center_options):
-                self.center = point
+                self.center = self.center_options
                 return
             
         raise Exception("No provided center values found in confidence region.")
-
 
 
     def _test_one_direction(self, vector_index):
