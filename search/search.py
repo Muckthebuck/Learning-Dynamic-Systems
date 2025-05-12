@@ -90,7 +90,7 @@ class SPSSearch:
         # Otherwise, expose hyperparameters
         self.knn = KNeighborsClassifier(n_neighbors=k_neighbours, weights="distance")
 
-        self.is_store_results = False
+        self.is_store_results = True
         if self.is_store_results:
             self.plot_data = {}
             self.confusion_coords = set()
@@ -113,6 +113,8 @@ class SPSSearch:
                 random_coord = self.get_random_coordinate()
 
             mapped_coord = self.parameter_map[:, *random_coord]
+
+            # TODO: Check that this is the rank/probability output
             in_sps = self.test_coordinate(mapped_coord)
             self.results[random_coord] = 1 if in_sps else 0
             self.remaining_coords.remove(random_coord)
@@ -185,6 +187,15 @@ class SPSSearch:
         """Return values for which SPS was tested TRUE"""
         return self.parameter_map[:,*(np.array(np.where(self.results == 1)))]
 
+    def get_mapped_output(self):
+        """Returns output values remapped from index coordinates to values"""
+        coords = np.array(self.output, dtype="int")
+        coords = coords[:,0:2]
+        sps_values = np.array(self.output, dtype="int")[:,2]
+        sps_values = sps_values[:, None]
+        mapped_values =  [self.parameter_map[:,*x] for x in coords]
+
+        return np.hstack([mapped_values, sps_values])
 
 
     def store_plot_data_2d(self, epoch_number):
@@ -212,6 +223,35 @@ class SPSSearch:
             self.plot_data["pred_in_x_%d" % epoch_number]   = mapped_pred_in_x
             self.plot_data["pred_in_y_%d" % epoch_number]   = mapped_pred_in_y
 
+    def plot_epoch(self, epoch_number: int):
+        """Plots the data from an epoch"""
+        if self.n_dimensions != 2:
+            raise "Cannot plot non-2d data"
+
+        epoch_label = "epoch %d" % epoch_number if epoch_number > 0 else "random initialisation"
+
+        plt.figure()
+        plt.scatter(self.plot_data["incorrect_x_%d" % epoch_number],      self.plot_data["incorrect_y_%d" % epoch_number], color='g', label="Tested Out")
+        plt.scatter(self.plot_data["correct_x_%d" % epoch_number],        self.plot_data["correct_y_%d" % epoch_number], color='r', label="Tested In")
+        plt.legend()
+        plt.title("Tested points after %s" % epoch_label)
+        plt.xlabel("a")
+        plt.ylabel("b")
+        plt.savefig("figures/knn_search_epoch_%d.png" % epoch_number)
+
+        plt.figure()
+        plt.scatter(self.plot_data["pred_out_x_%d" % epoch_number],      self.plot_data["pred_out_y_%d" % epoch_number], color='b', label='Predicted Out', marker="s", alpha=0.3)
+        plt.scatter(self.plot_data["pred_in_x_%d" % epoch_number],   self.plot_data["pred_in_y_%d" % epoch_number], color='y', label="Predicted In", marker="s", alpha=0.3)
+        plt.scatter(self.plot_data["incorrect_x_%d" % epoch_number],      self.plot_data["incorrect_y_%d" % epoch_number], color='g', label="Tested Out")
+        plt.scatter(self.plot_data["correct_x_%d" % epoch_number],        self.plot_data["correct_y_%d" % epoch_number], color='r', label="Tested In")
+        plt.title("Tested points and predicted values after %s" % epoch_label)
+        plt.legend()
+        plt.xlabel("a")
+        plt.ylabel("b")
+        plt.savefig("figures/knn_search_epoch_%d_predicted.png" % epoch_number)
+
+        plt.show()
+
 
     def plot_results_2d(self):
         """Plot the data points in a 2-dimensional search."""
@@ -227,42 +267,36 @@ class SPSSearch:
             plt.scatter(self.plot_data["incorrect_x_%d" % n_epoch],      self.plot_data["incorrect_y_%d" % n_epoch], color='g')
             plt.scatter(self.plot_data["pred_in_x_%d" % n_epoch],   self.plot_data["pred_in_y_%d" % n_epoch], color='y')
             plt.scatter(self.plot_data["correct_x_%d" % n_epoch],        self.plot_data["correct_y_%d" % n_epoch], color='r')
-        plt.legend(['Predicted incorrect', 'Tested incorrect', 'Predicted correct', 'Tested correct'])
+        plt.legend(['Predicted out', 'Tested out', 'Predicted in', 'Tested in'])
 
-        # TODO: Plot confusion matrix
-        # Currently plotting f score
+        # Plot the final output region
         plt.figure()
-        # plt.subplot(5, 5, n_epoch+1)
-        x_vals = np.arange(1, self.NUM_EPOCHS)
-        f_scores = []
-
-        for n_epoch in range(self.NUM_EPOCHS-1):
-            tn, fp, fn, tp = confusion_matrix(*self.confusion_data[n_epoch]).ravel()
-            f_scores.append(f1_score(*self.confusion_data[n_epoch]))
-
-
-        plt.scatter(x_vals, f_scores)
-        plt.title("F Score over epochs of KNN search")
-        plt.xlabel("Epoch Number")
-        plt.ylabel("F Score")
+        plt.scatter(self.plot_data["pred_out_x_%d" % (self.NUM_EPOCHS-1)],      self.plot_data["pred_out_y_%d" % (self.NUM_EPOCHS-1)], color='b', s=10)
+        plt.scatter(self.plot_data["incorrect_x_%d" % (self.NUM_EPOCHS-1)],      self.plot_data["incorrect_y_%d" % (self.NUM_EPOCHS-1)], color='g')
+        plt.scatter(self.plot_data["pred_in_x_%d" % (self.NUM_EPOCHS-1)],   self.plot_data["pred_in_y_%d" % (self.NUM_EPOCHS-1)], color='y')
+        plt.scatter(self.plot_data["correct_x_%d" % (self.NUM_EPOCHS-1)],        self.plot_data["correct_y_%d" % (self.NUM_EPOCHS-1)], color='r')
+        plt.legend(['Predicted out', 'Tested out', 'Predicted in', 'Tested in'])
+        plt.title("Final output at end of KNN search")
         plt.show()
-        plt.waitforbuttonpress()
+
 
     def go(self):
         # Perform random search
         self.random_search()
+        self.calculate_knn_predictions()
+        self.store_plot_data_2d(epoch_number=0)
+
         self.logger.debug("Random search complete")
         for i in range(1, self.NUM_EPOCHS):
             self.logger.debug(f"Epoch: {i}")
             # Perform KNN
-            self.calculate_knn_predictions()
 
             # Search KNN
             self.knn_search()
+            self.calculate_knn_predictions()
             self.store_plot_data_2d(epoch_number=i)
 
         return self.parameter_map, self.results
-
 
 
 
@@ -274,12 +308,19 @@ def jit_get_random_coordinate(num_points: np.ndarray) -> np.ndarray:
     return output
 
 
-
-
 if __name__ == "__main__":
     def test(random_coord):
         p_success = 0.6
         return np.random.random() > 1 - p_success
 
-    search = SPSSearch(-1, 1, 3, test_cb=test)
+    n_params = 2
+
+    search = SPSSearch(
+            mins=[0]*n_params,
+            maxes=[1]*n_params,
+            n_dimensions=n_params,
+            n_points=[20]*n_params,
+            test_cb=test,
+        )
     search.go()
+    search.plot_epoch(0)
