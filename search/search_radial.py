@@ -9,8 +9,7 @@ class RadialSearch:
                  n_dim: int = 2,
                  n_vectors: int = 30,
                  starting_radius = 0.1,
-                 center_options: np.ndarray = None,
-                 center: np.ndarray = None,     # Center of the radial search.
+                 center_options: np.ndarray = None, # Options to test for to set the search center.
                                                 # If multiple points are passed in, they will be tested until one is tested True. 
                                                 # The first True value will then be used as the center of the search.
                  sps_test_function: callable = None, # Test function which should accept only an n_dim length coordinate
