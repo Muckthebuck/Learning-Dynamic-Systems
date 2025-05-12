@@ -9,7 +9,10 @@ class RadialSearch:
                  n_dim: int = 2,
                  n_vectors: int = 30,
                  starting_radius = 0.1,
-                 center: np.ndarray = None,     # Center of the radial search. Should be least-squares estimate
+                 center_options: np.ndarray = None,
+                 center: np.ndarray = None,     # Center of the radial search.
+                                                # If multiple points are passed in, they will be tested until one is tested True. 
+                                                # The first True value will then be used as the center of the search.
                  sps_test_function: callable = None, # Test function which should accept only an n_dim length coordinate
                  max_iter = 100,                 # Maximum iterations per direction
                  epsilon = 0.01,                 # Convergence value
@@ -25,7 +28,7 @@ class RadialSearch:
         self.epsilon = epsilon
         self.max_radius = max_radius
 
-        self.center = np.zeros(n_dim) if center is None else center
+        self.center_options = np.zeros(n_dim) if center_options is None else center_options
 
         # Outputs
         self.ins = []
@@ -91,7 +94,18 @@ class RadialSearch:
     def _test_center(self):
         """Test whether the search center is in the SPS region.
         If not, perform a coarse grid search around the center until we find points in the confidence region."""
-        center_in_sps_region = self.sps_test_function(np.array(self.center))
+        if len(np.array(self.center_options).shape) > 1:    # Check if 2d or greater array is passed in 
+            for point in np.array(self.center_options[0, :]):
+                if self.sps_test_function(point):
+                    self.center = point
+                    return
+                
+        else:
+            if self.sps_test_function(self.center_options):
+                    self.center = point
+                    return
+            
+        raise Exception("No provided center values found in confidence region.")
 
         # print("Testing center point:", self.center)
 
