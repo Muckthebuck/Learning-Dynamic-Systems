@@ -6,19 +6,19 @@ from search.hull_helpers import expand_convex_hull
 
 class RadialSearch:
     def __init__(self,
-                 n_dim: int = 2,
+                 n_dimensions: int = 2,
                  n_vectors: int = 30,
                  starting_radius = 0.1,
                  center_options: np.ndarray = None, # Options to test for to set the search center.
                                                 # If multiple points are passed in, they will be tested until one is tested True. 
                                                 # The first True value will then be used as the center of the search.
-                 sps_test_function: callable = None, # Test function which should accept only an n_dim length coordinate
+                 test_cb: callable = None, # Test function which should accept only an n_dimensions length coordinate
                  max_iter = 100,                 # Maximum iterations per direction
                  epsilon = 0.01,                 # Convergence value
                  max_radius = 2,                # Maximum radius to include in the confidence region
                  next_starting_radius_multiplier = 0.75,    # Value to multiply the boundary of one search epoch by to set the start of the next epoch.
                  ):
-        self.n_dim = n_dim
+        self.n_dimensions = n_dimensions
         self.n_vectors = n_vectors
         self.vectors = []
 
@@ -29,7 +29,7 @@ class RadialSearch:
         self.max_radius = max_radius
         self.next_starting_radius_multiplier = next_starting_radius_multiplier
 
-        self.center_options = np.zeros(n_dim) if center_options is None else center_options
+        self.center_options = np.zeros(n_dimensions) if center_options is None else center_options
 
         # Outputs
         self.ins = []
@@ -39,20 +39,20 @@ class RadialSearch:
         self.expanded_hull = []
 
         # Test function
-        self.sps_test_function = sps_test_function
+        self.test_cb = test_cb
 
         self._generate_unit_vectors()
 
 
     def _generate_unit_vectors(self):
-        """Generates N unit vectors of length n_dim."""
-        basis_vectors = np.eye(self.n_dim)
+        """Generates N unit vectors of length n_dimensions."""
+        basis_vectors = np.eye(self.n_dimensions)
 
         vectors = []
         vectors.extend(basis_vectors)
 
-        for _ in range(self.n_vectors - self.n_dim):
-            rand_vec = np.random.uniform(-1, 1, self.n_dim) * basis_vectors
+        for _ in range(self.n_vectors - self.n_dimensions):
+            rand_vec = np.random.uniform(-1, 1, self.n_dimensions) * basis_vectors
             rand_vec = np.sum(rand_vec, axis=1)
             rand_vec /= np.linalg.norm(rand_vec)    # Normalise to create unit vector
             vectors.extend(np.array([rand_vec]))
@@ -93,18 +93,19 @@ class RadialSearch:
         return (ins, outs, boundaries, hull, expanded_hull)
 
     def _test_center(self):
-        """Test whether the search center is in the SPS region.
-        If not, perform a coarse grid search around the center until we find points in the confidence region."""
+        """Test whether the search center(s) is in the SPS region.
+        The first successful point will be used as the search center.
+        If no points are successful, an exception is raised."""
         self.center_options = np.array(self.center_options)
 
         if len(self.center_options.shape) > 1:    # Check if 2d or greater array is passed in 
             for point in self.center_options:
-                if self.sps_test_function(point):
+                if self.test_cb(point):
                     self.center = point
                     return
                 
         else:
-            if self.sps_test_function(self.center_options):
+            if self.test_cb(self.center_options):
                 self.center = self.center_options
                 return
             
@@ -116,25 +117,27 @@ class RadialSearch:
         vector = self.vectors[vector_index]
         radius = self.search_radii[vector_index]
 
+        # Search state variables
         attempt_no = 0
 
         highest_true = None
         lowest_false = None
 
         current_error = 1
-
         ins = []
         outs = []
         boundary = None
 
+        # Loop until gap between ins and outs is small
         while current_error > self.epsilon and attempt_no < self.max_iter and radius < self.max_radius:
             attempt_no += 1
 
             # Convert coordinates to cartesian
             coords = radius * vector + self.center
-            in_sps = self.sps_test_function( np.array   (coords) )
+            in_sps = self.test_cb( np.array   (coords) )
 
-            # Update search params
+            # Check if the coordinate is inside the confidence region
+            # If it is, expand the search radius
             if in_sps:
                 ins.append(np.array(coords))
                 highest_true = radius
@@ -144,6 +147,7 @@ class RadialSearch:
                 else:
                     radius *= 2
 
+            # Otherwise append the coordinate to the outs and reduce the search radius.
             else:
                 outs.append(np.array(coords))
                 lowest_false = radius
@@ -153,9 +157,11 @@ class RadialSearch:
                 else:
                     radius /= 2
 
+            # Update stopping condition
             if highest_true and lowest_false:
                 current_error = lowest_false - highest_true
 
+        # Set the boundary to be the current radius (which will be halfway between max_in and min_out after update)
         boundary = radius * vector
         self.search_radii[vector_index] = self.next_starting_radius_multiplier * radius    # Set the next starting radius for this direction
         return (ins, outs, boundary)
@@ -163,7 +169,7 @@ class RadialSearch:
 
     def plot_unit_vectors_2d(self):
         """Plot the generated unit vectors. Only available for 2d system"""
-        if self.n_dim == 2:
+        if self.n_dimensions == 2:
             fig, ax = plt.subplots()
             ax.set_title("Generated Unit Vectors")
             ax.set_xlabel("a")
@@ -174,7 +180,7 @@ class RadialSearch:
 
     # Plot the results
     def plot_2d_results(self, a_true, b_true):
-        if self.n_dim == 2:
+        if self.n_dimensions == 2:
             a0 = self.center[0]
             b0 = self.center[1]
 
