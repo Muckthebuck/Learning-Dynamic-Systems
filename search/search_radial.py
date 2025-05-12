@@ -108,21 +108,6 @@ class RadialSearch:
             
         raise Exception("No provided center values found in confidence region.")
 
-        # print("Testing center point:", self.center)
-
-        if not center_in_sps_region:
-            # Generate a coarse grid 0.1*max_radius around the LSE
-            size = 0.05 * self.max_radius
-            mins = self.center - size
-            maxes = self.center + size
-
-            num_points = 10
-
-
-            nx = np.linspace(mins, maxes, num_points)
-            ny = np.linspace(mins, maxes, num_points)
-            grid = np.meshgrid(nx, ny)
-
 
 
     def _test_one_direction(self, vector_index):
