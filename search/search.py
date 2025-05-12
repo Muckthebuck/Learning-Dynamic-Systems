@@ -113,6 +113,8 @@ class SPSSearch:
                 random_coord = self.get_random_coordinate()
 
             mapped_coord = self.parameter_map[:, *random_coord]
+
+            # TODO: Check that this is the rank/probability output
             in_sps = self.test_coordinate(mapped_coord)
             self.results[random_coord] = 1 if in_sps else 0
             self.remaining_coords.remove(random_coord)
@@ -184,7 +186,7 @@ class SPSSearch:
     def get_results(self):
         """Return values for which SPS was tested TRUE"""
         return self.parameter_map[:,*(np.array(np.where(self.results == 1)))]
-    
+
     def get_mapped_output(self):
         """Returns output values remapped from index coordinates to values"""
         coords = np.array(self.output, dtype="int")
@@ -194,7 +196,7 @@ class SPSSearch:
         mapped_values =  [self.parameter_map[:,*x] for x in coords]
 
         return np.hstack([mapped_values, sps_values])
-    
+
 
     def store_plot_data_2d(self, epoch_number):
         """Preprocess and store data for plots."""
@@ -225,7 +227,7 @@ class SPSSearch:
         """Plots the data from an epoch"""
         if self.n_dimensions != 2:
             raise "Cannot plot non-2d data"
-        
+
         epoch_label = "epoch %d" % epoch_number if epoch_number > 0 else "random initialisation"
 
         plt.figure()
@@ -276,7 +278,7 @@ class SPSSearch:
         plt.legend(['Predicted out', 'Tested out', 'Predicted in', 'Tested in'])
         plt.title("Final output at end of KNN search")
         plt.show()
-        
+
 
     def go(self):
         # Perform random search
@@ -312,7 +314,7 @@ if __name__ == "__main__":
         return np.random.random() > 1 - p_success
 
     n_params = 2
-    
+
     search = SPSSearch(
             mins=[0]*n_params,
             maxes=[1]*n_params,
