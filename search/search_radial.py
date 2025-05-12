@@ -17,6 +17,7 @@ class RadialSearch:
                  max_iter = 100,                 # Maximum iterations per direction
                  epsilon = 0.01,                 # Convergence value
                  max_radius = 2,                # Maximum radius to include in the confidence region
+                 next_starting_radius_multiplier = 0.75,    # Value to multiply the boundary of one search epoch by to set the start of the next epoch.
                  ):
         self.n_dim = n_dim
         self.n_vectors = n_vectors
@@ -27,6 +28,7 @@ class RadialSearch:
         self.max_iter = max_iter
         self.epsilon = epsilon
         self.max_radius = max_radius
+        self.next_starting_radius_multiplier = next_starting_radius_multiplier
 
         self.center_options = np.zeros(n_dim) if center_options is None else center_options
 
@@ -102,8 +104,8 @@ class RadialSearch:
                 
         else:
             if self.sps_test_function(self.center_options):
-                    self.center = point
-                    return
+                self.center = point
+                return
             
         raise Exception("No provided center values found in confidence region.")
 
@@ -170,7 +172,7 @@ class RadialSearch:
                 current_error = lowest_false - highest_true
 
         boundary = radius * vector
-        self.search_radii[vector_index] = radius    # Set the next starting radius for this direction
+        self.search_radii[vector_index] = self.next_starting_radius_multiplier * radius    # Set the next starting radius for this direction
         return (ins, outs, boundary)
 
 
