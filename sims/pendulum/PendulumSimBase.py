@@ -93,10 +93,13 @@ class PendulumSimBase(ABC):
                 self.history = self.history[-self.history_limit:]  # Keep only the last N points
             self.update_plot(t)
             done = not self.render(t) # if render returns False, simulation is manually stopped
+        obs = np.dot(self.C, self.state)
+        noise = np.random.normal(loc=0.0, scale=self.noise_std, size=obs.shape)
+        obs+=noise
         if not full_state:
-            return np.dot(self.C, self.state), done
+            return obs, done
         if full_state:
-            return np.dot(self.C, self.state), done, self.state
+            return obs, done, self.state+noise
 
     def _rk4_step(self, state: np.ndarray, u: float) -> np.ndarray:
         """
