@@ -46,11 +46,17 @@ def compare_hulls(hull1, hull2):
     clipped_polygon = clipper(hull1, hull2)
     return clipped_polygon
 
+# def compare_pca_shapely(pca1, pca2):
+#     p = Polygon(pca1)
+#     q = Polygon(pca2)
+
+#     return compare_hulls_shapely(p.convex_hull, q.convex_hull)
+
 def compare_hulls_shapely(hull1, hull2):
-    p = Polygon(hull1)
-    q = Polygon(hull2)
+    p = Polygon(hull1).convex_hull
+    q = Polygon(hull2).convex_hull
     intersect = p.intersection(q)
-    union = Polygon(sort_clockwise(np.vstack([hull1, hull2])))
+    union = Polygon(sort_clockwise(np.vstack([hull1, hull2]))).convex_hull
 
     intersect_coords = np.array(intersect.boundary.coords.xy).transpose()
     union_coords = np.array(union.boundary.coords.xy).transpose()
@@ -137,6 +143,15 @@ def compare_hulls_n_dim(in_points_1, in_points_2, plot_results=False) -> float:
 
     return np.mean(ious)
 
+def plot_pca_iou(pca_orig, pca_comparison, intersection, union, iou_score):
+    plt.figure()
+    plt.plot(pca_orig[:,0], pca_orig[:,1], label="original")
+    plt.plot(pca_comparison[:,0], pca_comparison[:,1], label="sorted")
+    plt.fill(intersection[:,0], intersection[:,1], alpha=0.2, color="green", label="intersect")
+    plt.fill(union[:,0], union[:,1], alpha=0.2, color="blue", label="union")
+    plt.title("IoU score: %.2f" % (iou_score))
+    plt.legend()
+    plt.show()
 
 # https://stackoverflow.com/questions/57500001/numba-failure-with-np-mean
 @jit(parallel=True)
