@@ -1,6 +1,7 @@
 numpy
 matplotlib
 scipy
+shapely # For polygon intersects
 cupy-cuda12x
 control
 opencv-python

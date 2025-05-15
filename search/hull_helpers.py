@@ -3,7 +3,7 @@ from numba import njit, jit, prange
 import matplotlib.pyplot as plt
 from itertools import combinations
 from sklearn.decomposition import PCA
-
+from shapely.geometry import Polygon
 
 from search.hull_sutherland_hodgman import PolygonClipper
 from scipy.spatial import ConvexHull
@@ -44,6 +44,15 @@ def compare_hulls(hull1, hull2):
     clipped_polygon = clipper(hull1, hull2)
     return clipped_polygon
 
+def compare_hulls_shapely(hull1, hull2):
+    p = Polygon(hull1)
+    q = Polygon(hull2)
+    intersect = p.intersection(q)
+    union = Polygon(sort_clockwise(np.vstack([hull1, hull2])))
+
+    iou = intersect.area / union.area
+
+    return intersect, union, iou
 
 # Returns a list of ConvexHull instances, one for each permutation of the dimensions provided.
 def get_hull_points_n_dim(points):
