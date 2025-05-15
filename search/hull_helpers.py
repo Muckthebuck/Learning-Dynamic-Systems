@@ -22,7 +22,7 @@ def expand_convex_hull(hull_points, expansion_factor=0.05):
     return np.array(expanded_points)
 
 def sort_clockwise(hull_points, center=np.zeros(2)):
-
+    """Sorts a list of x,y points clockwise according to arctan2(y,x) with an optional center point"""
     # Sort the points
     hull_points = np.asarray(hull_points)
 
@@ -35,7 +35,9 @@ def sort_clockwise(hull_points, center=np.zeros(2)):
 
     return hull_points[sort_order][::-1]
 
+
 def compare_hulls(hull1, hull2):
+    """@DEPRECATED since the PolygonClipper method seems bugged"""
     # Sort the points
     hull1 = sort_clockwise(hull1)
     hull2 = sort_clockwise(hull2)
@@ -50,9 +52,12 @@ def compare_hulls_shapely(hull1, hull2):
     intersect = p.intersection(q)
     union = Polygon(sort_clockwise(np.vstack([hull1, hull2])))
 
+    intersect_coords = np.array(intersect.boundary.coords.xy).transpose()
+    union_coords = np.array(union.boundary.coords.xy).transpose()
+
     iou = intersect.area / union.area
 
-    return intersect, union, iou
+    return intersect_coords, union_coords, iou
 
 # Returns a list of ConvexHull instances, one for each permutation of the dimensions provided.
 def get_hull_points_n_dim(points):
@@ -68,6 +73,7 @@ def get_hull_points_n_dim(points):
 
     return hull_coordinates
 
+
 def get_2d_pca_hull_n_dim(in_points_1, in_points_2):
     pca = PCA(n_components=2)
 
@@ -77,7 +83,8 @@ def get_2d_pca_hull_n_dim(in_points_1, in_points_2):
     pca_2 = sort_clockwise(pca.fit_transform(in_points_2))
     hull_2 = ConvexHull(pca_2)
 
-    return sort_clockwise(pca_1[hull_1.vertices]), sort_clockwise(pca_2[hull_2.vertices]), compare_hulls(pca_1, pca_2)
+    # Returns (pca_1, pca_2, intersection, union, iou_score)
+    return sort_clockwise(pca_1[hull_1.vertices]), sort_clockwise(pca_2[hull_2.vertices]), *compare_hulls_shapely(pca_1, pca_2)
 
 
 def compare_hulls_n_dim(in_points_1, in_points_2, plot_results=False) -> float:
