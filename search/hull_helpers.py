@@ -2,6 +2,7 @@ import numpy as np
 from numba import njit, jit, prange
 import matplotlib.pyplot as plt
 from itertools import combinations
+from sklearn.decomposition import PCA
 
 
 from search.hull_sutherland_hodgman import PolygonClipper
@@ -12,31 +13,32 @@ def expand_convex_hull(hull_points, expansion_factor=0.05):
     """Expand the convex hull by a small factor to make it slightly larger."""
     hull_center = np.mean(hull_points, axis=0)
     expanded_points = []
-    
+
     for point in hull_points:
         direction = point - hull_center
         expanded_point = point + direction * expansion_factor
         expanded_points.append(expanded_point)
-    
+
     return np.array(expanded_points)
+
+def sort_clockwise(hull_points, center=np.zeros(2)):
+
+    # Sort the points
+    hull_points = np.asarray(hull_points)
+
+    # Compute angles from center
+    angles = np.arctan2(hull_points[:, 1] - center[1], hull_points[:, 0] - center[0])
+    angles[angles < 0] += 2*np.pi
+
+    # Sort points by angle in descending order for clockwise sorting
+    sort_order = np.argsort(angles)
+
+    return hull_points[sort_order][::-1]
 
 def compare_hulls(hull1, hull2):
     # Sort the points
-    hull1 = np.asarray(hull1)
-    center1 = hull1.mean(axis=0)
-    
-    # Compute angles from center
-    angles = np.arctan2(hull1[:, 1] - center1[1], hull1[:, 0] - center1[0])
-    
-    # Sort points by angle in descending order for anticlockwise
-    sort_order = np.argsort(angles)
-    hull1 = hull1[sort_order]
-    hull2 = np.asarray(hull2)
-    center2 = hull2.mean(axis=0)
-    angles = np.arctan2(hull2[:, 1] - center2[1], hull2[:, 0] - center2[0])
-    
-    sort_order = np.argsort(angles)
-    hull2 = hull2[sort_order]
+    hull1 = sort_clockwise(hull1)
+    hull2 = sort_clockwise(hull2)
 
     clipper = PolygonClipper(warn_if_empty=True)
     clipped_polygon = clipper(hull1, hull2)
@@ -56,6 +58,17 @@ def get_hull_points_n_dim(points):
         hull_coordinates.append(np.array(subset[ConvexHull(subset).vertices]))
 
     return hull_coordinates
+
+def get_2d_pca_hull_n_dim(in_points_1, in_points_2):
+    pca = PCA(n_components=2)
+
+    pca_1 = sort_clockwise(pca.fit_transform(in_points_1))
+    hull_1 = ConvexHull(pca_1)
+
+    pca_2 = sort_clockwise(pca.fit_transform(in_points_2))
+    hull_2 = ConvexHull(pca_2)
+
+    return sort_clockwise(pca_1[hull_1.vertices]), sort_clockwise(pca_2[hull_2.vertices]), compare_hulls(pca_1, pca_2)
 
 
 def compare_hulls_n_dim(in_points_1, in_points_2, plot_results=False) -> float:
@@ -94,7 +107,7 @@ def compare_hulls_n_dim(in_points_1, in_points_2, plot_results=False) -> float:
             axs[0].plot(ins_2[:, 0], ins_2[:,1], color='red', label="dataset_2")
             axs[0].fill(ins_2[:, 0], ins_2[:,1], color='red', alpha=0.2)
             axs[0].legend()
-            
+
             axs[1].plot(union_points[:, 0], union_points[:,1], color='blue', label="union")
             axs[1].fill(union_points[:, 0], union_points[:,1], color='blue', alpha=0.2)
             axs[1].plot(hull_intersect[:, 0], hull_intersect[:,1], color='red', label="intersection")
@@ -105,7 +118,7 @@ def compare_hulls_n_dim(in_points_1, in_points_2, plot_results=False) -> float:
 
     if plot_results:
         plt.show()
-        
+
     return np.mean(ious)
 
 
