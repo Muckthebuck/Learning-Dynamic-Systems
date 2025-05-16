@@ -6,6 +6,7 @@ import argparse
 from dB.sim_db import Database, SPSType
 from sims.pendulum import Pendulum, CartPendulum
 from sims.car import CarlaSps
+from sims.armax import ARMAX
 from optimal_controller.controller import Plant, Controller
 import numpy as np
 from typing import Union, List
@@ -15,7 +16,8 @@ import time
 SIM_CLASS_MAP = {
     "Pendulum": (Pendulum, np.array([np.pi/4, 0.0]), (2,1)),
     "Cart-Pendulum": (CartPendulum, np.array([0, 0, np.pi/4, 0.0]), (4,1)),
-    "Carla": (CarlaSps, np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), (11,1))
+    "Carla": (CarlaSps, np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), (11,1)), 
+    "2d_armax": (ARMAX, np.array([0]), (1,1))
 }
 
 class Sim:
@@ -62,7 +64,7 @@ class Sim:
         self.apply_disturbance = args.apply_disturbance
         self.disturbance = args.disturbance
 
-        self.sim: Union[Pendulum, CartPendulum, CarlaSps] = sim(dt=self.dt, 
+        self.sim: Union[Pendulum, CartPendulum, CarlaSps, Armax] = sim(dt=self.dt, 
                                                                 initial_state=state, 
                                                                 plot_system=args.plot_system, 
                                                                 history_limit=args.history_limit)
