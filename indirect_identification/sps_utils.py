@@ -108,7 +108,7 @@ def compute_cov_matrices(epsilon: np.ndarray, Lambda: Optional[np.ndarray] = Non
                     continue
                 else:
                     # Shrink and threshold off-diagonals
-                    Lambda[i, j] = (1.0 - shrink_factor) * Lambda[i, j]
+                    Lambda[i, j] = shrink_factor * Lambda[i, j]
                     if np.abs(Lambda[i, j]) < threshold:
                         Lambda[i, j] = 0.0
 
