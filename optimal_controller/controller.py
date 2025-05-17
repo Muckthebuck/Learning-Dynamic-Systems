@@ -44,7 +44,7 @@ class Plant:
     
     def dynamics(self, x, u):
         """
-        Defines the dynamics of the inverted pendulum system.
+        Defines the dynamics of the average system.
 
         Args:
             x (ndarray): Current state vector.
@@ -67,7 +67,7 @@ class Controller:
     """
     Controller class handles the control of the cart-pendulum system.
     """
-    def __init__(self, plant: Plant, type: str = "lqr", n: tuple = (2, 1)):
+    def __init__(self, plant: Plant, L: np.ndarray, type: str = "lqr", n: tuple = (2, 1)):
         """
         Initializes the controller with the plant model.
 
@@ -77,6 +77,7 @@ class Controller:
         self.plant = plant
         self.Q = 0.4 * np.eye(n[0])
         self.R = np.eye(n[1])
+        self.L = L
         if self.plant.initialised:
             self.K = self.design_lqr()
         
@@ -95,13 +96,13 @@ class Controller:
         
 
         # @c-hars TODO: update the F,L matrices to reflect the integrator tracking
-        F = L  = K 
-        armax = {'F': F, 'L': L}
+        self.F = K
+        armax = {'F': K, 'L': self.L}
         armax = SimpleNamespace(**armax)
         self.plant.db.write_controller(controller=armax)
-        return K
+        
     
-    def get_u(self, y, r: np.ndarray):
+    def get_u(self, y: np.ndarray, r: np.ndarray):
         """
         Computes the LQR control input.
 
@@ -112,12 +113,12 @@ class Controller:
             ndarray: Control input vector.
         """
         if self.plant.new_update:
-            self.K = self.design_lqr()
+            self.design_lqr()
             self.plant.new_update = False
 
         # @c-hars TODO: update the input version to reflect the integrator tracking
-        u = self.K @ (r - y)
+        u = self.L@r - self.F@y
         # u = np.clip(u, -100, 100)
-        return u 
+        return u.flatten()
 
 

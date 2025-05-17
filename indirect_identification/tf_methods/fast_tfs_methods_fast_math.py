@@ -17,7 +17,8 @@ __all__ = [
     '_full_reduce_fraction_numpy',
     '_is_stable',
     'lfilter_numba',
-    '_eval_tf'
+    '_eval_tf',
+    '_ensure_same_size'
 ]
 
 # Enabling fastmath for improved performance

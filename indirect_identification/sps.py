@@ -1,8 +1,8 @@
 from typing import Tuple, List, Union
 import numpy as np
-from search.search import SPSSearch
+from search.search_radial import RadialSearch
 from indirect_identification.sps_indirect import SPS_indirect_model
-from indirect_identification.d_tfs import d_tfs
+from indirect_identification.d_tfs import d_tfs, apply_tf_matrix
 from dB.sim_db import Database, SPSType
 from types import SimpleNamespace
 import scipy.signal as signal
@@ -11,20 +11,28 @@ import argparse
 import ast
 import logging
 import time
-from indirect_identification.sps_utils import get_construct_ss_from_params_method
+from indirect_identification.sps_utils import get_construct_ss_from_params_method, get_max_radius, get_construct_ss_from_params_method_siso
 from indirect_identification.tf_methods.fast_tfs_methods_fast_math import _is_stable
+from scipy import optimize
+
+SEARCH_METHODS = {"radial": RadialSearch,}
+OPTIMAL_N_VECTORS = {2: 100, 3: 400, 4: 1500}
+SPS_MAX = 1e10
 class SPS:
     """
     Sign Perturbed Sum (SPS) class.
     """
 
 
-    def __init__(self, Lambda: np.ndarray, n_states: int=2, n_inputs: int = 1, n_output: int = 1, 
-                 C: np.ndarray = None, n_noise_order: int = 1, n_points: List[int] = [11, 21, 11],
-                 m: int=100, q: int=5, N: int = 50, db: Database = None, 
+    def __init__(self, Lambda: np.ndarray, bounds: np.ndarray, n_A: int = None, n_B: int = None,
+                 n_states: int=2, n_inputs: int = 1, n_outputs: int = 1,
+                 C_obs: np.ndarray = None, n_noise_order: int = 1, n_points: List[int] = [11, 21, 11],
+                 m: int=100, q: int=5, N: int = 50, db: Database = None, search_type: str = "radial",
                  debug: bool = False, epsilon: float = 1e-10, logger: logging.Logger = None):
         """"
-        Initialize the SPS model search."
+        Initialize the SPS model search.
+        For SISO models. ensure n_states represents the max delay in A,B
+        so the order of A is n_states, order of B is n_states otherwise provide n_A, n_B
         """
         self.Lambda = Lambda
         self.logger = logger if logger else logging.getLogger(__name__)
@@ -36,17 +44,21 @@ class SPS:
         # counts
         self.n_states = n_states
         self.n_inputs = n_inputs
-        self.n_output = n_output
+        self.n_outputs = n_outputs
         self.n_noise_order = n_noise_order
-        self.n_params = n_states + n_states*n_inputs + n_output*(n_noise_order+1)
-        self.nA = n_states
-        self.nB = n_states*n_inputs
-        self.nH = n_output*(n_noise_order+1)
+        if n_inputs==1 and n_outputs==1 and n_A and n_B:
+            self.nA = n_A
+            self.nB = n_B
+        else:
+            self.nA = n_states
+            self.nB = n_states*n_inputs
+        self.nH = n_outputs*(n_noise_order+1)
+        self.n_params = self.nA + self.nB + self.nH
         self.n_points = np.repeat(n_points, [self.nA, self.nB, self.nH])
         # C matrix: n_output x n_state matrix
-        self.C = C
+        self.C = C_obs
         # assert the shape of C
-        assert self.C.shape == (self.n_output, self.n_states)
+        assert self.C.shape == (self.n_outputs, self.n_states)
 
         # empty data and controller
         self.data = None
@@ -58,14 +70,34 @@ class SPS:
         self.db.subscribe("controller", self.controller_callback)
         self.model = SPS_indirect_model(m=self.m, q=self.q, N=self.N, epsilon=self.epsilon,
                                         n_states=self.n_states, n_inputs=self.n_inputs, 
-                                        n_outputs=self.n_output, n_noise=self.n_noise_order)
-        self._construct_ss_from_params = get_construct_ss_from_params_method(n_states=self.n_states, 
-                                                                             n_inputs=self.n_inputs,
-                                                                             n_outputs=self.n_output,
-                                                                             C=self.C)
+                                        n_outputs=self.n_outputs, n_noise=self.n_noise_order)
+        if self.n_inputs==1 and self.n_outputs==1:
+            self._construct_ss_from_params = get_construct_ss_from_params_method_siso(n_A=self.nA,
+                                                                                      n_B=self.nB)
+        else:
+            self._construct_ss_from_params = get_construct_ss_from_params_method(n_states=self.n_states, 
+                                                                                n_inputs=self.n_inputs,
+                                                                                n_outputs=self.n_outputs,
+                                                                                C=self.C)
+        if search_type not in SEARCH_METHODS:
+            raise RuntimeError(f"{search_type} not supported.")
         
+        self.bounds = bounds
+        self.max_radius = get_max_radius(bounds)
         
-    
+    def search_factory(self, search_type: str, center: np.ndarray, test_cb: callable):
+        match search_type:
+            case "radial":
+                search = RadialSearch(n_dimensions=self.n_params,
+                                      n_vectors=OPTIMAL_N_VECTORS[self.n_params],
+                                      center_options=center,
+                                      test_cb=test_cb,
+                                      max_radius=self.max_radius
+                                      )
+            case _:
+                raise RuntimeError(f"{search_type} not supported.")
+        return search 
+
     def data_callback(self, data):
         """
         data attributes: y, u, r, sps_type
@@ -86,19 +118,18 @@ class SPS:
         self.logger.info("[SPS] Starting Search")
         self.logger.debug(f"[SPS] Data: {self.data.sps_type}")
         self.logger.debug(f"[SPS] Number of params: {self.n_params}")
-        search = SPSSearch(
-                mins=[0]*self.n_params,
-                maxes=[1]*self.n_params,
-                n_dimensions=self.n_params,
-                n_points=self.n_points,
-                test_cb=self._get_search_fn(self.data.sps_type),
-                logger=self.logger
-            )
+        if self.data.sps_type == SPSType.OPEN_LOOP:
+            center = self.get_lse(Y=self.data.y, U=self.data.u)
+        else:
+            # TODO: choose previous region if available
+            center = None
+        search = self.search_factory(search_type=self.data.sps_type, 
+                                     center=center, 
+                                     test_cb=self._get_search_fn(self.data.sps_type))
         self.logger.debug(f"[SPS] Search Initialized")
-        search.go()
+        ins, outs, boundaries, hull, expanded_hull = search.search()
         # get the results
-        results = search.get_results()
-        A, B, C, D = self.get_ss_region(results=results)
+        A, B, C, D = self.get_ss_region(results=boundaries)
         self.logger.warning(A, B, C, D)
         if self.db is not None:
             self.write_state_space_to_db(A, B, C, D)
@@ -160,7 +191,10 @@ class SPS:
         A_obs, B_obs, C_obs, D_obs, A,B = self._construct_ss_from_params(params)
 
         # G Transfer function matrix, no need to check value assumption, guaranteed to be 0
-        G = d_tfs.ss_to_tf(A_obs, B_obs, C_obs, D_obs, check_assumption=False, epsilon=self.epsilon)
+        if self.n_inputs==1 and self.n_outputs==1:
+            G = d_tfs((B,A))
+        else: 
+            G = d_tfs.ss_to_tf(A_obs, B_obs, C_obs, D_obs, check_assumption=False, epsilon=self.epsilon)
         if not _is_stable(A, epsilon=self.epsilon):
             return False
         
@@ -179,13 +213,12 @@ class SPS:
                 C = np.empty((self.n_output, 1))
                 H = np.zeros((self.n_output, self.n_output), dtype=object)
                 for i in range(self.n_output):
-                    C[i]=np.array([1])
+                    C[i]=np.array([1.0])
                     H[i,i]=d_tfs((np.array([1.0]),A))
         else:
             # rest of params form H matrix, H is a n_state x n_state matrix
             # the diagonals of H are the noise transfer functions
             # each tf has numerator and denominator of order n_noise_order
-            C = np.empty((self.n_output, self.n_noise_order+1))
             if self.n_output == 1:
                 # if only one output, H is a scalar transfer function
                 # H = np.zeros((self.n_states, self.n_states), dtype=object)
@@ -193,10 +226,12 @@ class SPS:
                 num = params[j:j+(self.n_noise_order+1)]
                 den = A
                 H = d_tfs((num, den))
+                C = num
                 # test assumptions
                 d_tfs.sps_assumption_check(tf=H, value=1, epsilon=self.epsilon)
                 d_tfs.sps_assumption_check(tf=d_tfs((den,num)), value=1, epsilon=self.epsilon)
             else:
+                C = np.empty((self.n_output, self.n_noise_order+1))
                 H = np.zeros((self.n_output, self.n_output), dtype=object)
                 for i in range(self.n_output):
                     j = self.n_states + self.n_states*self.n_inputs + i*(self.n_noise_order+1)
@@ -256,13 +291,32 @@ class SPS:
             in_sps = self.model.sps_indicator(G=G, H=H, A=A, B=B, C=C,
                                              Y_t=self.data.y, U_t=self.data.u, R_t=self.data.r,
                                              sps_type=SPSType.CLOSED_LOOP,
-                                             F=self.controller.F, L=self.controller.L, Lambda=self.Lambda)
+                                             F=self.controller.F, L=self.controller.L, Lambda=None)
         except ValueError:
             in_sps = False
         
         return in_sps
     
-
+    def get_error_norm(self, params, Y, U):
+        try:
+            G, H , A, B, C = self.construct_gh_from_params(params)
+        except ValueError:
+            return SPS_MAX
+        if self.n_inputs==1 and self.n_outputs==1:
+            Hinv = d_tfs((A, C))
+            YGU = Y - G*U
+            N = Hinv*YGU
+            error_norm = np.linalg.norm(N@N.T)
+        else:
+            YGU = Y - apply_tf_matrix(G,U)
+            N = apply_tf_matrix(Hinv,YGU)
+            error_norm = np.linalg.norm(N@N.T)
+        return error_norm
+    def get_lse(self, Y,U):
+        x0 = np.zeros(4)
+        res = optimize.least_squares(self.get_error_norm, x0, args=(Y,U))
+        params_ls = res.x
+        return params_ls
 
     def write_state_space_to_db(self, A, B, C, D):
         try:
@@ -298,9 +352,11 @@ def parse_args(raw_args=None, db:Database = None):
     
     # Define arguments
     parser.add_argument("--Lambda", type=parse_array, help="Weight matrix output by output as a list-like string")
+    parser.add_argument("--n_A", type=int, default=2, help="Polynomial A order")
+    parser.add_argument("--n_B", type=int, default=2, help="Polynomical B order")
     parser.add_argument("--n_states", type=int, default=2, help="Number of states")
     parser.add_argument("--n_inputs", type=int, default=1, help="Number of inputs")
-    parser.add_argument("--n_output", type=int, default=1, help="Number of outputs")
+    parser.add_argument("--n_outputs", type=int, default=1, help="Number of outputs")
     parser.add_argument("--C", type=parse_array, help="C matrix as a list-like string")
     parser.add_argument("--n_noise_order", type=int, default=3, help="Noise order")
     parser.add_argument("--n_points", type=parse_array, help="Number of points as a list-like string")
@@ -310,7 +366,9 @@ def parse_args(raw_args=None, db:Database = None):
     parser.add_argument("--dB", type=str, default="sim.db", help="Database file name")
     parser.add_argument("--debug", action='store_true', help="Enable debug mode")
     parser.add_argument("--epsilon", type=float, default=1e-10, help="Epsilon value for stability check")
-    
+    parser.add_argument("--search",type="str", choices=["grid, radial"], required=True, help="Search strategy" )
+    parser.add_argument("--bounds", type=parse_array, required=True, 
+                        help="Bound of the region for each direction. For example [[-2, 2], [-2, 2]]")
     args = parser.parse_args(raw_args)
     if db is None:
         db = Database(args.dB)
@@ -326,10 +384,12 @@ def run_sps(raw_args=None, db:Database = None, args: argparse.Namespace = None, 
         args, db = parse_args(raw_args=raw_args, db=db)
     sps = SPS(
         Lambda=args.Lambda,
+        n_A=args.n_A,
+        n_B=args.n_B,
         n_states=args.n_states,
         n_inputs=args.n_inputs,
-        n_output=args.n_output,
-        C=args.C,
+        n_outputs=args.n_outputs,
+        C_obs=args.C,
         n_noise_order=args.n_noise_order,
         n_points=args.n_points,
         m=args.m,
@@ -338,6 +398,8 @@ def run_sps(raw_args=None, db:Database = None, args: argparse.Namespace = None, 
         db=db,
         debug=args.debug,
         epsilon=args.epsilon,
+        search_type=args.search,
+        bounds=args.bounds,
         logger=logger
     )
     # sps.update_sps_region(data)

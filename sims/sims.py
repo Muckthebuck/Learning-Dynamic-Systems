@@ -12,72 +12,67 @@ import numpy as np
 from typing import Union, List
 import logging
 import time
+import ast
 
 SIM_CLASS_MAP = {
     "Pendulum": (Pendulum, np.array([np.pi/4, 0.0]), (2,1)),
     "Cart-Pendulum": (CartPendulum, np.array([0, 0, np.pi/4, 0.0]), (4,1)),
     "Carla": (CarlaSps, np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), (11,1)), 
-    "2d_armax": (ARMAX, np.array([0]), (1,1))
+    "armax": (ARMAX, np.array([0]), (1,1))
 }
+
 
 class Sim:
     """
     CartPendulumSimulation class handles the simulation and visualization of the cart-pendulum system.
     """
-    def __init__(self, raw_args: List[str]=None, db: Database=None, args: argparse.Namespace=None, logger: logging.Logger=None):
-        """
-        Initializes the simulation environment.
-
-        Args:
-            raw_args (list): Command line arguments to override default values.
-            db (Database): Database object for storing simulation data.
-            args (argparse.Namespace): Parsed command line arguments.
-        """
+    def __init__(self,
+                 T: float,
+                 dt: float,
+                 sim: str,
+                 plot_system: bool,
+                 history_limit: float,
+                 dB: str,
+                 disturbance: float,
+                 apply_disturbance: bool,
+                 controller: str,
+                 reference: List[str],
+                 r_a: np.ndarray,
+                 r_f: np.ndarray,
+                 A: np.ndarray=None,
+                 B: np.ndarray=None,
+                 C: np.ndarray=None,
+                 L = None,
+                 db: Database = None,
+                 logger: logging.Logger = None):
         self.logger = logger if logger else logging.getLogger(__name__)
-        self.parse_arguments(raw_args=raw_args, db=db, args=args)
+        self.T = T
+        self.dt = dt
+        self.apply_disturbance = apply_disturbance
+        self.disturbance = disturbance
+        self.L = L
+        sim_type = sim
+        sim, state, self.n = SIM_CLASS_MAP[sim]
+        self.initial_state = state
+        if sim_type == "ARMAX":
+            self.sim: ARMAX = sim(A=A, B=B, C=C, dt=self.dt, 
+                                initial_state=state, 
+                                plot_system=plot_system, 
+                                history_limit=history_limit)
+        else: 
+            self.sim: Union[Pendulum, CartPendulum, CarlaSps] = sim(dt=self.dt, 
+                                                                    initial_state=state, 
+                                                                    plot_system=plot_system, 
+                                                                    history_limit=history_limit)
+        self.db = db if db else Database(dB)
+        db_name = self.db.db_name
+        self.controller_plant = Plant(dt=dt, db=db_name)
+        self.controller = Controller(plant=self.controller_plant, type=controller, n=self.n, L=L)
+        self.reference = reference
+        self.r_a=r_a
+        self.r_f=r_f
     
-    def _parse_args(self, raw_args: List[str]=None, args: argparse.Namespace=None) -> argparse.Namespace:
-        if args is not None:
-            return args
-        parser = argparse.ArgumentParser(description="Process arguments inside a class.")
-        parser.add_argument("--T", type=float, default=10, help="Total simulation time")
-        parser.add_argument("--dt", type=float, default=0.02, help="Simulation time step")
-        parser.add_argument("--sim", type=str, required=True, 
-                            choices=["Pendulum", "Cart-Pendulum", "Carla"], 
-                            help=f"Your simulation (must be one of {list(SIM_CLASS_MAP.keys())})")
-        parser.add_argument("--plot_system", action="store_true", help="Enable plotting")
-        parser.add_argument("--history_limit", type=float, default=2, help="Limit of history for plotting")
-        parser.add_argument("--dB", type=str, default="sim_data.db", help="Database file")
-        parser.add_argument("--disturbance", type=float, default=50.0, help="Magnitude of disturbance force")
-        parser.add_argument("--apply_disturbance", action="store_true", help="apply disturbance")
-        parser.add_argument("--controller", type=str, default="lqr", help="Controller type")
-        args = parser.parse_args(raw_args)
-        return args
 
-
-    def parse_arguments(self, raw_args=None, db:Database=None, args: argparse.Namespace=None):
-        args = self._parse_args(raw_args=raw_args, args=args)
-        self.T: float = args.T
-        self.dt: float = args.dt
-        sim, state, self.n = SIM_CLASS_MAP[args.sim]
-        self.initial_state: np.ndarray = state
-        self.apply_disturbance = args.apply_disturbance
-        self.disturbance = args.disturbance
-
-        self.sim: Union[Pendulum, CartPendulum, CarlaSps, Armax] = sim(dt=self.dt, 
-                                                                initial_state=state, 
-                                                                plot_system=args.plot_system, 
-                                                                history_limit=args.history_limit)
-        
-        if db is not None:
-            self.db = db
-            db_name = db.db_name
-        else:
-            self.db = Database(args.dB)
-            db_name = args.dB
-        self.controller_plant = Plant(dt=self.dt, db=db_name)
-        self.controller = Controller(plant=self.controller_plant, type=args.controller, n=self.n)
-    
     def write_data_to_db(self, y: np.ndarray, u: np.ndarray, r: np.ndarray, sps_type: SPSType):
         data = {
             "y": y,
@@ -196,20 +191,50 @@ class Sim:
         self.logger.info("[Init] Plant initialized")
 
 
+
+    def get_r(self, i: int) -> Union[float, np.ndarray]:
+        def _get_r(r_type, f, a):
+            if r_type == "constant":
+                return a
+            elif r_type == "sin":
+                return a * np.sin(2 * np.pi * f * i * self.dt)
+            elif r_type == "square":
+                return a * np.sign(np.sin(2 * np.pi * f * i * self.dt)) 
+
+        n_r = len(self.reference)
+        if n_r==1:
+            f = self.r_f[0]
+            a = self.r_a[0]
+            return _get_r(self.reference[0], f, a)
+        else:
+            r = np.zeros(n_r)
+            for i in range(n_r):
+                f = self.r_f[i]
+                a = self.r_a[i]
+                r_type = self.reference[i]
+                r[i] = _get_r(r_type, f, a)
+            return r
+
+
+
     def run(self):
         """
         Runs the cart-pendulum simulation.
         """
         state = self.sim.state
         y = np.dot(self.sim.C, state)
-        r = np.pi/2
+
         buffer_len = 1000
         history_y = []
         history_u = []
-        for _ in range(int(self.T / self.dt)):
+        i=0
+        n_iters = int(self.T/self.dt) if self.T>0 else np.inf
+        while True:
             # get the controller output
+            r = self.get_r(i)
             u = self.controller.get_u(state, r=r)
-
+            if self.n[1] == 1 and type(u)==np.ndarray:
+                u = u[0]
             # history management and write to DB
             if len(history_y) < buffer_len:
                 history_y.append(y.copy())
@@ -223,29 +248,101 @@ class Sim:
                 history_u = []
 
             # update the state
-            y, done, state = self.sim.step(u=u, t=_ * self.dt, full_state=True)
-            if done:
+            y, done, state = self.sim.step(u=u, t=i* self.dt, full_state=True)
+            i+=1
+            if done or i>=n_iters:
                 break
 
         self.sim.show_final_plot()
 
-def run_simulation(raw_args=None, db:Database=None, args: argparse.Namespace=None, logger: logging.Logger=None):
-    """
-    Run the simulation with optional command line arguments.
+# Function to parse the input string into a NumPy array
+def parse_array(input_string):
+    try:
+        # Safely evaluate the string into a list using ast.literal_eval
+        parsed_list = ast.literal_eval(input_string)
+        # Convert the list into a NumPy array
+        return np.array(parsed_list)
+    except (ValueError, SyntaxError):
+        raise argparse.ArgumentTypeError("Input must be a valid list-like string (e.g. [1, 2, 3])")
+def parse_ref_list(input_string):
+    try:
+        choices = ["square", "sin", "constant"]
+        # Safely evaluate the string into a list using ast.literal_eval
+        parsed_list = ast.literal_eval(input_string)
+        
+        if not isinstance(parsed_list, list):
+            raise ValueError(f"Invalid reference type must be a list of allowed values: {choices}")
 
-    Args:
-        raw_args (list): Command line arguments to override default values.
-    """
+        for item in parsed_list:
+            if item not in choices:
+                raise ValueError(f"Invalid reference type: {item}. Allowed values are: {choices}")
+        
+        return parsed_list
+
+    except (ValueError, SyntaxError):
+        raise argparse.ArgumentTypeError("Input must be a valid list-like string with allowed values (e.g. ['square', 'constant'])")
+
+
+def parse_sim_args(raw_args: List[str] = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Process arguments for the simulation.")
+    parser.add_argument("--T", type=float, default=10, help="Total simulation time")
+    parser.add_argument("--dt", type=float, default=0.02, help="Simulation time step")
+    parser.add_argument("--sim", type=str, required=True,
+                        choices=["Pendulum", "Cart-Pendulum", "Carla", "armax"],
+                        help="Simulation type")
+    parser.add_argument("--plot_system", action="store_true", help="Enable plotting")
+    parser.add_argument("--history_limit", type=float, default=2, help="Limit of history for plotting")
+    parser.add_argument("--dB", type=str, default="sim_data.db", help="Database file")
+    parser.add_argument("--disturbance", type=float, default=50.0, help="Disturbance magnitude")
+    parser.add_argument("--apply_disturbance", action="store_true", help="Apply disturbance")
+    parser.add_argument("--controller", type=str, default="lqr", help="Controller type")
+    parser.add_argument("--L", type=parse_array, required=True, help="Reference gain")
+    parser.add_argument("--reference", type=parse_ref_list, required=True, help="reference wave, if constant must give --r_a is used as the value")
+    parser.add_argument("--r_a", type=parse_array, required=True, help="Amplitude of the reference signal")
+    parser.add_argument("--r_f", type=parse_array, required=True, help="Frequency of the reference signal")
+    parser.add_argument("--A",type=parse_array, help="ARMAX sim A polynomial")
+    parser.add_argument("--B",type=parse_array, help="ARMAX sim B polynomial")
+    parser.add_argument("--C",type=parse_array, help="ARMAX sim C polynomial")
+    return parser.parse_args(raw_args)
+
+
+def run_simulation(raw_args=None, db: Database = None, logger: logging.Logger = None):
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
     logger = logger if logger else logging.getLogger(__name__)
-    # Create the simulation instance
-    simulation = Sim(raw_args=raw_args, db=db, args=args, logger=logger)
+
+    # Parse and unpack arguments
+    args = parse_sim_args(raw_args)
+    if args.sim  == "armax" and not all([args.A, args.B, args.C]):
+        logger.warning("Please provide A,B,C polynomials if ARMAX sim")
+        return
+        
+
+    simulation = Sim(
+        T=args.T,
+        dt=args.dt,
+        sim=args.sim,
+        plot_system=args.plot_system,
+        history_limit=args.history_limit,
+        dB=args.dB,
+        disturbance=args.disturbance,
+        apply_disturbance=args.apply_disturbance,
+        controller=args.controller,
+        L=args.L,
+        db=db,
+        logger=logger, 
+        reference=args.reference,
+        r_a = args.r_a,
+        r_f = args.r_f,
+        A=args.A,
+        B=args.B,
+        C=args.C
+    )
+
     logger.info("[Init] Simulation instance created")
 
-    # initialise the plant
-    simulation.initialise_plant(T=2, f=5, input_type="impulse_wave")
-    # Run the simulation
+    simulation.initialise_plant(T=2, f=5, input_type="square_wave")
     simulation.run()
+
  
 
 if __name__ == '__main__':

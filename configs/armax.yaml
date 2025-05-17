@@ -1,0 +1,34 @@
+# sims args
+sim: armax
+T: 10
+dt: 0.02
+plot_system: true
+history_limit: 2.0 # seconds
+dB: sim_data.db
+apply_disturbance: true
+disturbance: 50
+controller: lqr
+L: [[-0.6]]
+reference: [square]
+r_a: [1] # when using constant reference
+r_f: [0.2]
+A: [1, -0.7]
+B: [0, -0.4]
+C: [1]
+# sps args
+n_A: 1
+n_B: 1
+n_states: 1
+n_inputs: 1
+n_output: 1
+n_noise_order: -1
+C_obs: [[1]] # observation matrix
+n_points: [11, 21, 11]
+m: 100
+q: 5
+N: 200
+debug: true
+epsilon: 1e-10
+Lambda: [[1, 0], [0, 1]]
+search: radial # grid or radial
+bounds: [[-2, 2], [-2, 2]]

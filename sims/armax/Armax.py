@@ -3,7 +3,8 @@ import matplotlib.pyplot as plt
 from typing import Tuple, Optional, Union
 
 class ARMAX:
-    def __init__(self, A, B, C, dt=0.01, history_limit=10, noise_std=0.1, plot_system=False):
+    def __init__(self, A, B, C, dt=0.01, history_limit=10, noise_std=0.1,
+                 plot_system=False, initial_state:np.ndarray=np.array([0])):
         self.A = np.array(A)
         self.B = np.array(B)
         self.C = np.array(C)
