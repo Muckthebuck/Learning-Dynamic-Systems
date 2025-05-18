@@ -253,6 +253,38 @@ class SPSSearch:
         plt.show()
 
 
+    def plot_epochs(self, epoch_numbers: list[int], is_save=True):
+        """Plots the data from an epoch on a single subplot"""
+        if self.n_dimensions != 2:
+            raise "Cannot plot non-2d data"
+        
+        n_epochs = len(epoch_numbers)
+        
+        fig, axes = plt.subplots(1, n_epochs, figsize=(3*n_epochs, 4))
+
+        for idx, epoch_number in enumerate(epoch_numbers):
+            epoch_label = "Epoch %d" % epoch_number if epoch_number > 0 else "After Random Initialisation"
+            axes[idx].scatter(self.plot_data["pred_out_x_%d" % epoch_number],      self.plot_data["pred_out_y_%d" % epoch_number], color='b', label='Predicted Out', marker="s", alpha=0.3)
+            axes[idx].scatter(self.plot_data["pred_in_x_%d" % epoch_number],   self.plot_data["pred_in_y_%d" % epoch_number], color='y', label="Predicted In", marker="s", alpha=0.3)
+
+            axes[idx].scatter(self.plot_data["incorrect_x_%d" % epoch_number],      self.plot_data["incorrect_y_%d" % epoch_number], color='g', label="Tested Out")
+            axes[idx].scatter(self.plot_data["correct_x_%d" % epoch_number],        self.plot_data["correct_y_%d" % epoch_number], color='r', label="Tested In")
+            # axes[idx].legend()
+            # axes[idx].title("Tested points after %s" % epoch_label)
+            axes[idx].set_xlabel("a")
+            axes[idx].set_ylabel("b")
+            axes[idx].set_title(epoch_label)
+
+        # Shared Legend
+        handles, labels = axes[0].get_legend_handles_labels()
+        fig.legend(handles=handles, labels=labels, loc="lower right")
+        
+        fig.suptitle("KNN Search Process")
+        fig.tight_layout()
+
+        if is_save:
+            plt.savefig("figures/knn_search.png")
+
     def plot_results_2d(self):
         """Plot the data points in a 2-dimensional search."""
         if self.n_dimensions != 2:
