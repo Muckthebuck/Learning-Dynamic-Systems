@@ -18,6 +18,7 @@ class SPSSearch:
         n_epochs: int = 25, # How many epochs to break the search into, e.g. how many times should the results be predicted. Inclusive of initialisation.
         chance_test_in_region: float = 0.8,
         k_neighbours = 7,
+        is_store_results = False,
         logger = None
     ):
         self.NUM_POINTS = n_points
@@ -90,7 +91,7 @@ class SPSSearch:
         # Otherwise, expose hyperparameters
         self.knn = KNeighborsClassifier(n_neighbors=k_neighbours, weights="distance")
 
-        self.is_store_results = True
+        self.is_store_results = is_store_results
         if self.is_store_results:
             self.plot_data = {}
             self.confusion_coords = set()
