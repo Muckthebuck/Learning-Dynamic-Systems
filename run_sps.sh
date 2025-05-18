@@ -33,6 +33,7 @@ usage() {
     echo "  --n_states N           Number of states"
     echo "  --n_inputs N           Number of inputs"
     echo "  --n_outputs N          Number of outputs"
+    echo "  --n_refs N             Number of references"
     echo "  --C C_MATRIX           C matrix"
     echo "  --n_noise_order N      Noise order"
     echo "  --n_points N           Point grid list"
@@ -63,20 +64,25 @@ while [[ "$#" -gt 0 ]]; do
             ;;
     esac
 done
-
+if [[ -z "$CONFIG_FILE" ]]; then
+    echo "Error: --config FILE is required."
+    usage
+fi
 # --- Load config from YAML if provided ---
 if [[ -n "$CONFIG_FILE" ]]; then
     if ! command -v yq &> /dev/null; then
-        echo "Error: 'yq' not found. Install it to use YAML config support."
+        echo "Error: 'yq' not found. Install it to use YAML config support.
+       Install from https://github.com/mikefarah/yq/tree/v4.45.4"
         exit 1
     fi
 
     n_states=$(yq '.n_states // 2' "$CONFIG_FILE")
     n_inputs=$(yq '.n_inputs // 1' "$CONFIG_FILE")
     n_outputs=$(yq '.n_outputs // 1' "$CONFIG_FILE")
+    n_refs=$(yq '.n_refs // 1' "$CONFIG_FILE")
     n_A=$(yq '.n_A // 2' "$CONFIG_FILE")
     n_B=$(yq '.n_B // 2' "$CONFIG_FILE")
-    C=$(yq -o=json '.C // [[0, 1]]' "$CONFIG_FILE")
+    C=$(yq -o=json '.C_obs // [[0, 1]]' "$CONFIG_FILE")
     n_noise_order=$(yq '.n_noise_order // 3' "$CONFIG_FILE")
     n_points=$(yq -o=json '.n_points // [11, 21, 11]' "$CONFIG_FILE")
     m=$(yq '.m // 100' "$CONFIG_FILE")
@@ -97,7 +103,7 @@ while [ $# -gt 0 ]; do
         --n_states) n_states="$2"; shift 2 ;;
         --n_inputs) n_inputs="$2"; shift 2 ;;
         --n_outputs) n_outputs="$2"; shift 2 ;;
-        --n_output) n_output="$2"; shift 2 ;;  # for compatibility
+        --n_refs) n_refs="$2"; shift 2 ;;
         --n_A) n_A="$2"; shift 2 ;;
         --n_B) n_B="$2"; shift 2 ;;
         --C) C="$2"; shift 2 ;;
@@ -122,6 +128,7 @@ python -m indirect_identification.sps \
     --n_states "$n_states" \
     --n_inputs "$n_inputs" \
     --n_outputs "$n_outputs" \
+    --n_refs "$n_refs" \
     --n_A "$n_A" \
     --n_B "$n_B" \
     --C "$C" \

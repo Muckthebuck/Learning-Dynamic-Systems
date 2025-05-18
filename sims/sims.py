@@ -13,6 +13,7 @@ from typing import Union, List
 import logging
 import time
 import ast
+import sympy as sp
 
 SIM_CLASS_MAP = {
     "Pendulum": (Pendulum, np.array([np.pi/4, 0.0]), (2,1)),
@@ -51,10 +52,13 @@ class Sim:
         self.apply_disturbance = apply_disturbance
         self.disturbance = disturbance
         self.L = L
+        n_r,n_o = self.L.shape
         sim_type = sim
         sim, state, self.n = SIM_CLASS_MAP[sim]
+        n_o,n_i = self.n
+        self.n = (n_o,n_i,n_r)
         self.initial_state = state
-        if sim_type == "ARMAX":
+        if sim_type == "armax":
             self.sim: ARMAX = sim(A=A, B=B, C=C, dt=self.dt, 
                                 initial_state=state, 
                                 plot_system=plot_system, 
@@ -71,6 +75,7 @@ class Sim:
         self.reference = reference
         self.r_a=r_a
         self.r_f=r_f
+        self.i=0
     
 
     def write_data_to_db(self, y: np.ndarray, u: np.ndarray, r: np.ndarray, sps_type: SPSType):
@@ -147,12 +152,12 @@ class Sim:
         t, u = _input()
         self.sim.state = self.initial_state
         states = []
-        states.append(np.dot(self.sim.C, self.sim.state))
+        states.append(self.sim.full_state_to_obs_y(state=self.sim.state))
         for _u, t in zip(u, t):
             states.append(self.sim.step(u=_u, t=t)[0])
         states.pop()
         states = np.array(states)
-        return states, u, t
+        return states.reshape(self.n[0],-1), u.reshape(self.n[1],-1), t
     
     def initialise_plant(self, T=5, f=1, input_type="square_wave"):
         """
@@ -177,14 +182,14 @@ class Sim:
         y, u, t = self.sim_model_response(T=T, f=f, input_type=input_type)
         self.write_data_to_db(y=y, u=u, r=None, sps_type=SPSType.OPEN_LOOP)
         curr_t = t
-        i=0
+        self.i=0
         n_u = u.shape[0]
         self.logger.debug(f"[SIMS] Sending {n_u} inputs to DB")
         self.logger.info("[Init] Waiting for SS update...")
         while self.controller_plant.initialised_event.is_set() is False:
             # continue running the simulation with the same input recurrently
-            self.sim.step(u=u[i%n_u], t=curr_t)
-            i += 1
+            self.sim.step(u=u[self.i%n_u], t=curr_t)
+            self.i += 1
             curr_t += self.dt
 
             
@@ -222,16 +227,17 @@ class Sim:
         Runs the cart-pendulum simulation.
         """
         state = self.sim.state
-        y = np.dot(self.sim.C, state)
+        y = self.sim.full_state_to_obs_y(state=state)
 
-        buffer_len = 1000
+        buffer_len = 1500
         history_y = []
         history_u = []
-        i=0
+        history_r = []
         n_iters = int(self.T/self.dt) if self.T>0 else np.inf
+        start_i = self.i
         while True:
             # get the controller output
-            r = self.get_r(i)
+            r = self.get_r(self.i)
             u = self.controller.get_u(state, r=r)
             if self.n[1] == 1 and type(u)==np.ndarray:
                 u = u[0]
@@ -239,18 +245,20 @@ class Sim:
             if len(history_y) < buffer_len:
                 history_y.append(y.copy())
                 history_u.append(u.copy())
+                history_r.append(r.copy())
             if len(history_y) == buffer_len:
                 self.write_data_to_db(y=np.array(history_y).reshape(self.n[0],buffer_len), 
                                       u=np.array(history_u).reshape(self.n[1],buffer_len), 
-                                      r=np.array([r]*buffer_len), 
+                                      r=np.array(history_r).reshape(self.n[2],buffer_len), 
                                       sps_type=SPSType.CLOSED_LOOP)
                 history_y = []
                 history_u = []
+                history_r = []
 
             # update the state
-            y, done, state = self.sim.step(u=u, t=i* self.dt, full_state=True)
-            i+=1
-            if done or i>=n_iters:
+            y, done, state = self.sim.step(u=u, t=self.i* self.dt, full_state=True,r=r)
+            self.i+=1
+            if done or self.i-start_i>=n_iters:
                 break
 
         self.sim.show_final_plot()
@@ -260,6 +268,7 @@ def parse_array(input_string):
     try:
         # Safely evaluate the string into a list using ast.literal_eval
         parsed_list = ast.literal_eval(input_string)
+        print(parsed_list)
         # Convert the list into a NumPy array
         return np.array(parsed_list)
     except (ValueError, SyntaxError):
@@ -282,6 +291,12 @@ def parse_ref_list(input_string):
     except (ValueError, SyntaxError):
         raise argparse.ArgumentTypeError("Input must be a valid list-like string with allowed values (e.g. ['square', 'constant'])")
 
+def parse_array_sym(input_string):
+    try:
+        expr_list = sp.sympify(input_string)
+        return np.array([float(val.evalf()) for val in expr_list])
+    except Exception as e:
+        raise argparse.ArgumentTypeError(f"Invalid input: {e}")
 
 def parse_sim_args(raw_args: List[str] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Process arguments for the simulation.")
@@ -298,7 +313,7 @@ def parse_sim_args(raw_args: List[str] = None) -> argparse.Namespace:
     parser.add_argument("--controller", type=str, default="lqr", help="Controller type")
     parser.add_argument("--L", type=parse_array, required=True, help="Reference gain")
     parser.add_argument("--reference", type=parse_ref_list, required=True, help="reference wave, if constant must give --r_a is used as the value")
-    parser.add_argument("--r_a", type=parse_array, required=True, help="Amplitude of the reference signal")
+    parser.add_argument("--r_a", type=parse_array_sym, required=True, help="Amplitude of the reference signal")
     parser.add_argument("--r_f", type=parse_array, required=True, help="Frequency of the reference signal")
     parser.add_argument("--A",type=parse_array, help="ARMAX sim A polynomial")
     parser.add_argument("--B",type=parse_array, help="ARMAX sim B polynomial")
@@ -312,10 +327,12 @@ def run_simulation(raw_args=None, db: Database = None, logger: logging.Logger = 
 
     # Parse and unpack arguments
     args = parse_sim_args(raw_args)
-    if args.sim  == "armax" and not all([args.A, args.B, args.C]):
-        logger.warning("Please provide A,B,C polynomials if ARMAX sim")
-        return
-        
+
+    if args.sim == "armax":
+        if any(arr is None or arr.size == 0 for arr in (args.A, args.B, args.C)):
+            logger.warning("Please provide non-empty A, B, C polynomials if ARMAX sim")
+            return
+
 
     simulation = Sim(
         T=args.T,
@@ -340,7 +357,7 @@ def run_simulation(raw_args=None, db: Database = None, logger: logging.Logger = 
 
     logger.info("[Init] Simulation instance created")
 
-    simulation.initialise_plant(T=2, f=5, input_type="square_wave")
+    simulation.initialise_plant(T=10, f=args.r_f, input_type="square_wave")
     simulation.run()
 
  

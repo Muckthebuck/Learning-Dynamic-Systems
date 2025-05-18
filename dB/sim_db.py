@@ -12,7 +12,13 @@ from multiprocessing import Manager
 import logging
 import redis
 import redis.client
-
+from redis.backoff import ExponentialBackoff
+from redis.retry import Retry
+from redis.exceptions import (
+   BusyLoadingError,
+   ConnectionError,
+   TimeoutError
+)
 # def singleton_m(cls):
 #     """
 #     Singleton decorator to ensure only one instance of the class is created, 
@@ -100,7 +106,9 @@ class Database:
     def __init__(self, db_name: str = "sim.db", redis_host: str = "localhost", 
                  redis_port: int = 6379, redis_db: int = 0,
                  logger: Optional[logging.Logger] = None) -> None:
-        self.redis_client = redis.StrictRedis(host=redis_host, port=redis_port, db=redis_db)
+        retry = Retry(ExponentialBackoff(), 3)
+        self.redis_client = redis.Redis(host=redis_host, port=redis_port, db=redis_db, 
+                                              retry=retry, retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError])
         self.logger = logger or logging.getLogger(__name__)
         self.pubsub = self.redis_client.pubsub()
         self.possible_topics = ["ss", "data", "controller"]
@@ -111,9 +119,12 @@ class Database:
         self._init_pool()
         self._init_db()
 
+        self.pubsub_threads = []
+        self.subscriptions = {}
+
         self.logger.debug(f"[DB] Database initialized with name: {self.db_name}")
         signal.signal(signal.SIGINT, self._shutdown)
-        self.pubsub_threads = []
+
 
     def _init_pool(self) -> None:
         """Initialize the connection pool."""
@@ -248,12 +259,38 @@ class Database:
     #     for callback in self.subscribers[topic]:
     #         self.logger.debug(callback)
     #         callback(message)
+    def _restart_pubsub(self) -> None:
+        """Restart Redis pubsub subscriptions after a connection failure."""
+        self.logger.debug("[DB] Restarting Redis pubsub...")
+        # Stop all existing threads
+        for thread in self.pubsub_threads:
+            thread.stop()
+        self.pubsub_threads.clear()
+
+        # Close existing pubsub object if open
+        try:
+            self.pubsub.close()
+        except Exception as e:
+            self.logger.warning(f"[DB] Exception when closing pubsub: {e}")
+
+        # Create new pubsub object
+        self.pubsub = self.redis_client.pubsub()
+
+        # Resubscribe to all topics
+        for topic, callback in self.subscriptions.items():
+            self.pubsub.subscribe(**{topic: callback})
+
+        # Start new pubsub listener thread
+        thread = self.pubsub.run_in_thread(
+            sleep_time=0.001, daemon=True, exception_handler=self.exception_handler
+        )
+        self.pubsub_threads.append(thread)
+        self.logger.info("[DB] Redis pubsub subscriptions restarted.")
 
     def exception_handler(self, ex: Exception, pubsub: redis.client.PubSub, thread: threading.Thread) -> None:
         """Handle exceptions in the subscriber thread."""
         self.logger.error(f"Exception in subscriber thread: {ex}")
-        thread.stop()
-        pubsub.close()
+        self._restart_pubsub()
     
     def subscribe(self, topic: str, callback: Callable[[Any], None]) -> None:
         """Subscribe a callback function to a topic."""
@@ -265,7 +302,27 @@ class Database:
         self.pubsub_threads.append(thread)
         self.logger.debug(f"[DB] Subscribed to topic: {topic}")
 
-        
+    def subscribe(self, topic: str, callback: Callable[[Any], None]) -> None:
+        """Subscribe a callback function to a topic with resiliency."""
+        self.logger.debug(f"[DB] Subscribing to topic: {topic}")
+        if topic not in self.possible_topics:
+            raise ValueError(f"Invalid topic: {topic}. Possible topics are: {self.possible_topics}")
+
+        self.subscriptions[topic] = callback
+
+        # Subscribe on the pubsub object
+        self.pubsub.subscribe(**{topic: callback})
+
+        # Start listener thread if not running
+        if not self.pubsub_threads:
+            self.pubsub_threads = []
+        thread = self.pubsub.run_in_thread(
+            sleep_time=0.001, daemon=True, exception_handler=self.exception_handler
+        )
+        self.pubsub_threads.append(thread)
+        self.logger.debug("[DB] Started Redis pubsub listener thread.")
+
+        self.logger.debug(f"[DB] Subscribed to topic: {topic}")
     def _shutdown(self, signum: int, frame: Any) -> None:
         """Gracefully shut down the system on receiving termination signals."""
         self.logger.info("[DB] Shutting down gracefully...")

@@ -297,7 +297,7 @@ def create_phi_optimized_siso(Y: np.ndarray, U: np.ndarray, A: np.ndarray, B: np
     
     Parameters:
     Y (array): Output matrix of shape (m, t).
-    U (array): Input vector of shape (t,).
+    U (array): Input vector of shape (m,t). for open loop its (1,t)
     len_a (int): len of A polynomial
     len_b (int): len of B polynomial
     c (float): c0 of the C polynomial.
@@ -305,27 +305,23 @@ def create_phi_optimized_siso(Y: np.ndarray, U: np.ndarray, A: np.ndarray, B: np
     Returns:
     array: Phi matrix of shape (m, t, n_a + n_b).
     """
-    n_a=len(A)-1
-    n_b=len(B)-1
+    n_a = len(A) - 1
+    n_b = len(B) - 1
     m, t = Y.shape
     phi = np.zeros((m, t, n_a + n_b), dtype=Y.dtype)
-    cl = U.ndim == 2
-    for j in range(m):  # for each output dimension
+
+    for j in range(m):
         for lag in range(1, n_a + 1):
             for i in range(lag, t):
-                phi[j, i, lag - 1] = Y[j, i - lag] 
+                phi[j, i, lag - 1] = Y[j, i - lag]
 
     for lag in range(1, n_b + 1):
         for i in range(lag, t):
-            for j in range(m):  # input is shared across outputs
-                if cl:
-                    _U = U[j, i-lag]
-                else:
-                    _U = U[i - lag]
+            for j in range(m):
+                _U = U[j, i - lag]
                 phi[j, i, n_a + lag - 1] = -_U
 
     return phi
-
 
 
 

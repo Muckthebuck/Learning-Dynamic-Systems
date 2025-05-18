@@ -3,6 +3,7 @@ from dB.sim_db import Database
 from optimal_controller.optimal_controls import get_optimal_controller
 from types import SimpleNamespace
 import threading
+import logging
 
 class Plant:
     """
@@ -35,9 +36,10 @@ class Plant:
         A: list of A ss matrices in OCF form
         B: list of B ss matrices in OCF form
         """
-        self.ss = ss
+        logging.info("[Controller] State space matrices updated")
+        self.ss = self.db._deserialize(ss)
         self.new_update = True
-        print("[Controller] State space matrices updated")
+
         if not self.initialised:
             self.initialised = True
             self.initialised_event.set()
@@ -80,6 +82,7 @@ class Controller:
         self.L = L
         if self.plant.initialised:
             self.K = self.design_lqr()
+        self.logger = logging.getLogger(__name__)
         
     def design_lqr(self):
         """
@@ -94,7 +97,7 @@ class Controller:
         # K = np.dot(self.plant.ss.C, K.T).reshape(K.shape[0], -1)
         # G, H, F, L 
         
-
+        self.logger.info(f"[Controller] New controller K: {K}")
         # @c-hars TODO: update the F,L matrices to reflect the integrator tracking
         self.F = K
         armax = {'F': K, 'L': self.L}
@@ -116,8 +119,10 @@ class Controller:
             self.design_lqr()
             self.plant.new_update = False
 
+        r = r.reshape(-1,1)
+        y = r.reshape(-1,1)
         # @c-hars TODO: update the input version to reflect the integrator tracking
-        u = self.L@r - self.F@y
+        u = np.dot(self.L,r) - np.dot(self.F,y)
         # u = np.clip(u, -100, 100)
         return u.flatten()
 

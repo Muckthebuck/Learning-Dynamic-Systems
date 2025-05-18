@@ -28,34 +28,45 @@ class ARMAX:
 
     def _init_plot(self):
         self.fig, self.axs = plt.subplots(3, 1, figsize=(8, 6), sharex=True)
+        
         self.line_y0, = self.axs[0].plot([], [], label="Output Y")
         self.line_r, = self.axs[0].plot([], [], label="Reference R", linestyle='--')
         self.axs[0].set_ylabel("Output / Reference")
-        self.axs[0].legend()
+        self.axs[0].legend(loc="upper right")  # Legend positioned at top right
         self.axs[0].grid()
 
         self.line_u, = self.axs[1].plot([], [], label="Input U")
         self.axs[1].set_ylabel("Input (U)")
-        self.axs[1].legend()
+        self.axs[1].legend(loc="upper right")  # Legend positioned at top right
         self.axs[1].grid()
 
         self.line_n, = self.axs[2].plot([], [], label="Noise N")
         self.axs[2].set_ylabel("Noise (N)")
         self.axs[2].set_xlabel("Time [s]")
-        self.axs[2].legend()
+        self.axs[2].legend(loc="upper right")  # Legend positioned at top right
         self.axs[2].grid()
 
         self.fig.canvas.mpl_connect('close_event', self._on_close)
         plt.ion()
         plt.show()
 
+
     def _on_close(self, event):
         self.done = True
 
-    def step(self, u: float, r: Optional[float] = None) -> Tuple[np.ndarray, bool]:
+    def step(self, u: Union[float, np.ndarray], 
+             r: Optional[float] = None, 
+             t: Optional[float] = None, 
+             full_state : Optional[bool] = False) -> Union[Tuple[np.ndarray, bool], Tuple[np.ndarray, bool, np.ndarray]]:
         if self.done:
-            return np.array([0.0]), True
+            if full_state:
+                return np.array([0.0]), True, np.array([0.0])
+            else:
+                return np.array([0.0]), True
         noise = np.random.normal(0, self.noise_std)
+
+        if type(u) == np.ndarray:
+            u = u[0]
 
         def get_lags(buffer, lag_indices):
             return np.array([
@@ -86,15 +97,24 @@ class ARMAX:
         if len(self.history) > self.history_limit:
             self.history = self.history[-self.history_limit:]
 
-        self.current_time += self.dt
+        if t is None:
+            self.current_time += self.dt
+        else:
+            self.current_time = t
 
         if self.plot_system:
             self._update_plot()
 
         done = False
         output = np.array([y0])
-        return output, done
+        if full_state:
+            return output, done, output
+        else:
+            return output, done
 
+    def full_state_to_obs_y(self, state):
+        return state
+    
     def _update_plot(self):
         history_arr = np.array(self.history)
         if len(history_arr) < 2:
@@ -182,7 +202,7 @@ def test_armax_online_forever():
     A = [1, -0.7]
     B = [0, -0.4]
     C = [1]
-    F = 0.16
+    F = 0.031
     L = -0.6
     dt = 0.01
     # t_sim and n_steps removed

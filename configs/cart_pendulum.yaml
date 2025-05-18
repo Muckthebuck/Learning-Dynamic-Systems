@@ -1,0 +1,29 @@
+sim: Cart-Pendulum
+T: 10
+dt: 0.02
+plot_system: true
+history_limit: 2 # 2.0 seconds
+dB: sim_data.db
+apply_disturbance: false
+disturbance: 50
+controller: lqr
+L: [[-0.4, -0.6]]
+reference: [constant, square]
+r_a: [0.0, pi/2] # when using constant reference
+r_f: [0.2, 0.0]
+# sps args
+n_states: 4
+n_inputs: 1
+n_outputs: 4
+n_refs: 2
+n_noise_order: -1
+C_obs: [[0, 0, 0, 1], [0, 0, 1, 0], [0, 1, 0, 0], [1, 0, 0, 0]]
+n_points: [11, 21, 11]
+m: 100
+q: 5
+N: 200
+debug: true
+epsilon: 1e-10
+Lambda: [[1, 0, 0, 0], [0, 1, 0, 0],[0, 0, 1, 0], [0, 0, 0, 1]]
+search: radial # grid or radial
+bounds: [[-1.5, 0.0], [-1, 0.5]]

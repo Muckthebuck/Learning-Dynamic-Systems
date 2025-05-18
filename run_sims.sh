@@ -1,30 +1,11 @@
 #!/bin/bash
 
-# Default values
-SIM_TYPE="Pendulum"
-T=10
-dT=0.02
-PLOT_ARG="--plot_system"
-HISTORY_LIMIT=2.0
-DB_FILE="sim_data.db"
-DIST_ARG=""
-DISTURBANCE=50
-CONTROLLER="lqr"
-L=""
-REFERENCE=""
-R_A=""
-R_F=""
-A=""
-B=""
-C=""
-CONFIG_FILE=""
-
 # --- Usage ---
 usage() {
     echo "Usage: bash run_sims.sh [OPTIONS]"
     echo ""
     echo "Options:"
-    echo "  --config <file>                      YAML config file path"
+    echo "  --config <file>                      YAML config file path (required)"
     echo "  --sim <Pendulum|Cart-Pendulum|Carla|armax>   Simulation type"
     echo "  --T <float>                          Total simulation time"
     echo "  --dt <float>                         Simulation time step"
@@ -45,6 +26,8 @@ usage() {
     exit 0
 }
 
+CONFIG_FILE=""
+
 # --- Parse --config first ---
 while [[ "$#" -gt 0 ]]; do
     case $1 in
@@ -61,37 +44,42 @@ while [[ "$#" -gt 0 ]]; do
     esac
 done
 
-# --- Load YAML config if provided ---
-if [[ -n "$CONFIG_FILE" ]]; then
-    if ! command -v yq &>/dev/null; then
-        echo "yq is required to load YAML config. Please install it."
-        exit 1
-    fi
+if [[ -z "$CONFIG_FILE" ]]; then
+    echo "Error: --config FILE is required."
+    usage
+fi
 
-    SIM_TYPE=$(yq '.sim // "Pendulum"' "$CONFIG_FILE")
-    T=$(yq '.T // 10' "$CONFIG_FILE")
-    dT=$(yq '.dt // 0.02' "$CONFIG_FILE")
-    HISTORY_LIMIT=$(yq '.history_limit // 2.0' "$CONFIG_FILE")
-    DB_FILE=$(yq '.dB // "sim_data.db"' "$CONFIG_FILE")
-    DISTURBANCE=$(yq '.disturbance // 50' "$CONFIG_FILE")
-    CONTROLLER=$(yq '.controller // "lqr"' "$CONFIG_FILE")
-    L=$(yq -o=json '.L' "$CONFIG_FILE")
-    REFERENCE=$(yq -o=json '.reference' "$CONFIG_FILE")
-    R_A=$(yq -o=json '.r_a' "$CONFIG_FILE")
-    R_F=$(yq -o=json '.r_f' "$CONFIG_FILE")
-    A=$(yq -o=json '.A // ""' "$CONFIG_FILE")
-    B=$(yq -o=json '.B // ""' "$CONFIG_FILE")
-    C=$(yq -o=json '.C // ""' "$CONFIG_FILE")
+# --- Load YAML config ---
+if ! command -v yq &>/dev/null; then
+    echo "yq is required to load YAML config. Please install it."
+    exit 1
+fi
 
-    if [[ $(yq '.plot_system // true' "$CONFIG_FILE") == "false" ]]; then
-        PLOT_ARG="--no-plot_system"
-    else
-        PLOT_ARG="--plot_system"
-    fi
+SIM_TYPE=$(yq '.sim' "$CONFIG_FILE")
+T=$(yq '.T' "$CONFIG_FILE")
+dT=$(yq '.dt' "$CONFIG_FILE")
+HISTORY_LIMIT=$(yq '.history_limit' "$CONFIG_FILE")
+DB_FILE=$(yq '.dB' "$CONFIG_FILE")
+DISTURBANCE=$(yq '.disturbance' "$CONFIG_FILE")
+CONTROLLER=$(yq '.controller' "$CONFIG_FILE")
+L=$(yq -o=json '.L' "$CONFIG_FILE")
+REFERENCE=$(yq -o=json '.reference' "$CONFIG_FILE")
+R_A=$(yq -o=json '.r_a' "$CONFIG_FILE")
+R_F=$(yq -o=json '.r_f' "$CONFIG_FILE")
+A=$(yq -o=json '.A // ""' "$CONFIG_FILE")
+B=$(yq -o=json '.B // ""' "$CONFIG_FILE")
+C=$(yq -o=json '.C // ""' "$CONFIG_FILE")
 
-    if [[ $(yq '.apply_disturbance // false' "$CONFIG_FILE") == "true" ]]; then
-        DIST_ARG="--apply_disturbance"
-    fi
+if [[ $(yq '.plot_system // true' "$CONFIG_FILE") == "false" ]]; then
+    PLOT_ARG="--no-plot_system"
+else
+    PLOT_ARG="--plot_system"
+fi
+
+if [[ $(yq '.apply_disturbance // false' "$CONFIG_FILE") == "true" ]]; then
+    DIST_ARG="--apply_disturbance"
+else
+    DIST_ARG=""
 fi
 
 # --- Parse CLI overrides ---
@@ -129,6 +117,12 @@ fi
 # --- Activate venv ---
 source .venv/Scripts/activate
 
+# --- Prepare ARMAX polynomial args ---
+args=()
+if [[ -n "$A" ]]; then args+=(--A "$A"); fi
+if [[ -n "$B" ]]; then args+=(--B "$B"); fi
+if [[ -n "$C" ]]; then args+=(--C "$C"); fi
+
 # --- Run Python module ---
 python -m sims.sims \
     --sim "$SIM_TYPE" \
@@ -144,9 +138,7 @@ python -m sims.sims \
     --reference "$REFERENCE" \
     --r_a "$R_A" \
     --r_f "$R_F" \
-    $( [[ -n "$A" ]] && echo "--A $A" ) \
-    $( [[ -n "$B" ]] && echo "--B $B" ) \
-    $( [[ -n "$C" ]] && echo "--C $C" )
+    "${args[@]}"
 
 # --- Deactivate ---
 deactivate
