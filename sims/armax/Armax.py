@@ -132,7 +132,7 @@ class ARMAX:
             if len(t_vals) >= 2:
                 ax.set_xlim(t_vals[0], t_vals[-1])
 
-        plt.pause(0.001)
+        plt.pause(0.01)
 
     def show_final_plot(self):
         if not self.plot_system:
@@ -202,8 +202,8 @@ def test_armax_online_forever():
     A = [1, -0.7]
     B = [0, -0.4]
     C = [1]
-    F = 0.031
-    L = -0.6
+    F = -0.440
+    L = F*2.7
     dt = 0.01
     # t_sim and n_steps removed
 

@@ -229,7 +229,7 @@ class Sim:
         state = self.sim.state
         y = self.sim.full_state_to_obs_y(state=state)
 
-        buffer_len = 1500
+        buffer_len = 1000
         history_y = []
         history_u = []
         history_r = []

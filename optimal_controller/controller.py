@@ -96,14 +96,15 @@ class Controller:
         K = get_optimal_controller(self.plant.ss.A, self.plant.ss.B, self.Q, self.R)
         # K = np.dot(self.plant.ss.C, K.T).reshape(K.shape[0], -1)
         # G, H, F, L 
-        
         self.logger.info(f"[Controller] New controller K: {K}")
         # @c-hars TODO: update the F,L matrices to reflect the integrator tracking
-        self.F = K
-        armax = {'F': K, 'L': self.L}
-        armax = SimpleNamespace(**armax)
-        self.plant.db.write_controller(controller=armax)
-        
+        if K is not None:
+            self.F = K
+            armax = {'F': K, 'L': self.L}
+            armax = SimpleNamespace(**armax)
+            self.plant.db.write_controller(controller=armax)
+        else:
+            self.logger.warning(f"[Controller] Failed to get new controller")
     
     def get_u(self, y: np.ndarray, r: np.ndarray):
         """

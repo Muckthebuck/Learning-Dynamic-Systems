@@ -1,14 +1,10 @@
-from typing import Tuple, List, Union
+from typing import Tuple, List
 import numpy as np
 from search.search_radial import RadialSearch
 from indirect_identification.sps_indirect import SPS_indirect_model, OpenLoopStabilityError
 from indirect_identification.d_tfs import d_tfs, apply_tf_matrix
 from dB.sim_db import Database, SPSType
 from types import SimpleNamespace
-import scipy.signal as signal
-import matplotlib.pyplot as plt
-from matplotlib.collections import LineCollection
-from sklearn.decomposition import PCA
 from scipy.spatial import ConvexHull
 import argparse
 import ast
@@ -18,7 +14,7 @@ from indirect_identification.sps_utils import get_construct_ss_from_params_metho
 from indirect_identification.tf_methods.fast_tfs_methods_fast_math import _is_stable
 from scipy import optimize
 import threading
-
+from fusion.SPSFusion import Fusion
 
 
 SEARCH_METHODS = {"radial": RadialSearch,}
@@ -31,10 +27,11 @@ class SPS:
 
 
     def __init__(self, Lambda: np.ndarray, bounds: np.ndarray, n_A: int = None, n_B: int = None,
-                 n_states: int=2, n_inputs: int = 1, n_outputs: int = 1, n_refs: int = 1,
+                 n_states: int=2, n_inputs: int = 1, n_outputs: int = 1, n_refs: int = 1, forget:float=0.0,
                  C_obs: np.ndarray = None, n_noise_order: int = 1, n_points: List[int] = [11, 21, 11],
                  m: int=100, q: int=5, N: int = 50, db: Database = None, search_type: str = "radial",
-                 debug: bool = False, epsilon: float = 1e-10, logger: logging.Logger = None):
+                 debug: bool = False, epsilon: float = 1e-10, random_centers: int = 50, 
+                 logger: logging.Logger = None):
         """"
         Initialize the SPS model search.
         For SISO models. ensure n_states represents the max delay in A,B
@@ -61,7 +58,6 @@ class SPS:
             self.nB = n_states*n_inputs
         self.nH = n_outputs*(n_noise_order+1)
         self.n_params = self.nA + self.nB + self.nH
-        self.n_points = np.repeat(n_points, [self.nA, self.nB, self.nH])
         # C matrix: n_output x n_state matrix
         self.C = C_obs
         # assert the shape of C
@@ -91,13 +87,17 @@ class SPS:
         self.search_type = search_type
         self.bounds = bounds
         self.max_radius = get_max_radius(bounds)
-        self.new_update = False
-        self.curr_hull: ConvexHull = None
         self.center = None
         self.controller = SimpleNamespace()
         self.controller.F = None
         self.controller.L = None
-        self.initialise_plot()
+        # initialise Fusion
+        p=1-q/m
+        self.fusion = Fusion(bounds=bounds, 
+                             num_points=n_points, 
+                             dim=self.n_params, 
+                             p=p, forget=forget, random_centers=random_centers)
+
         
     def search_factory(self, search_type: str, center: np.ndarray, test_cb: callable):
         match search_type:
@@ -181,13 +181,10 @@ class SPS:
         self.logger.info(f"[SPS] Number of params: {self.n_params}")
         
         if self.data.sps_type == SPSType.OPEN_LOOP:
-            center = self.get_lse(Y=self.data.y, U=self.data.u)
-            self.logger.info(f"center {center}")
-        else:
-            # TODO: choose previous region if available
-            center = self.center
-        
-        if center is None:
+            self.fusion.center_pts = self.get_lse(Y=self.data.y, U=self.data.u)
+            self.logger.info(f"center {self.fusion.center_pts}")
+
+        if self.fusion.center_pts is None:
             self.logger.warning(f"No center provided sps will fail.")
             return
         
@@ -195,103 +192,30 @@ class SPS:
             self.logger.info(f" y: {self.data.y.shape}, u: {self.data.u.shape}, r: {self.data.u.shape}")
         else:
             self.logger.info(f" y: {self.data.y.shape}, u: {self.data.u.shape}")
+
         search = self.search_factory(search_type=self.search_type, 
-                                     center=center, 
+                                     center=self.fusion.center_pts, 
                                      test_cb=self._get_search_fn(self.data.sps_type))
         self.logger.info(f"[SPS] Search Initialized")
         ins, outs, boundaries, hull, expanded_hull = search.search()
         self.logger.info(f"[SPS] Search Finished")
-        self.curr_hull = hull
-        # Choose 10 random rows (without replacement)
-        if ins.shape[0]>20:
-            idx = np.random.choice(ins.shape[0], size=20, replace=False)
-            ins = ins[idx]
-        self.center=ins
+        # fuse
+        self.fusion.fuse(new_hull=hull)
+        self.logger.info(f"[SPS] Fused Regions")
+
         # get the results
-        A, B, C, D = self.get_ss_region(results=boundaries)
+        results = self.fusion.hull.points[self.fusion.hull.vertices]
+        A, B, C, D = self.get_ss_region(results=results)
         if self.db is not None:
             self.write_state_space_to_db(A, B, C, D)
         
-        ## notify plot sps region to update the plot
-        self.new_update=True
 
-    def initialise_plot(self):
-        """
-        Initialise interactive plot and setup figure.
-        """
-        self.new_update = False  # reset update flag
-
-        if self.n_params > 3:
-            self.logger.warning("Plotting for dim > 3 not supported yet.")
-
-        self.dim = self.n_params
-
-        plt.ion()  # interactive mode on
-        self.fig = plt.figure(figsize=(8,6))
-
-        if self.dim == 2:
-            self.ax = self.fig.add_subplot(111)
-            self.ax.set_title("SPS Region (2D)")
-            # Setup axis limits from bounds
-            self.ax.set_xlim(self.bounds[0])
-            self.ax.set_ylim(self.bounds[1])
-            self.line_collection = LineCollection([], colors='r', linewidths=2)
-            self.ax.add_collection(self.line_collection)
-            self.scatter = self.ax.scatter([], [], c='b')
-        elif self.dim == 3:
-            from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 unused import
-            self.ax = self.fig.add_subplot(111, projection='3d')
-            self.ax.set_title("SPS Region (3D)")
-            self.ax.set_xlim(self.bounds[0])
-            self.ax.set_ylim(self.bounds[1])
-            self.ax.set_zlim(self.bounds[2])
-            self.scatter = self.ax.scatter([], [], [], c='b')
-            self.lines3d = []  # will store Line3D objects for hull edges
-
-        self.fig.canvas.draw()
-        plt.show(block=False)
-
+        
+    
     def plot_sps_region(self):
-        """
-        Update the SPS region hull plot if new data is available.
-        """
-        if not hasattr(self, 'fig') or not hasattr(self, 'ax'):
-            self.initialise_plot()
-
         while True:
-            if self.new_update and self.curr_hull is not None:
-                points = self.curr_hull.points
-
-                if self.dim == 2:
-                    # Update scatter points
-                    self.scatter.set_offsets(points)
-
-                    # Prepare segments (edges)
-                    segments = [points[simplex] for simplex in self.curr_hull.simplices]
-                    self.line_collection.set_segments(segments)
-
-                    self.ax.figure.canvas.draw_idle()
-
-                elif self.dim == 3:
-                    # Update scatter points
-                    self.scatter._offsets3d = (points[:,0], points[:,1], points[:,2])
-
-                    # Remove old lines
-                    for line in self.lines3d:
-                        line.remove()
-                    self.lines3d.clear()
-
-                    # Add new lines for hull edges
-                    for simplex in self.curr_hull.simplices:
-                        seg = points[simplex]
-                        line, = self.ax.plot(seg[:,0], seg[:,1], seg[:,2], 'r-', linewidth=2)
-                        self.lines3d.append(line)
-
-                    self.ax.figure.canvas.draw_idle()
-
-                self.new_update = False  # reset flag
-
-            plt.pause(0.1)  # keep GUI responsive
+            #plt.pause if happening in the function to keep things resposnive
+            self.fusion.plot_curr_region()
 
 
     def _get_search_fn(self, sps_type: SPSType):
@@ -531,12 +455,15 @@ def parse_args(raw_args=None, db:Database = None):
     parser.add_argument("--m", type=int, default=100, help="Number of samples")
     parser.add_argument("--q", type=int, default=5, help="Number of points")
     parser.add_argument("--N", type=int, default=50, help="N samples")
+    parser.add_argument("--random_centers", type=int, default=50, help="random samples to take in hull for center")
     parser.add_argument("--dB", type=str, default="sim.db", help="Database file name")
     parser.add_argument("--debug", action='store_true', help="Enable debug mode")
     parser.add_argument("--epsilon", type=float, default=1e-10, help="Epsilon value for stability check")
     parser.add_argument("--search",type=str, choices=["grid", "radial"], required=True, help="Search strategy" )
     parser.add_argument("--bounds", type=parse_array, required=True, 
                         help="Bound of the region for each direction. For example [[-2, 2], [-2, 2]]")
+    parser.add_argument("--forget", type=float, default=0.0, 
+                        help="fusion forgetting factor")
     args = parser.parse_args(raw_args)
     if db is None:
         db = Database(args.dB)
@@ -552,6 +479,7 @@ def run_sps(raw_args=None, db:Database = None, args: argparse.Namespace = None, 
         args, db = parse_args(raw_args=raw_args, db=db)
     sps = SPS(
         Lambda=args.Lambda,
+        forget=args.forget,
         n_A=args.n_A,
         n_B=args.n_B,
         n_states=args.n_states,
@@ -569,6 +497,7 @@ def run_sps(raw_args=None, db:Database = None, args: argparse.Namespace = None, 
         epsilon=args.epsilon,
         search_type=args.search,
         bounds=args.bounds,
+        random_centers=args.random_centers,
         logger=logger
     )
     # sps.update_sps_region(data)

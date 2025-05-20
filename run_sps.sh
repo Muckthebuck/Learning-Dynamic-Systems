@@ -40,6 +40,8 @@ usage() {
     echo "  --m M                  Number of samples"
     echo "  --q Q                  Number of query points"
     echo "  --N N                  Number of final samples"
+    echo "  --forget               Forgetting factor for fusion"
+    echo "  --random_centers       Number of centers to check in search" 
     echo "  --dB DB_FILE           Database file"
     echo "  --debug                Enable debug"
     echo "  --epsilon EPSILON      Epsilon value"
@@ -94,6 +96,8 @@ if [[ -n "$CONFIG_FILE" ]]; then
     LAMBDA=$(yq -o=json '.Lambda // [[1, 0], [0, 1]]' "$CONFIG_FILE")
     search=$(yq '.search // ""' "$CONFIG_FILE")
     bounds=$(yq -o=json '.bounds // ""' "$CONFIG_FILE")
+    forget=$(yq -o=json '.forget // 0' "$CONFIG_FILE")
+    random_centers=$(yq -o=json '.random_centers // 20' "$CONFIG_FILE")
 fi
 
 # --- Re-parse CLI overrides ---
@@ -118,6 +122,8 @@ while [ $# -gt 0 ]; do
         --Lambda) LAMBDA="$2"; shift 2 ;;
         --search) search="$2"; shift 2 ;;
         --bounds) bounds="$2"; shift 2 ;;
+        --forget) forget="$2"; shift 2 ;;
+        --random_centers) random_centers="$2"; shift 2 ;;
         -h|--help) usage ;;
         *) echo "Unknown option: $1"; usage ;;
     esac
@@ -142,4 +148,6 @@ python -m indirect_identification.sps \
     --epsilon "$epsilon" \
     --Lambda "$LAMBDA" \
     --search "$search" \
-    --bounds "$bounds"
+    --bounds "$bounds" \
+    --forget "$forget" \
+    --random_centers "$random_centers"
