@@ -251,7 +251,7 @@ class SPS:
             raise ValueError("No results found")
         
         
-        results = [self._construct_ss_from_params(row) for row in results]
+        results = [self._construct_ss_from_params(np.ascontiguousarray(row)) for row in results]
 
         # Unpack first 4 outputs, ignore the rest
         A_list, B_list, C_list, D_list, *_ = zip(*results)
