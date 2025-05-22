@@ -6,6 +6,7 @@ from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from optimal_controller.lowres_MVEE import LowResMVEE
+import logging
 EPS = 1e-12
 
 
@@ -70,31 +71,29 @@ class Fusion:
 
     def fuse(self, new_hull: ConvexHull):
         if self.hull is not None:
-            p_B, _ = point_in_hull_prob(self.X, new_hull.equations, p=self.p)
+            p_B = point_in_hull_prob(self.X, new_hull.equations, p=self.p)
             self.curr_p_map = fuse_numba(new_info=p_B, prior=self.curr_p_map, forget=self.forget)
             selected_pts = sample_conf_region_from_points(self.X, self.curr_p_map, cumprob=self.p)
             self.hull = ConvexHull(selected_pts)
         else:
             self.hull = new_hull
-            self.curr_p_map, insides = point_in_hull_prob(self.X, new_hull.equations, p=self.p)
-            selected_pts = self.X[insides]
-        self.choose_random_centers(selected_pts)
+            self.curr_p_map = point_in_hull_prob(self.X, new_hull.equations, p=self.p)
         self.step+=1
         self.new_update = True
 
     
-    def choose_random_centers(self, selected_pts):
-        print(selected_pts.shape)
+    def choose_random_centers(self):
+        selected_pts = self.hull.points
         n = selected_pts.shape[0]
         if n>self.n_centers:
             idx = np.random.choice(n, size=self.n_centers, replace=False)
             self.center_pts = selected_pts[idx].reshape(-1, self.dim)
         elif n <= self.dim:
-            combined_pts = np.concatenate([selected_pts, self.hull.points], axis=0)
+            combined_pts = np.concatenate([selected_pts, self.hull.points[self.hull.vertices]], axis=0)
             self.center_pts = combined_pts.reshape(-1, self.dim)
         else:
             self.center_pts=selected_pts.reshape(-1, self.dim)
-
+        logging.log(f"[Fusion] Random centers  set {self.center_pts.shape}")
     def initialise_plot(self):
         """
         Initialise interactive plot and setup figure, including PCA projection for dim > 3.
@@ -155,10 +154,13 @@ class Fusion:
         elif self.dim >= 3:
             if self.proj.shape[0]>0:
                 threshold = (vmin + vmax) / 2
-                mask = self.curr_p_map > threshold
-
-                points = self.proj[mask]
-                values = self.curr_p_map[mask]
+                if np.abs(vmin-vmax)<EPS:
+                    points = self.proj
+                    values = self.curr_p_map
+                else:
+                    mask = np.abs(self.curr_p_map-threshold) > EPS
+                    points = self.proj[mask]
+                    values = self.curr_p_map[mask]
 
                 if points.shape[0] > MAX_POINTS_TO_PLOT:
                     idx = np.random.choice(points.shape[0], size=MAX_POINTS_TO_PLOT, replace=False)
@@ -247,7 +249,7 @@ def point_in_hull_prob(points, equations, p):
     prob_sum = np.sum(probs)
     if prob_sum > 0:
         probs /= prob_sum
-    return probs, inside
+    return probs
 
 @numba.njit
 def fuse_numba(new_info: np.ndarray, prior: np.ndarray, forget = 0.0):

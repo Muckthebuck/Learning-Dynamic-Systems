@@ -204,8 +204,10 @@ class SPS:
                 ins, outs, boundaries, hull, expanded_hull = search.search()
                 self.logger.info(f"[SPS] Search Finished")
                 break
-            except Exception:
+            except Exception as e:
+                self.logger.info(f"{e}")
                 self.logger.info(f"[SPS] retrying")
+
         # fuse
         self.fusion.fuse(new_hull=hull)
         self.logger.info(f"[SPS] Fused Regions")
