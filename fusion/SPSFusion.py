@@ -93,7 +93,7 @@ class Fusion:
             self.center_pts = combined_pts.reshape(-1, self.dim)
         else:
             self.center_pts=selected_pts.reshape(-1, self.dim)
-        logging.log(f"[Fusion] Random centers  set {self.center_pts.shape}")
+        logging.info(f"[Fusion] Random centers  set {self.center_pts.shape}")
     def initialise_plot(self):
         """
         Initialise interactive plot and setup figure, including PCA projection for dim > 3.

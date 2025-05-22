@@ -5,6 +5,7 @@ import sys
 import argparse
 from dB.sim_db import Database, SPSType
 from sims.pendulum import Pendulum, CartPendulum
+from sims.water_tank import WaterTank
 from sims.car import CarlaSps
 from sims.armax import ARMAX
 from optimal_controller.controller import Plant, Controller
@@ -19,7 +20,8 @@ SIM_CLASS_MAP = {
     "Pendulum": (Pendulum, np.array([np.pi/4, 0.0]), (2,1)),
     "Cart-Pendulum": (CartPendulum, np.array([0, 0, np.pi/4, 0.0]), (4,1)),
     "Carla": (CarlaSps, np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), (11,1)), 
-    "armax": (ARMAX, np.array([0]), (1,1))
+    "armax": (ARMAX, np.array([0]), (1,1)),
+    "water_tank": (WaterTank, np.array([0]), (1,1)),
 }
 
 
@@ -60,16 +62,24 @@ class Sim:
         n_o,n_i = self.n
         self.n = (n_o,n_i,n_r)
         self.initial_state = state
-        if sim_type == "armax":
-            self.sim: ARMAX = sim(A=A, B=B, C=C, dt=self.dt, 
-                                initial_state=state, 
-                                plot_system=plot_system, 
-                                history_limit=history_limit)
-        else: 
-            self.sim: Union[Pendulum, CartPendulum, CarlaSps] = sim(dt=self.dt, 
+
+        match sim_type:
+            case "armax":
+                self.initial_state = np.zeros(max(len(A)-1, len(B)-1))
+                self.sim: ARMAX = sim(A=A, B=B, C=C, dt=self.dt, 
+                                    initial_state=self.initial_state, 
+                                    plot_system=plot_system, 
+                                    history_limit=history_limit)
+            case "Pendulum" | "Cart-Pendulum":
+                self.sim: Union[Pendulum, CartPendulum] = sim(dt=self.dt, 
                                                                     initial_state=state, 
                                                                     plot_system=plot_system, 
                                                                     history_limit=history_limit)
+            case "water_tank":
+                self.sim: WaterTank = sim(noise_std=0.0, plot_system=True, visual=True)
+            case _:
+                raise NotImplementedError
+        
         self.db = db if db else Database(dB)
         db_name = self.db.db_name
         self.controller_plant = Plant(dt=dt, db=db_name)
@@ -78,7 +88,7 @@ class Sim:
         self.r_a=r_a
         self.r_f=r_f
         self.i=0
-    
+
 
     def write_data_to_db(self, y: np.ndarray, u: np.ndarray, r: np.ndarray, sps_type: SPSType):
         data = {
@@ -312,7 +322,7 @@ def parse_sim_args(raw_args: List[str] = None) -> argparse.Namespace:
     parser.add_argument("--T_updates", type=float, default=10, help="Time between each update. Please ensure there is enough time.")
     parser.add_argument("--dt", type=float, default=0.02, help="Simulation time step")
     parser.add_argument("--sim", type=str, required=True,
-                        choices=["Pendulum", "Cart-Pendulum", "Carla", "armax"],
+                        choices=["Pendulum", "Cart-Pendulum", "Carla", "armax", "water_tank"],
                         help="Simulation type")
     parser.add_argument("--plot_system", action="store_true", help="Enable plotting")
     parser.add_argument("--history_limit", type=float, default=2, help="Limit of history for plotting")
