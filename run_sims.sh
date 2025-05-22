@@ -8,6 +8,7 @@ usage() {
     echo "  --config <file>                      YAML config file path (required)"
     echo "  --sim <Pendulum|Cart-Pendulum|Carla|armax>   Simulation type"
     echo "  --T <float>                          Total simulation time"
+    echo "  --T_updates <float>                          Total simulation time"
     echo "  --dt <float>                         Simulation time step"
     echo "  --plot_system / --no-plot_system     Enable/disable plotting"
     echo "  --history_limit <float>             History limit for plotting"
@@ -22,6 +23,7 @@ usage() {
     echo "  --A <array>                         ARMAX A polynomial"
     echo "  --B <array>                         ARMAX B polynomial"
     echo "  --C <array>                         ARMAX C polynomial"
+    echo "  --N <int>                           SPS N points"
     echo "  -h, --help                           Show help"
     exit 0
 }
@@ -57,6 +59,7 @@ fi
 
 SIM_TYPE=$(yq '.sim' "$CONFIG_FILE")
 T=$(yq '.T' "$CONFIG_FILE")
+T_updates=$(yq '.T_updates' "$CONFIG_FILE")
 dT=$(yq '.dt' "$CONFIG_FILE")
 HISTORY_LIMIT=$(yq '.history_limit' "$CONFIG_FILE")
 DB_FILE=$(yq '.dB' "$CONFIG_FILE")
@@ -69,6 +72,7 @@ R_F=$(yq -o=json '.r_f' "$CONFIG_FILE")
 A=$(yq -o=json '.A // ""' "$CONFIG_FILE")
 B=$(yq -o=json '.B // ""' "$CONFIG_FILE")
 C=$(yq -o=json '.C // ""' "$CONFIG_FILE")
+N=$(yq -o=json '.N // ""' "$CONFIG_FILE")
 
 if [[ $(yq '.plot_system // true' "$CONFIG_FILE") == "false" ]]; then
     PLOT_ARG="--no-plot_system"
@@ -88,6 +92,7 @@ while [[ "$#" -gt 0 ]]; do
     case $1 in
         --sim) SIM_TYPE="$2"; shift 2 ;;
         --T) T="$2"; shift 2 ;;
+        --T_updates) T_updates="$2"; shift 2 ;;
         --dt) dT="$2"; shift 2 ;;
         --plot_system) PLOT_ARG="--plot_system"; shift ;;
         --no-plot_system) PLOT_ARG="--no-plot_system"; shift ;;
@@ -103,6 +108,7 @@ while [[ "$#" -gt 0 ]]; do
         --A) A="$2"; shift 2 ;;
         --B) B="$2"; shift 2 ;;
         --C) C="$2"; shift 2 ;;
+        --N) N="$2"; shift 2 ;;
         -h|--help) usage ;;
         *) echo "Unknown parameter: $1"; usage ;;
     esac
@@ -127,6 +133,7 @@ if [[ -n "$C" ]]; then args+=(--C "$C"); fi
 python -m sims.sims \
     --sim "$SIM_TYPE" \
     --T "$T" \
+    --T_updates "$T_updates" \
     --dt "$dT" \
     $PLOT_ARG \
     --history_limit "$HISTORY_LIMIT" \
@@ -138,6 +145,7 @@ python -m sims.sims \
     --reference "$REFERENCE" \
     --r_a "$R_A" \
     --r_f "$R_F" \
+    --N "$N" \
     "${args[@]}"
 
 # --- Deactivate ---

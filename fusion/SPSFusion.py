@@ -5,6 +5,7 @@ from scipy.spatial import ConvexHull
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
+from optimal_controller.lowres_MVEE import LowResMVEE
 EPS = 1e-12
 
 
@@ -27,10 +28,22 @@ class Fusion:
         self.step: int = 0
         self.n_centers: int = random_centers
         self.center_pts: np.ndarray = None
-        if self.dim > 3:
+        self.n_vertices = max(10 * self.dim, self.dim ** 2)
+        if self.dim >= 3:
             self.pca = PCA(n_components=2)
             self.proj = self.pca.fit_transform(self.X)
         self.initialise_plot()
+
+    def approximate_hull(self):
+        """
+        Approximate convex hull with MVEE and sample points on the ellipsoid surface.
+        Auto-picks number of samples based on dimensionality.
+        """
+        points = self.hull.points[self.hull.vertices]
+        if points.shape[0] < self.n_vertices:
+            return points.reshape(-1,self.dim)
+        mvee = LowResMVEE(pts=points.T, max_n_verts=self.n_vertices)
+        return mvee.vertices.T
     
     def sample_uniform_combinations_meshgrid(self, bounds, num_points,d):
         """
@@ -76,8 +89,11 @@ class Fusion:
         if n>self.n_centers:
             idx = np.random.choice(n, size=self.n_centers, replace=False)
             self.center_pts = selected_pts[idx].reshape(-1, self.dim)
+        elif n <= self.dim:
+            combined_pts = np.concatenate([selected_pts, self.hull.points], axis=0)
+            self.center_pts = combined_pts.reshape(-1, self.dim)
         else:
-            self.center_pts=selected_pts
+            self.center_pts=selected_pts.reshape(-1, self.dim)
 
     def initialise_plot(self):
         """
@@ -96,26 +112,14 @@ class Fusion:
             self.line_collection = LineCollection([], colors='r', linewidths=2)
             self.ax.add_collection(self.line_collection)
 
-        elif self.dim == 3:
-            self.ax = self.fig.add_subplot(111, projection='3d')
-            self.ax.set_title("SPS Region (3D)")
-            self.ax.set_xlim(self.bounds[0])
-            self.ax.set_ylim(self.bounds[1])
-            self.ax.set_zlim(self.bounds[2])
-            self.scatter = self.ax.scatter([], [], [], c=[], cmap='viridis', s=10)
-            self.lines3d = []  # Will store line objects for hull edges
-            # For 3D colorbar, must be added after first update (optional)
-
-        elif self.dim > 3:
+        elif self.dim >= 3:
             self.ax = self.fig.add_subplot(111)
             self.ax.set_title("SPS Region (PCA Projection)")
             self.ax.set_xlabel("PC1")
             self.ax.set_ylabel("PC2")
 
             # Initialize PCA scatter with projected coordinates
-            self.scatter = self.ax.scatter([], [], c=[], cmap='viridis', s=10)
-            self.line_collection = LineCollection([], colors='r', linewidths=2)
-            self.ax.add_collection(self.line_collection)
+            self.scatter = self.ax.scatter([],[], c=[], cmap='viridis', s=10)
 
             # Optional: set axis limits based on PCA-projected X
             if hasattr(self, "proj"):
@@ -134,58 +138,46 @@ class Fusion:
             plt.pause(1.0)  # keep GUI responsive
             return  # No update needed or nothing to plot
 
+        MAX_POINTS_TO_PLOT = 10000  # adjustable upper limit
+        vmin = np.min(self.curr_p_map)
+        vmax = np.max(self.curr_p_map)
+
         if self.dim == 2:
             self.scatter.set_offsets(self.X)
             self.scatter.set_array(self.curr_p_map)
 
-            # Update hull edges
             segments = [
                 [self.hull.points[simplex[0]], self.hull.points[simplex[1]]]
                 for simplex in self.hull.simplices
             ]
             self.line_collection.set_segments(segments)
 
-        elif self.dim == 3:
-            self.ax.clear()
-            self.ax.set_title("SPS Region (3D)")
-            self.ax.set_xlim(self.bounds[0])
-            self.ax.set_ylim(self.bounds[1])
-            self.ax.set_zlim(self.bounds[2])
+        elif self.dim >= 3:
+            if self.proj.shape[0]>0:
+                threshold = (vmin + vmax) / 2
+                mask = self.curr_p_map > threshold
 
-            self.scatter = self.ax.scatter(
-                self.X[:, 0], self.X[:, 1], self.X[:, 2],
-                c=self.curr_p_map, cmap='viridis', s=10
-            )
+                points = self.proj[mask]
+                values = self.curr_p_map[mask]
 
-            for simplex in self.hull.simplices:
-                pts = self.hull.points[simplex]
-                self.ax.plot(pts[:, 0], pts[:, 1], pts[:, 2], 'r-', linewidth=1)
+                if points.shape[0] > MAX_POINTS_TO_PLOT:
+                    idx = np.random.choice(points.shape[0], size=MAX_POINTS_TO_PLOT, replace=False)
+                    points = points[idx]
+                    values = values[idx]
 
-        elif self.dim > 3:
-            self.ax.clear()
-            self.ax.set_title("SPS Region (PCA Projection)")
-            self.ax.set_xlabel("PC1")
-            self.ax.set_ylabel("PC2")
+                self.scatter.set_offsets(points)
+                self.scatter.set_array(values)
+                # Reset axis limits for  plots
+                x_min, y_min = np.min(points, axis=0)*2
+                x_max, y_max = np.max(points, axis=0)*2
+                self.ax.set_xlim(x_min, x_max)
+                self.ax.set_ylim(y_min, y_max)
 
-            proj_posterior = self.curr_p_map
-            self.scatter = self.ax.scatter(
-                self.proj[:, 0], self.proj[:, 1],
-                c=proj_posterior, cmap='viridis', s=10
-            )
-            hull_points = self.pca.transform(self.hull.points)
-            for simplex in self.hull.simplices:
-                pts = hull_points[simplex]
-                self.ax.plot(pts[:, 0], pts[:, 1], 'r-', linewidth=1)
-        
-        # Rescale the color limits based on new data
-        vmin = np.min(self.curr_p_map)
-        vmax = np.max(self.curr_p_map)
         self.scatter.set_clim(vmin, vmax)
         self.colorbar.update_normal(self.scatter)
-        # Refresh the plot
         self.ax.figure.canvas.draw_idle()
-        self.new_update = False  # Reset update flag
-        plt.pause(0.1)  # keep GUI responsive
+        self.new_update = False
+        plt.pause(0.005)
 
 
 
@@ -274,4 +266,5 @@ def fuse_numba(new_info: np.ndarray, prior: np.ndarray, forget = 0.0):
     posterior /= np.sum(np.abs(posterior)) # normalisation
     posterior = np.maximum(EPS, posterior) # to avoid floating point error, this is the new "zero" value
     return posterior
+
 

@@ -40,7 +40,8 @@ class PendulumSimBase(ABC):
         # initialise plotting
         if plot_system:
             self._initialise_plotting()
-
+    def set_initial_state(self, state):
+        self.state = state
     def _initialise_plotting(self):
         # History for live plotting
         self.history: list[np.ndarray] = []

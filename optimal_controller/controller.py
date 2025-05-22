@@ -83,6 +83,7 @@ class Controller:
         if self.plant.initialised:
             self.K = self.design_lqr()
         self.logger = logging.getLogger(__name__)
+        self.heard_back = False
         
     def design_lqr(self):
         """
@@ -118,10 +119,11 @@ class Controller:
         """
         if self.plant.new_update:
             self.design_lqr()
+            self.heard_back = True
             self.plant.new_update = False
 
         r = r.reshape(-1,1)
-        y = r.reshape(-1,1)
+        y = y.reshape(-1,1)
         # @c-hars TODO: update the input version to reflect the integrator tracking
         u = np.dot(self.L,r) - np.dot(self.F,y)
         # u = np.clip(u, -100, 100)

@@ -29,6 +29,7 @@ class Sim:
     """
     def __init__(self,
                  T: float,
+                 T_updates: float,
                  dt: float,
                  sim: str,
                  plot_system: bool,
@@ -48,6 +49,7 @@ class Sim:
                  logger: logging.Logger = None):
         self.logger = logger if logger else logging.getLogger(__name__)
         self.T = T
+        self.T_updates = T_updates
         self.dt = dt
         self.apply_disturbance = apply_disturbance
         self.disturbance = disturbance
@@ -150,14 +152,15 @@ class Sim:
             inputs = input_func(T=T, f=f, fs=1/self.dt)
             return inputs
         t, u = _input()
-        self.sim.state = self.initial_state
-        states = []
-        states.append(self.sim.full_state_to_obs_y(state=self.sim.state))
+        
+        self.sim.set_initial_state(self.initial_state)
+        y = []
+        y.append(self.sim.full_state_to_obs_y(state=self.sim.state))
         for _u, t in zip(u, t):
-            states.append(self.sim.step(u=_u, t=t)[0])
-        states.pop()
-        states = np.array(states)
-        return states.reshape(self.n[0],-1), u.reshape(self.n[1],-1), t
+            y.append(self.sim.step(u=_u, t=t)[0])
+        y.pop()
+        y = np.array(y)
+        return y.reshape(self.n[0],-1), u.reshape(self.n[1],-1), t
     
     def initialise_plant(self, T=5, f=1, input_type="square_wave"):
         """
@@ -182,8 +185,8 @@ class Sim:
         y, u, t = self.sim_model_response(T=T, f=f, input_type=input_type)
         self.write_data_to_db(y=y, u=u, r=None, sps_type=SPSType.OPEN_LOOP)
         curr_t = t
-        self.i=0
         n_u = u.shape[0]
+        self.i = n_u
         self.logger.debug(f"[SIMS] Sending {n_u} inputs to DB")
         self.logger.info("[Init] Waiting for SS update...")
         while self.controller_plant.initialised_event.is_set() is False:
@@ -228,8 +231,7 @@ class Sim:
         """
         state = self.sim.state
         y = self.sim.full_state_to_obs_y(state=state)
-
-        buffer_len = 1000
+        buffer_len = int(self.T_updates/self.dt)
         history_y = []
         history_u = []
         history_r = []
@@ -242,15 +244,22 @@ class Sim:
             if self.n[1] == 1 and type(u)==np.ndarray:
                 u = u[0]
             # history management and write to DB
-            if len(history_y) < buffer_len:
-                history_y.append(y.copy())
-                history_u.append(u.copy())
-                history_r.append(r.copy())
-            if len(history_y) == buffer_len:
+            # maintain moving window for history
+            if len(history_y) >= buffer_len:
+                history_y.pop(0)
+                history_u.pop(0)
+                history_r.pop(0)
+
+            history_y.append(y.copy())
+            history_u.append(u.copy())
+            history_r.append(r.copy())
+            if self.controller.heard_back and len(history_y) == buffer_len:
                 self.write_data_to_db(y=np.array(history_y).reshape(self.n[0],buffer_len), 
                                       u=np.array(history_u).reshape(self.n[1],buffer_len), 
                                       r=np.array(history_r).reshape(self.n[2],buffer_len), 
                                       sps_type=SPSType.CLOSED_LOOP)
+                self.controller.heard_back = False
+                
                 history_y = []
                 history_u = []
                 history_r = []
@@ -268,7 +277,6 @@ def parse_array(input_string):
     try:
         # Safely evaluate the string into a list using ast.literal_eval
         parsed_list = ast.literal_eval(input_string)
-        print(parsed_list)
         # Convert the list into a NumPy array
         return np.array(parsed_list)
     except (ValueError, SyntaxError):
@@ -301,6 +309,7 @@ def parse_array_sym(input_string):
 def parse_sim_args(raw_args: List[str] = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Process arguments for the simulation.")
     parser.add_argument("--T", type=float, default=10, help="Total simulation time")
+    parser.add_argument("--T_updates", type=float, default=10, help="Time between each update. Please ensure there is enough time.")
     parser.add_argument("--dt", type=float, default=0.02, help="Simulation time step")
     parser.add_argument("--sim", type=str, required=True,
                         choices=["Pendulum", "Cart-Pendulum", "Carla", "armax"],
@@ -318,6 +327,7 @@ def parse_sim_args(raw_args: List[str] = None) -> argparse.Namespace:
     parser.add_argument("--A",type=parse_array, help="ARMAX sim A polynomial")
     parser.add_argument("--B",type=parse_array, help="ARMAX sim B polynomial")
     parser.add_argument("--C",type=parse_array, help="ARMAX sim C polynomial")
+    parser.add_argument("--N",type=int, help="SPS number of points")
     return parser.parse_args(raw_args)
 
 
@@ -336,6 +346,7 @@ def run_simulation(raw_args=None, db: Database = None, logger: logging.Logger = 
 
     simulation = Sim(
         T=args.T,
+        T_updates=args.T_updates,
         dt=args.dt,
         sim=args.sim,
         plot_system=args.plot_system,
@@ -356,8 +367,8 @@ def run_simulation(raw_args=None, db: Database = None, logger: logging.Logger = 
     )
 
     logger.info("[Init] Simulation instance created")
-
-    simulation.initialise_plant(T=10, f=args.r_f, input_type="square_wave")
+    T = (args.N+100)*args.dt
+    simulation.initialise_plant(T=T, f=args.r_f, input_type="square_wave")
     simulation.run()
 
  

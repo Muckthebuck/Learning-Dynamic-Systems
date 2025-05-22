@@ -13,6 +13,7 @@ class ARMAX:
         self.plot_system = plot_system
 
         self.buffer_length = max(len(self.A) - 1, len(self.B), len(self.C))
+        self.full_state_length = max(len(self.A), len(self.B))-1
         self.y_buffer = np.zeros(self.buffer_length)
         self.u_buffer = np.zeros(self.buffer_length)
         self.n_buffer = np.zeros(self.buffer_length)
@@ -22,7 +23,7 @@ class ARMAX:
         self.history_limit = int(history_limit / dt)
         self.current_time = 0.0
         self.done = False
-
+        self.state = np.zeros(self.full_state_length).reshape(1,-1)
         if plot_system:
             self._init_plot()
 
@@ -50,6 +51,8 @@ class ARMAX:
         plt.ion()
         plt.show()
 
+    def set_initial_state(self, state):
+        return 
 
     def _on_close(self, event):
         self.done = True
@@ -107,13 +110,23 @@ class ARMAX:
 
         done = False
         output = np.array([y0])
+        self.state = self.curr_full_state()
         if full_state:
-            return output, done, output
+            return output, done, self.state
         else:
             return output, done
-
+    def curr_full_state(self):
+        full_state = np.array(self.history[-self.full_state_length:])[:,0]
+        full_state = np.flip(full_state)
+        # padd zero if nto full length 
+        # Pad with zeros if not full length
+        if len(full_state) < self.full_state_length:
+            padding = np.zeros(self.full_state_length - len(full_state))
+            full_state = np.concatenate((full_state, padding))
+                
+        return full_state.reshape(-1,1)
     def full_state_to_obs_y(self, state):
-        return state
+        return np.array([state.flatten()[0]])
     
     def _update_plot(self):
         history_arr = np.array(self.history)
@@ -199,9 +212,12 @@ def test_armax_online():
     model.show_final_plot()
 
 def test_armax_online_forever():
-    A = [1, -0.7]
-    B = [0, -0.4]
-    C = [1]
+    # A = [1, -0.7]
+    # B = [0, -0.4]
+    # C = [1]
+    A= [1.0, -0.7, -0.1]
+    B=[0.0, -0.4, 0.2]
+    C= [1.0]
     F = -0.440
     L = F*2.7
     dt = 0.01
@@ -215,9 +231,10 @@ def test_armax_online_forever():
     y = np.array([0.0])
     i = 0
     while True:
-        r = 2 * np.sign(np.sin(2 * np.pi * freq * i * dt))  # dynamic reference
+        r = 2 * np.sin(2 * np.pi * freq * i * dt)  # dynamic reference
         u = L * r - F * y[0]
-        y, done = model.step(u, r)
+        y, done, full_state = model.step(u, r, full_state=True)
+        print(full_state)
         outputs.append(y)
         i += 1
         if done:

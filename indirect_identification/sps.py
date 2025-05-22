@@ -192,19 +192,26 @@ class SPS:
             self.logger.info(f" y: {self.data.y.shape}, u: {self.data.u.shape}, r: {self.data.u.shape}")
         else:
             self.logger.info(f" y: {self.data.y.shape}, u: {self.data.u.shape}")
-
-        search = self.search_factory(search_type=self.search_type, 
-                                     center=self.fusion.center_pts, 
-                                     test_cb=self._get_search_fn(self.data.sps_type))
-        self.logger.info(f"[SPS] Search Initialized")
-        ins, outs, boundaries, hull, expanded_hull = search.search()
-        self.logger.info(f"[SPS] Search Finished")
+        while True:
+            try:
+                if self.fusion.hull:
+                    # closed loop, randomly select next set of points
+                    self.fusion.choose_random_centers(self.fusion.hull.points)
+                search = self.search_factory(search_type=self.search_type, 
+                                            center=self.fusion.center_pts, 
+                                            test_cb=self._get_search_fn(self.data.sps_type))
+                self.logger.info(f"[SPS] Search Initialized")
+                ins, outs, boundaries, hull, expanded_hull = search.search()
+                self.logger.info(f"[SPS] Search Finished")
+                break
+            except Exception:
+                self.logger.info(f"[SPS] retrying")
         # fuse
         self.fusion.fuse(new_hull=hull)
         self.logger.info(f"[SPS] Fused Regions")
 
         # get the results
-        results = self.fusion.hull.points[self.fusion.hull.vertices]
+        results = self.fusion.approximate_hull()
         A, B, C, D = self.get_ss_region(results=results)
         if self.db is not None:
             self.write_state_space_to_db(A, B, C, D)
@@ -338,7 +345,7 @@ class SPS:
         try:
             G, H , A, B, C = self.construct_gh_from_params(params)
         except Exception as e:
-            self.logger.warning(f"[SPS] not valid param. {e}")
+            self.logger.debug(f"[SPS] not valid param. {e}")
             return False
 
         # Check the condition and store the result if true
@@ -350,8 +357,8 @@ class SPS:
                                              Y_t=self.data.y, U_t=self.data.u, 
                                              sps_type=SPSType.OPEN_LOOP, Lambda=None)
         except Exception as e:
-            self.logger.warning("SPS Failed")
-            self.logger.warning(f"{e}")
+            self.logger.debug("SPS Failed")
+            self.logger.debug(f"{e}")
             in_sps = False
         self.logger.debug(f"[SPS] Params: {params}, SPS: {in_sps}")
         return in_sps
@@ -391,7 +398,7 @@ class SPS:
     def get_error_norm(self, params, Y, U):
         try:
             G, H , A, B, C = self.construct_gh_from_params(params)
-        except ValueError:
+        except Exception:
             return SPS_MAX
         if self.n_inputs==1 and self.n_outputs==1:
             Hinv = d_tfs((A, C))
