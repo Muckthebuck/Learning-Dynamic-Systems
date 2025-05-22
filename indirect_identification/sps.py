@@ -196,7 +196,7 @@ class SPS:
             try:
                 if self.fusion.hull:
                     # closed loop, randomly select next set of points
-                    self.fusion.choose_random_centers(self.fusion.hull.points)
+                    self.fusion.choose_random_centers()
                 search = self.search_factory(search_type=self.search_type, 
                                             center=self.fusion.center_pts, 
                                             test_cb=self._get_search_fn(self.data.sps_type))
