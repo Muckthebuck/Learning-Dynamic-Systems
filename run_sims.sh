@@ -20,6 +20,7 @@ usage() {
     echo "  --reference <list>                  Reference signal type (required)"
     echo "  --r_a <array>                       Reference amplitudes (required)"
     echo "  --r_f <array>                       Reference frequencies (required)"
+    echo "  --r_c <array>                       Reference y shift"
     echo "  --A <array>                         ARMAX A polynomial"
     echo "  --B <array>                         ARMAX B polynomial"
     echo "  --C <array>                         ARMAX C polynomial"
@@ -69,6 +70,7 @@ L=$(yq -o=json '.L' "$CONFIG_FILE")
 REFERENCE=$(yq -o=json '.reference' "$CONFIG_FILE")
 R_A=$(yq -o=json '.r_a' "$CONFIG_FILE")
 R_F=$(yq -o=json '.r_f' "$CONFIG_FILE")
+R_C=$(yq -o=json '.r_c' "$CONFIG_FILE")
 A=$(yq -o=json '.A // ""' "$CONFIG_FILE")
 B=$(yq -o=json '.B // ""' "$CONFIG_FILE")
 C=$(yq -o=json '.C // ""' "$CONFIG_FILE")
@@ -105,6 +107,7 @@ while [[ "$#" -gt 0 ]]; do
         --reference) REFERENCE="$2"; shift 2 ;;
         --r_a) R_A="$2"; shift 2 ;;
         --r_f) R_F="$2"; shift 2 ;;
+        --r_c) R_C="$2"; shift 2 ;;
         --A) A="$2"; shift 2 ;;
         --B) B="$2"; shift 2 ;;
         --C) C="$2"; shift 2 ;;
@@ -115,8 +118,8 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 # --- Check required args ---
-if [[ -z "$L" || -z "$REFERENCE" || -z "$R_A" || -z "$R_F" ]]; then
-    echo "Error: --L, --reference, --r_a, and --r_f are required."
+if [[ -z "$L" || -z "$REFERENCE" || -z "$R_A" || -z "$R_F" || -z "$R_C" ]]; then
+    echo "Error: --L, --reference, --r_a, --r_f, and --r_c are required."
     exit 1
 fi
 
@@ -145,6 +148,7 @@ python -m sims.sims \
     --reference "$REFERENCE" \
     --r_a "$R_A" \
     --r_f "$R_F" \
+    --r_c "$R_C" \
     --N "$N" \
     "${args[@]}"
 

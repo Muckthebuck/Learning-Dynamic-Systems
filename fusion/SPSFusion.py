@@ -15,7 +15,7 @@ class Fusion:
                  bounds: np.ndarray, 
                  num_points: np.ndarray, 
                  dim: int, 
-                 p: float = 0.95,
+                 p: float = 0.80,
                  forget: float = 0.0,
                  random_centers: int = 50):
         self.bounds = bounds
@@ -40,6 +40,9 @@ class Fusion:
         Approximate convex hull with MVEE and sample points on the ellipsoid surface.
         Auto-picks number of samples based on dimensionality.
         """
+        if self.dim == 2:
+            return self.hull.points[self.hull.vertices]
+
         points = self.hull.points[self.hull.vertices]
         if points.shape[0] < self.n_vertices:
             return points.reshape(-1,self.dim)

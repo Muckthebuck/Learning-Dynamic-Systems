@@ -19,6 +19,7 @@ from fusion.SPSFusion import Fusion
 
 SEARCH_METHODS = {"radial": RadialSearch,}
 OPTIMAL_N_VECTORS = {2: 100, 3: 400, 4: 1500}
+MAX_TRIES ={2: 5, 3: 100, 4: 300}
 SPS_MAX = 1e10
 class SPS:
     """
@@ -96,7 +97,7 @@ class SPS:
         self.fusion = Fusion(bounds=bounds, 
                              num_points=n_points, 
                              dim=self.n_params, 
-                             p=p, forget=forget, random_centers=random_centers)
+                             forget=forget, random_centers=random_centers)
 
         
     def search_factory(self, search_type: str, center: np.ndarray, test_cb: callable):
@@ -192,7 +193,10 @@ class SPS:
             self.logger.info(f" y: {self.data.y.shape}, u: {self.data.u.shape}, r: {self.data.u.shape}")
         else:
             self.logger.info(f" y: {self.data.y.shape}, u: {self.data.u.shape}")
-        while True:
+        
+        tries = 0
+        while tries < MAX_TRIES[self.n_params]:
+            tries += 1
             try:
                 if self.fusion.hull:
                     # closed loop, randomly select next set of points
@@ -208,9 +212,12 @@ class SPS:
                 self.logger.info(f"{e}")
                 self.logger.info(f"[SPS] retrying")
 
-        # fuse
-        self.fusion.fuse(new_hull=hull)
-        self.logger.info(f"[SPS] Fused Regions")
+        if tries == MAX_TRIES[self.n_params]:
+            self.logger.warning(f"[SPS] Max tries reached, skipping")
+        else:
+            # fuse
+            self.fusion.fuse(new_hull=hull)
+            self.logger.info(f"[SPS] Fused Regions")
 
         # get the results
         results = self.fusion.approximate_hull()

@@ -4,7 +4,7 @@ from optimal_controller.optimal_controls import get_optimal_controller
 from types import SimpleNamespace
 import threading
 import logging
-
+import cv2
 class Plant:
     """
     Plant class keeps a set of estimated system dynamics.
@@ -130,3 +130,60 @@ class Controller:
         return u.flatten()
 
 
+import cv2
+import numpy as np
+import threading
+import ast
+
+class LTuner:
+    def __init__(self, controller):
+        self.controller = controller
+        self.input_str = ""
+        self.running = False
+
+    def start(self):
+        if self.running:
+            print("[LTuner] Already running.")
+            return
+        self.running = True
+        thread = threading.Thread(target=self._run, daemon=True)
+        thread.start()
+
+    def _run(self):
+        cv2.namedWindow("L Input")
+        display = np.ones((100, 600), dtype=np.uint8) * 255
+
+        print("[LTuner] Enter L as a list (e.g., [1.0, -0.5]) and press ENTER. ESC to quit.")
+
+        while self.running:
+            display[:] = 255
+            cv2.putText(display, f"Enter L: {self.input_str}", (10, 60),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0), 2)
+            cv2.imshow("L Input", display)
+
+            key = cv2.waitKey(100) & 0xFF
+
+            if key == 27:  # ESC
+                self.running = False
+                break
+            elif key in (13, 10):  # ENTER
+                try:
+                    # Safely parse the list-like string
+                    values = ast.literal_eval(self.input_str)
+                    arr = np.array(values, dtype=np.float64)
+
+                    if arr.size != self.controller.L.size:
+                        print(f"[LTuner] Expected {self.controller.L.size} values, got {arr.size}.")
+                    else:
+                        self.controller.L = arr.reshape(self.controller.L.shape)
+                        print(f"[LTuner] Updated L:\n{self.controller.L}")
+                except Exception as e:
+                    print(f"[LTuner] Invalid input: {e}")
+                self.input_str = ""
+            elif key == 8:  # Backspace
+                self.input_str = self.input_str[:-1]
+            elif 32 <= key <= 126:  # Printable ASCII
+                self.input_str += chr(key)
+
+        cv2.destroyWindow("L Input")
+        print("[LTuner] Closed tuning window.")

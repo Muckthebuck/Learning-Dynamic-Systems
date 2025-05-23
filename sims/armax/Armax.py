@@ -18,7 +18,7 @@ class ARMAX:
         self.u_buffer = np.zeros(self.buffer_length)
         self.n_buffer = np.zeros(self.buffer_length)
         self.idx = 0
-
+        self.input_limit = None
         self.history = []
         self.history_limit = int(history_limit / dt)
         self.current_time = 0.0

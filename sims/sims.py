@@ -8,13 +8,14 @@ from sims.pendulum import Pendulum, CartPendulum
 from sims.water_tank import WaterTank
 from sims.car import CarlaSps
 from sims.armax import ARMAX
-from optimal_controller.controller import Plant, Controller
+from optimal_controller.controller import Plant, Controller, LTuner
 import numpy as np
 from typing import Union, List
 import logging
 import time
 import ast
 import sympy as sp
+import cv2
 
 SIM_CLASS_MAP = {
     "Pendulum": (Pendulum, np.array([np.pi/4, 0.0]), (2,1)),
@@ -43,6 +44,7 @@ class Sim:
                  reference: List[str],
                  r_a: np.ndarray,
                  r_f: np.ndarray,
+                 r_c: np.ndarray,
                  A: np.ndarray=None,
                  B: np.ndarray=None,
                  C: np.ndarray=None,
@@ -76,7 +78,7 @@ class Sim:
                                                                     plot_system=plot_system, 
                                                                     history_limit=history_limit)
             case "water_tank":
-                self.sim: WaterTank = sim(noise_std=0.0, plot_system=True, visual=True)
+                self.sim: WaterTank = sim(plot_system=True, visual=True)
             case _:
                 raise NotImplementedError
         
@@ -87,7 +89,11 @@ class Sim:
         self.reference = reference
         self.r_a=r_a
         self.r_f=r_f
+        self.r_c =r_c
         self.i=0
+
+        # tuner = LTuner(self.controller)
+        # tuner.start()  # opens the slider window
 
 
     def write_data_to_db(self, y: np.ndarray, u: np.ndarray, r: np.ndarray, sps_type: SPSType):
@@ -103,7 +109,7 @@ class Sim:
         else:
             self.logger.warning("No database provided.")
     
-    def square_wave(self, T, f, fs):
+    def square_wave(self, T, f, fs, c=0,A=1):
         """
         Generate a square wave using numpy.
 
@@ -122,11 +128,11 @@ class Sim:
                 Square wave signal
         """
         t = np.linspace(0, T, int(fs * T), endpoint=False)  # Time vector
-        y =  signal.square(2 * np.pi * f * t)
+        y =  A*signal.square(2 * np.pi * f * t) + c
         y = np.tile(y, (self.n[1], 1)).T
         return t, y
     
-    def impulse_wave(self, T, f, fs, A=40):
+    def impulse_wave(self, T, f, fs, c=0, A=40):
         """
         Generate an impulse wave.
 
@@ -145,23 +151,32 @@ class Sim:
                 Impulse wave signal
         """
         t = np.linspace(0, T, int(fs * T), endpoint=False)  # Time vector
-        y = np.zeros_like(t)                                # Initialize signal with zeros
+        y = np.zeros_like(t)+c                                # Initialize signal with zeros
         
         impulse_period = int(fs / f)                        # Samples between impulses
-        y[::impulse_period] = A                             # Set impulses at intervals
+        y[::impulse_period] = A+c                             # Set impulses at intervals
         y = np.tile(y, (self.n[1], 1)).T
         return t, y
 
-    def sim_model_response(self, T, f, input_type="square_wave"):
+    def safe_input(self,u):
+        """ 
+        Ensure input is clipped if neeeded per simulation
+        """
+        if self.sim.input_limit is not None:
+            u = np.clip(u, -self.sim.input_limit[0], self.sim.input_limit[1])
+        return u
+
+    def sim_model_response(self, T, f, A, c, input_type="square_wave"):
         def _input():
             input_funcs = {"impulse_wave": self.impulse_wave,
                            "square_wave": self.square_wave}
             if input_type not in input_funcs:
                 raise ValueError(f"Invalid input type: {input_type}. Must be one of {list(input_funcs.keys())}")
             input_func = input_funcs[input_type]
-            inputs = input_func(T=T, f=f, fs=1/self.dt)
+            inputs = input_func(T=T, f=f, fs=1/self.dt,A=A,c=c)
             return inputs
         t, u = _input()
+        u = self.safe_input(u)
         
         self.sim.set_initial_state(self.initial_state)
         y = []
@@ -172,7 +187,7 @@ class Sim:
         y = np.array(y)
         return y.reshape(self.n[0],-1), u.reshape(self.n[1],-1), t
     
-    def initialise_plant(self, T=5, f=1, input_type="square_wave"):
+    def initialise_plant(self, T=5, f=1, A=1, c=0, input_type="square_wave"):
         """
         Whack the system with square wave or impulses, send the data to DB,
         and wait for an SS update with retries before raising TimeoutError.
@@ -192,9 +207,10 @@ class Sim:
             return
 
         # Send input to DB
-        y, u, t = self.sim_model_response(T=T, f=f, input_type=input_type)
+        y, u, t = self.sim_model_response(T=T, f=f, A=A, c=c, input_type=input_type)
         self.write_data_to_db(y=y, u=u, r=None, sps_type=SPSType.OPEN_LOOP)
         curr_t = t
+        u = u.T # time by input
         n_u = u.shape[0]
         self.i = n_u
         self.logger.debug(f"[SIMS] Sending {n_u} inputs to DB")
@@ -211,26 +227,28 @@ class Sim:
 
 
     def get_r(self, i: int) -> Union[float, np.ndarray]:
-        def _get_r(r_type, f, a):
+        def _get_r(r_type, f, a, c=0):
             if r_type == "constant":
                 return a
             elif r_type == "sin":
-                return a * np.sin(2 * np.pi * f * i * self.dt)
+                return a * np.sin(2 * np.pi * f * i * self.dt) +c
             elif r_type == "square":
-                return a * np.sign(np.sin(2 * np.pi * f * i * self.dt)) 
+                return a * np.sign(np.sin(2 * np.pi * f * i * self.dt)) +c
 
         n_r = len(self.reference)
         if n_r==1:
             f = self.r_f[0]
             a = self.r_a[0]
-            return _get_r(self.reference[0], f, a)
+            c = self.r_c[0]
+            return _get_r(self.reference[0], f, a,c)
         else:
             r = np.zeros(n_r)
             for i in range(n_r):
                 f = self.r_f[i]
                 a = self.r_a[i]
+                c = self.r_c[i]
                 r_type = self.reference[i]
-                r[i] = _get_r(r_type, f, a)
+                r[i] = _get_r(r_type, f, a, c)
             return r
 
 
@@ -251,6 +269,7 @@ class Sim:
             # get the controller output
             r = self.get_r(self.i)
             u = self.controller.get_u(state, r=r)
+            u = self.safe_input(u)
             if self.n[1] == 1 and type(u)==np.ndarray:
                 u = u[0]
             # history management and write to DB
@@ -278,6 +297,8 @@ class Sim:
             y, done, state = self.sim.step(u=u, t=self.i* self.dt, full_state=True,r=r)
             self.i+=1
             if done or self.i-start_i>=n_iters:
+                cv2.destroyAllWindows()
+                self.logger.info("[Sim] Simulation finished")
                 break
 
         self.sim.show_final_plot()
@@ -334,6 +355,7 @@ def parse_sim_args(raw_args: List[str] = None) -> argparse.Namespace:
     parser.add_argument("--reference", type=parse_ref_list, required=True, help="reference wave, if constant must give --r_a is used as the value")
     parser.add_argument("--r_a", type=parse_array_sym, required=True, help="Amplitude of the reference signal")
     parser.add_argument("--r_f", type=parse_array, required=True, help="Frequency of the reference signal")
+    parser.add_argument("--r_c", type=parse_array, required=True, help="vertical shift of reference signal")
     parser.add_argument("--A",type=parse_array, help="ARMAX sim A polynomial")
     parser.add_argument("--B",type=parse_array, help="ARMAX sim B polynomial")
     parser.add_argument("--C",type=parse_array, help="ARMAX sim C polynomial")
@@ -371,6 +393,7 @@ def run_simulation(raw_args=None, db: Database = None, logger: logging.Logger = 
         reference=args.reference,
         r_a = args.r_a,
         r_f = args.r_f,
+        r_c = args.r_c,
         A=args.A,
         B=args.B,
         C=args.C
@@ -378,7 +401,10 @@ def run_simulation(raw_args=None, db: Database = None, logger: logging.Logger = 
 
     logger.info("[Init] Simulation instance created")
     T = (args.N+100)*args.dt
-    simulation.initialise_plant(T=T, f=args.r_f, input_type="square_wave")
+    if args.sim == "water_tank":
+        simulation.initialise_plant(T=T, f=2.0, A=0.5, input_type="square_wave")
+    else:
+        simulation.initialise_plant(T=T, f=args.r_f[0], A=args.r_a[0], input_type="square_wave")
     simulation.run()
 
  
