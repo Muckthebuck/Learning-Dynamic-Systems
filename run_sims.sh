@@ -56,7 +56,8 @@ fi
 
 # --- Load YAML config ---
 if ! command -v yq &>/dev/null; then
-    echo "yq is required to load YAML config. Please install it."
+    echo "Error: 'yq' not found. Install it to use YAML config support.
+       Install from https://github.com/mikefarah/yq/tree/v4.45.4"
     exit 1
 fi
 
