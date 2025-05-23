@@ -52,6 +52,7 @@ class Sim:
                  Q: np.ndarray = None,
                  R: np.ndarray = None,
                  db: Database = None,
+                 buffer_delay: int = 10,
                  logger: logging.Logger = None):
         self.logger = logger if logger else logging.getLogger(__name__)
         self.T = T
@@ -66,6 +67,7 @@ class Sim:
         n_o,n_i = self.n
         self.n = (n_o,n_i,n_r)
         self.initial_state = state
+        self.buffer_delay = buffer_delay
 
         match sim_type:
             case "armax":
@@ -267,6 +269,7 @@ class Sim:
         history_r = []
         n_iters = int(self.T/self.dt) if self.T>0 else np.inf
         start_i = self.i
+        buffer_delay = self.buffer_delay
         while True:
             # get the controller output
             r = self.get_r(self.i)
@@ -284,12 +287,15 @@ class Sim:
             history_y.append(y.copy())
             history_u.append(u.copy())
             history_r.append(r.copy())
-            if self.controller.heard_back and len(history_y) == buffer_len:
+            if self.controller.heard_back and buffer_delay>0:
+                buffer_delay -= 1
+            if self.controller.heard_back and buffer_delay<=0 and len(history_y)==buffer_len:
                 self.write_data_to_db(y=np.array(history_y).reshape(self.n[0],buffer_len), 
                                       u=np.array(history_u).reshape(self.n[1],buffer_len), 
                                       r=np.array(history_r).reshape(self.n[2],buffer_len), 
                                       sps_type=SPSType.CLOSED_LOOP)
                 self.controller.heard_back = False
+                buffer_delay = self.buffer_delay
                 
                 history_y = []
                 history_u = []

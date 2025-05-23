@@ -7,8 +7,10 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from optimal_controller.lowres_MVEE import LowResMVEE
 import logging
-EPS = 1e-12
 
+EPS = 1e-12
+MAX_LOG = 700.0
+MIN_LOG = -700.0
 
 class Fusion:
     def __init__(self, 
@@ -17,19 +19,25 @@ class Fusion:
                  dim: int, 
                  p: float = 0.80,
                  forget: float = 0.0,
-                 random_centers: int = 50):
+                 random_centers: int = 50, 
+                 fusion_prob: float = 0.95,
+                 steepness: float = 100.0):
         self.bounds = bounds
         self.X: np.ndarray = self.sample_uniform_combinations_meshgrid(bounds, num_points,dim)
         self.dim: float = dim
         self.hull: ConvexHull = None
         self.curr_p_map: np.ndarray = None
         self.p: float = p
+        self.fusion_prob: float = fusion_prob
         self.forget: float = forget
         self.new_update: bool = False
         self.step: int = 0
         self.n_centers: int = random_centers
+        self.steepness: float = steepness
         self.center_pts: np.ndarray = None
         self.n_vertices = max(10 * self.dim, self.dim ** 2)
+        self.best_points_reached = False
+        self.selected_pts = None
         if self.dim >= 3:
             self.pca = PCA(n_components=2)
             self.proj = self.pca.fit_transform(self.X)
@@ -41,6 +49,8 @@ class Fusion:
         Auto-picks number of samples based on dimensionality.
         """
         if self.dim == 2:
+            if self.best_points_reached:
+                return self.selected_pts
             return self.hull.points[self.hull.vertices]
 
         points = self.hull.points[self.hull.vertices]
@@ -72,15 +82,41 @@ class Fusion:
         points = np.stack(mesh, axis=-1).reshape(-1, d)
         return points
 
-    def fuse(self, new_hull: ConvexHull):
+    def fuse(self, new_hull: ConvexHull, ins: np.ndarray):
+        # checkl if the new hull is degenerate
+        if new_hull is None or new_hull.equations.shape[0] < self.dim:
+            # could be that ins is empty, in this case, skip
+            if ins is None or ins.shape[0] == 0:
+                logging.warning("[Fusion] Skipping fusion: hull is degenerate (no points).")
+                return
+            # if ins not empty, then we can use it the way it is as selected points
+            # attempt to create a convex hull
+            ins = np.unique(ins, axis=0)
+            hull = ConvexHull(ins)
+            if hull.equations.shape[0] < self.dim:
+                logging.warning(f"[Fusion] Skipping fusion: hull is degenerate ({hull.equations.shape[0]} vertices).")
+                return
+                
         if self.hull is not None:
-            p_B = point_in_hull_prob(self.X, new_hull.equations, p=self.p)
-            self.curr_p_map = fuse_numba(new_info=p_B, prior=self.curr_p_map, forget=self.forget)
+            p_B = point_in_hull_likelihood(self.X, new_hull.equations, p=self.p, steepness=self.steepness)
+            # If the new likelihood is too flat, skip
+            if np.max(p_B) - np.min(p_B) < 1e-6:
+                logging.info("[Fusion] Skipping fusion: Likelihood update is too weak (flat).")
+                return
+            self.curr_p_map = fuse_numba(new_info_log=p_B, prior_log=self.curr_p_map, forget=self.forget)
             selected_pts = sample_conf_region_from_points(self.X, self.curr_p_map, cumprob=self.p)
+            # If too few points, skip hull update
+            if selected_pts.shape[0] <= self.dim:
+                logging.warning(f"[Fusion] Skipping fusion: too few points ({selected_pts.shape[0]}) to form convex hull.")
+                logging.info(f"[Fusion] the selected points are stored in self.selected_pts")
+                self.selected_pts = selected_pts
+                self.best_points_reached = True
+                return
             self.hull = ConvexHull(selected_pts)
         else:
-            self.hull = new_hull
-            self.curr_p_map = point_in_hull_prob(self.X, new_hull.equations, p=self.p)
+            self.curr_p_map = point_in_hull_likelihood(self.X, new_hull.equations, p=self.p, steepness=self.steepness)
+            selected_pts = sample_conf_region_from_points(self.X, self.curr_p_map, cumprob=self.fusion_prob)
+            self.hull = ConvexHull(selected_pts)
         self.step+=1
         self.new_update = True
 
@@ -151,7 +187,7 @@ class Fusion:
                 self.ax.set_xlim(xlim)
                 self.ax.set_ylim(ylim)
 
-        self.colorbar = self.fig.colorbar(self.scatter, ax=self.ax, label='Fused Posterior Probability')
+        self.colorbar = self.fig.colorbar(self.scatter, ax=self.ax, label='Fused Posterior Probabilities')
 
         self.fig.canvas.draw()
         plt.show(block=False)
@@ -160,14 +196,14 @@ class Fusion:
         if not self.new_update or self.curr_p_map is None:
             plt.pause(1.0)  # keep GUI responsive
             return  # No update needed or nothing to plot
-
+        normalised_probs = log_probs_to_normalized_probs(self.curr_p_map)
         MAX_POINTS_TO_PLOT = 10000  # adjustable upper limit
-        vmin = np.min(self.curr_p_map)
-        vmax = np.max(self.curr_p_map)
+        vmin = np.min(normalised_probs)
+        vmax = np.max(normalised_probs)
 
         if self.dim == 2:
             self.scatter.set_offsets(self.X)
-            self.scatter.set_array(self.curr_p_map)
+            self.scatter.set_array(normalised_probs)
 
             segments = [
                 [self.hull.points[simplex[0]], self.hull.points[simplex[1]]]
@@ -180,11 +216,11 @@ class Fusion:
                 threshold = (vmin + vmax) / 2
                 if np.abs(vmin-vmax)<EPS:
                     points = self.proj
-                    values = self.curr_p_map
+                    values = normalised_probs
                 else:
-                    mask = np.abs(self.curr_p_map-threshold) > EPS
+                    mask = np.abs(normalised_probs-threshold) > EPS
                     points = self.proj[mask]
-                    values = self.curr_p_map[mask]
+                    values = normalised_probs[mask]
 
                 if points.shape[0] > MAX_POINTS_TO_PLOT:
                     idx = np.random.choice(points.shape[0], size=MAX_POINTS_TO_PLOT, replace=False)
@@ -206,91 +242,102 @@ class Fusion:
         plt.pause(0.005)
 
 
+@numba.njit(inline='always')
+def logsumexp_two(a, b):
+    m = max(a, b)
+    return m + np.log(np.exp(a - m) + np.exp(b - m))
 
+@numba.njit(cache=True, fastmath=True)
+def cumulative_logsumexp(log_probs):
+    n = log_probs.shape[0]
+    cum_logsumexp = np.empty(n, dtype=np.float64)
+    cum_logsumexp[0] = log_probs[0]
+    for i in range(1, n):
+        cum_logsumexp[i] = logsumexp_two(cum_logsumexp[i-1], log_probs[i])
+    return cum_logsumexp
 
+@numba.njit(cache=True, fastmath=True)
+def log_probs_to_normalized_probs(log_probs):
+    max_log = np.max(log_probs)
+    stabilized = np.exp(log_probs - max_log)
+    s = np.sum(stabilized)
+    return stabilized / s
+
+# @numba.njit(cache=True, fastmath=True)
+# def sample_conf_region_from_points(points: np.ndarray, probs: np.ndarray, cumprob: float = 0.95):
+#     """
+#     Select points above a certain percentile threshold from unnormalized probabilities.
+
+#     Args:
+#         points: ndarray of shape (N, D)
+#         probs: ndarray of shape (N,) — unnormalized likelihoods
+#         cumprob: float — desired retention percentile (e.g., 0.95 keeps top 5%)
+
+#     Returns:
+#         selected_points: ndarray of shape (M, D)
+#     """
+#     assert 0.0 < cumprob <= 1.0
+
+#     # Find the percentile threshold (top `cumprob` mass)
+#     threshold = np.percentile(probs, 100 * (1 - cumprob))
+
+#     # Select points above this threshold
+#     mask = probs >= threshold
+#     return points[mask]
+@numba.njit(cache=True, fastmath=True)
+def sample_conf_region_from_points(points: np.ndarray, log_probs: np.ndarray, cumprob: float = 0.95):
+    probs = np.exp(log_probs - np.max(log_probs))  # normalize for stability
+
+    threshold = np.percentile(probs, cumprob * 100)
+    mask = probs >= threshold
+    return points[mask]
 
 
 @numba.njit(cache=True, fastmath=True)
-def sample_conf_region_from_points(points: np.ndarray, probs: np.ndarray, cumprob: float = 0.95):
-    """
-    Select the most probable subset of points until the cumulative probability reaches `cumprob`.
-
-    Args:
-        points: ndarray of shape (N, D) — raw coordinates.
-        probs: ndarray of shape (N,) — probabilities associated with each point.
-        cumprob: float — desired cumulative probability (e.g., 0.95).
-
-    Returns:
-        selected_points: ndarray of shape (M, D) where M <= N
-        actual_cumprob: float — cumulative probability of selected points
-    """
-    assert points.shape[0] == probs.shape[0], "Mismatch between number of points and probabilities"
-    probs = probs / probs.sum()  # Ensure normalization
-
-    # Sort probabilities descending
-    sorted_indices = np.argsort(probs)[::-1]
-    sorted_probs = probs[sorted_indices]
-    sorted_points = points[sorted_indices]
-
-    # Cumulative sum to determine cutoff
-    cum_probs = np.cumsum(sorted_probs)
-    cutoff_idx = np.searchsorted(cum_probs, cumprob, side='right')
-
-    selected_points = sorted_points[:cutoff_idx + 1]
-    actual_cumprob = cum_probs[cutoff_idx]
-
-    return selected_points
-
-@numba.njit(cache=True, fastmath=True)
-def point_in_hull_prob(points, equations, p):
-    """
-    points: (N, d)
-    equations: (M, d+1), rows are [normal, offset]
-    p: probability assigned to points inside the hull
-
-    Returns:
-        normalized_probs: (N,) np.ndarray of probabilities normalized to sum to 1
-        inside: (N,) np.ndarray of bools for inside hull
-    """
+def point_in_hull_likelihood(points, equations, p, steepness=100.0):
     N, d = points.shape
     M = equations.shape[0]
-    inside = np.ones(N, dtype=numba.boolean)
-    probs = np.empty(N, dtype=np.float64)
+    log_probs = np.empty(N, dtype=np.float64)
+
+    log_p = np.log(max(p, EPS))  # base log prob inside hull
 
     for i in range(N):
-        is_inside = True
+        max_violation = -np.inf
         for j in range(M):
             val = 0.0
             for k in range(d):
                 val += equations[j, k] * points[i, k]
             val += equations[j, -1]
-            if val > EPS:
-                is_inside = False
-                break
-        inside[i] = is_inside
-        probs[i] = p if is_inside else (1.0 - p)
+            if val > max_violation:
+                max_violation = val
 
-    prob_sum = np.sum(probs)
-    if prob_sum > 0:
-        probs /= prob_sum
-    return probs
+        if max_violation <= 0.0:
+            # inside hull, uniform score
+            log_probs[i] = log_p
+        else:
+            # outside hull, decaying sigmoid
+            val = max(MIN_LOG, min(MAX_LOG, steepness * max_violation))
+            prob = 1.0 / (1.0 + np.exp(val))
+            prob = max(prob, EPS)
+            log_probs[i] = np.log(prob)
+
+    return log_probs
+
 
 @numba.njit(cache=True, fastmath=True)
-def fuse_numba(new_info: np.ndarray, prior: np.ndarray, forget = 0.0):
-    # https://en.wikipedia.org/wiki/Recursive_Bayesian_estimation#Model
-    #  - not sure how to theoretically justify the forgetting factor part
+def fuse_numba(new_info_log: np.ndarray, prior_log: np.ndarray, forget=0.0):
+    new_info_log = np.clip(new_info_log, MIN_LOG, MAX_LOG)
+    prior_log = np.clip(prior_log, MIN_LOG, MAX_LOG)
+    if forget == 0.0:
+        # Clamp to avoid overflow/underflow
+        return new_info_log + prior_log
 
-    # forget: forgetting factor such that
-    #   1 = disregard all past data
-    #   0 = assume past data is always relevant (no change in plant over time)
+    prior = np.exp(prior_log)
+    mean_prior = np.mean(prior)
+    modified_prior = mean_prior * forget + prior * (1 - forget)
+    modified_prior = np.maximum(modified_prior, EPS)
+    modified_prior_log = np.log(modified_prior)
+    modified_prior_log = np.clip(modified_prior_log, MIN_LOG, MAX_LOG)
 
-    if not 0.0 <= forget <= 1.0:
-        forget = max(min(forget, 1), 0)
-        
-    modified_prior = np.mean(prior) * np.ones(prior.shape) * forget + prior * (1-forget)
-    posterior = np.multiply(modified_prior, new_info) # Hadamard product
-    posterior /= np.sum(np.abs(posterior)) # normalisation
-    posterior = np.maximum(EPS, posterior) # to avoid floating point error, this is the new "zero" value
-    return posterior
-
-
+    posterior_log = modified_prior_log + new_info_log
+    return posterior_log

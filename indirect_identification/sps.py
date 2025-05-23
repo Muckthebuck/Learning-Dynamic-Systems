@@ -97,7 +97,7 @@ class SPS:
         self.fusion = Fusion(bounds=bounds, 
                              num_points=n_points, 
                              dim=self.n_params, 
-                             forget=forget, random_centers=random_centers)
+                             forget=forget, random_centers=random_centers, p=p)
 
         
     def search_factory(self, search_type: str, center: np.ndarray, test_cb: callable):
@@ -216,7 +216,8 @@ class SPS:
             self.logger.warning(f"[SPS] Max tries reached, skipping")
         else:
             # fuse
-            self.fusion.fuse(new_hull=hull)
+            ins = np.concatenate([ins, boundaries], axis=0)
+            self.fusion.fuse(new_hull=hull, ins=ins)
             self.logger.info(f"[SPS] Fused Regions")
 
         # get the results
