@@ -19,7 +19,7 @@ from fusion.SPSFusion import Fusion
 
 SEARCH_METHODS = {"radial": RadialSearch,}
 OPTIMAL_N_VECTORS = {2: 100, 3: 400, 4: 1500}
-MAX_TRIES ={2: 5, 3: 100, 4: 300}
+MAX_TRIES ={2: 10, 3: 100, 4: 300}
 SPS_MAX = 1e10
 class SPS:
     """

@@ -69,7 +69,8 @@ class Controller:
     """
     Controller class handles the control of the cart-pendulum system.
     """
-    def __init__(self, plant: Plant, L: np.ndarray, type: str = "lqr", n: tuple = (2, 1)):
+    def __init__(self, plant: Plant, L: np.ndarray, type: str = "lqr", n: tuple = (2, 1), 
+                 Q: np.ndarray= None, R: np.ndarray = None):
         """
         Initializes the controller with the plant model.
 
@@ -77,8 +78,14 @@ class Controller:
             plant (CartPendulumPlant): Plant model instance.
         """
         self.plant = plant
-        self.Q = 0.4 * np.eye(n[0])
-        self.R = np.eye(n[1])
+        if Q is None:
+            self.Q = 0.4 * np.eye(n[0])
+        else:
+            self.Q = Q
+        if R is None:
+            self.R = 1.0 * np.eye(n[1])
+        else:
+            self.R = R
         self.L = L
         if self.plant.initialised:
             self.K = self.design_lqr()

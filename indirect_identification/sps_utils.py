@@ -16,7 +16,7 @@ all = [
 #---------------------------------------------------------------------------
 # helper funcs used in sps.py
 #---------------------------------------------------------------------------
-@njit
+@njit(cache=True, fastmath=True)
 def get_max_radius(bounds):
     r_min = 1e10
     for i in range(bounds.shape[0]):

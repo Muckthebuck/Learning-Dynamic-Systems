@@ -17,6 +17,8 @@ usage() {
     echo "  --disturbance <float>               Disturbance force"
     echo "  --controller <str>                  Controller type (default: lqr)"
     echo "  --L <array>                         Reference gain (required)"
+    echo "  --Q <array>                         State cost matrix"
+    echo "  --R <array>                         Control cost matrix"
     echo "  --reference <list>                  Reference signal type (required)"
     echo "  --r_a <array>                       Reference amplitudes (required)"
     echo "  --r_f <array>                       Reference frequencies (required)"
@@ -67,6 +69,8 @@ DB_FILE=$(yq '.dB' "$CONFIG_FILE")
 DISTURBANCE=$(yq '.disturbance' "$CONFIG_FILE")
 CONTROLLER=$(yq '.controller' "$CONFIG_FILE")
 L=$(yq -o=json '.L' "$CONFIG_FILE")
+Q=$(yq '.Q' "$CONFIG_FILE")
+R=$(yq '.R' "$CONFIG_FILE")
 REFERENCE=$(yq -o=json '.reference' "$CONFIG_FILE")
 R_A=$(yq -o=json '.r_a' "$CONFIG_FILE")
 R_F=$(yq -o=json '.r_f' "$CONFIG_FILE")
@@ -104,6 +108,8 @@ while [[ "$#" -gt 0 ]]; do
         --disturbance) DISTURBANCE="$2"; shift 2 ;;
         --controller) CONTROLLER="$2"; shift 2 ;;
         --L) L="$2"; shift 2 ;;
+        --Q) Q="$2"; shift 2 ;;
+        --R) R="$2"; shift 2 ;;
         --reference) REFERENCE="$2"; shift 2 ;;
         --r_a) R_A="$2"; shift 2 ;;
         --r_f) R_F="$2"; shift 2 ;;
@@ -145,6 +151,8 @@ python -m sims.sims \
     --disturbance "$DISTURBANCE" \
     --controller "$CONTROLLER" \
     --L "$L" \
+    --Q "$Q" \
+    --R "$R" \
     --reference "$REFERENCE" \
     --r_a "$R_A" \
     --r_f "$R_F" \

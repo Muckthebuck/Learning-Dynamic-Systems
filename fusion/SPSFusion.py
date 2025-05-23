@@ -84,19 +84,40 @@ class Fusion:
         self.step+=1
         self.new_update = True
 
-    
-    def choose_random_centers(self):
+    def sample_points(self, n_points: int = 1000):
+        """
+        Sample points inside and outside the convex hull.
+        """
+        if self.hull is None:
+            raise ValueError("Convex hull not defined. Call fuse() first.")
         selected_pts = self.hull.points
         n = selected_pts.shape[0]
+        n_inside = int(self.p*self.n_centers)
+        outside = self.n_centers - n_inside
+
+        outside = np.random.uniform(low=self.bounds[:, 0], high=self.bounds[:, 1], size=(outside, self.dim))
         if n>self.n_centers:
-            idx = np.random.choice(n, size=self.n_centers, replace=False)
-            self.center_pts = selected_pts[idx].reshape(-1, self.dim)
-        elif n <= self.dim:
-            combined_pts = np.concatenate([selected_pts, self.hull.points[self.hull.vertices]], axis=0)
-            self.center_pts = combined_pts.reshape(-1, self.dim)
+            # inside points
+            idx = np.random.choice(n, size=n_inside, replace=False)
+            inside = selected_pts[idx].reshape(-1, self.dim)
         else:
-            self.center_pts=selected_pts.reshape(-1, self.dim)
+            combined_pts = np.concatenate([selected_pts, self.hull.points[self.hull.vertices]], axis=0)
+            inside = np.random.choice(combined_pts.shape[0], size=n_inside, replace=False)
+            inside = combined_pts[inside].reshape(-1, self.dim)
+            
+        return inside, outside
+
+    
+    def choose_random_centers(self):
+        """
+        Choose random centers from the convex hull vertices.
+        """
+        if self.hull is None:
+            raise ValueError("Convex hull not defined. Call fuse() first.")
+        inside, outside = self.sample_points(self.n_centers)
+        self.center_pts = np.concatenate([inside, outside], axis=0)
         logging.info(f"[Fusion] Random centers  set {self.center_pts.shape}")
+
     def initialise_plot(self):
         """
         Initialise interactive plot and setup figure, including PCA projection for dim > 3.
@@ -189,7 +210,7 @@ class Fusion:
 
 
 
-@numba.njit
+@numba.njit(cache=True, fastmath=True)
 def sample_conf_region_from_points(points: np.ndarray, probs: np.ndarray, cumprob: float = 0.95):
     """
     Select the most probable subset of points until the cumulative probability reaches `cumprob`.
@@ -220,7 +241,7 @@ def sample_conf_region_from_points(points: np.ndarray, probs: np.ndarray, cumpro
 
     return selected_points
 
-@numba.njit
+@numba.njit(cache=True, fastmath=True)
 def point_in_hull_prob(points, equations, p):
     """
     points: (N, d)
@@ -254,7 +275,7 @@ def point_in_hull_prob(points, equations, p):
         probs /= prob_sum
     return probs
 
-@numba.njit
+@numba.njit(cache=True, fastmath=True)
 def fuse_numba(new_info: np.ndarray, prior: np.ndarray, forget = 0.0):
     # https://en.wikipedia.org/wiki/Recursive_Bayesian_estimation#Model
     #  - not sure how to theoretically justify the forgetting factor part

@@ -49,6 +49,8 @@ class Sim:
                  B: np.ndarray=None,
                  C: np.ndarray=None,
                  L = None,
+                 Q: np.ndarray = None,
+                 R: np.ndarray = None,
                  db: Database = None,
                  logger: logging.Logger = None):
         self.logger = logger if logger else logging.getLogger(__name__)
@@ -85,7 +87,7 @@ class Sim:
         self.db = db if db else Database(dB)
         db_name = self.db.db_name
         self.controller_plant = Plant(dt=dt, db=db_name)
-        self.controller = Controller(plant=self.controller_plant, type=controller, n=self.n, L=L)
+        self.controller = Controller(plant=self.controller_plant, type=controller, n=self.n, L=L, Q=Q, R=R)
         self.reference = reference
         self.r_a=r_a
         self.r_f=r_f
@@ -352,6 +354,8 @@ def parse_sim_args(raw_args: List[str] = None) -> argparse.Namespace:
     parser.add_argument("--apply_disturbance", action="store_true", help="Apply disturbance")
     parser.add_argument("--controller", type=str, default="lqr", help="Controller type")
     parser.add_argument("--L", type=parse_array, required=True, help="Reference gain")
+    parser.add_argument("--Q", type=parse_array, help="Q matrix for LQR")
+    parser.add_argument("--R", type=parse_array, help="R matrix for LQR")
     parser.add_argument("--reference", type=parse_ref_list, required=True, help="reference wave, if constant must give --r_a is used as the value")
     parser.add_argument("--r_a", type=parse_array_sym, required=True, help="Amplitude of the reference signal")
     parser.add_argument("--r_f", type=parse_array, required=True, help="Frequency of the reference signal")
@@ -388,6 +392,8 @@ def run_simulation(raw_args=None, db: Database = None, logger: logging.Logger = 
         apply_disturbance=args.apply_disturbance,
         controller=args.controller,
         L=args.L,
+        Q=args.Q,
+        R=args.R,
         db=db,
         logger=logger, 
         reference=args.reference,

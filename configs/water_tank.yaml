@@ -9,10 +9,12 @@ dB: sim_data.db
 apply_disturbance: true
 disturbance: 50
 controller: lqr
-L: [[0.4]] # 2.7 x optimal F
-reference: [sin]
+L: [[1.4]] # 2.7 x optimal F
+Q: [[1.0]] # 2.7 x optimal F
+R: [[0.2]]
+reference: [square]
 r_a: [0.55] # when using constant reference
-r_f: [0.07]
+r_f: [0.04]
 r_c: [1.0]
 # sps args
 n_A: 1
@@ -33,4 +35,4 @@ Lambda: [[1, 0], [0, 1]]
 search: radial # grid or radial
 bounds: [[-1.2,-0.8], [-0.2, 0.2]]
 forget: 0.01
-random_centers: 200
+random_centers: 100
