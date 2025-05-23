@@ -6,7 +6,7 @@ from typing import Tuple, Optional, Union
 class WaterTank:
     def __init__(self, dt=0.01, history_limit=10, noise_std=0.05, plot_system=True, visual=True,
                  vis_width=800, vis_height=600, padding_left=100, padding_right=100,
-                 padding_top=80, padding_bottom=80, tank_height_m=2.0, tank_width_m=1.0):
+                 padding_top=80, padding_bottom=80, tank_height_m=2.0, tank_width_m=1.0, g= 9.81):
 
         self.dt = dt
         self.noise_std = noise_std
@@ -22,7 +22,7 @@ class WaterTank:
         self.inflow = 0.0
         self.input_limit = np.array([0.0, 2.0])
         self.done = False
-
+        self.g = 9.81  # gravity constant
         # Real dimensions in meters
         self.tank_height_m = tank_height_m
         self.tank_width_m = tank_width_m
@@ -41,7 +41,7 @@ class WaterTank:
         self.tank_img = np.ones((self.vis_height, self.vis_width, 3), dtype=np.uint8) * 255
         self.leak_trails = []
 
-        self.punch_hole(rate=0.1)
+        self.punch_hole()
 
         if plot_system:
             self._init_plot()
@@ -104,7 +104,7 @@ class WaterTank:
                     self.holes.pop(min_idx)
                     self.leak_trails.pop(min_idx)
 
-    def punch_hole(self, rate=0.1, y=None, y_m=None):
+    def punch_hole(self, rate=0.5, y=None, y_m=None):
         tank_bottom = self.vis_height - self.padding_bottom
         tank_top = self.padding_top
 
@@ -141,11 +141,11 @@ class WaterTank:
             hole_height_m = (tank_bottom - hole['y']) / self.pixels_per_meter  # convert pixel to meters
             if self.level > hole_height_m:
                 h = self.level - hole_height_m
-                leak += hole['rate'] * np.sqrt(h)
+                leak += hole['rate'] * np.sqrt(2*self.g*h)
 
         delta = u - leak  # u and leak must be consistent units (m/s height rate)
         self.level += delta * self.dt
-        self.level = np.clip(self.level, 0, self.tank_height_m)
+        self.level = np.clip(self.level, 0.0, self.tank_height_m)
 
 
         self.inflow = max(0.0, u)
@@ -181,8 +181,11 @@ class WaterTank:
         tank_top = self.padding_top
         tank_bottom = self.vis_height - self.padding_bottom
         water_top = int(tank_bottom - self.level * self.pixels_per_meter)
-        self._draw_rounded_gradient_rect(img, (tank_left+2, water_top), (tank_right-2, tank_bottom-1),
-                                top_color=(255, 230, 180), bottom_color=(255, 200, 100), radius=20)
+
+        if np.abs(self.level)>0.01:
+            # Draw water level
+            self._draw_rounded_gradient_rect(img, (tank_left+2, water_top), (tank_right-2, tank_bottom-1),
+                                    top_color=(255, 230, 180), bottom_color=(255, 200, 100), radius=20)
 
         # Friendly outline color
         self._draw_rounded_rect(img, (tank_left, tank_top), (tank_right, tank_bottom), (120, 120, 120), thickness=3, radius=25)

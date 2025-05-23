@@ -402,7 +402,7 @@ def run_simulation(raw_args=None, db: Database = None, logger: logging.Logger = 
     logger.info("[Init] Simulation instance created")
     T = (args.N+100)*args.dt
     if args.sim == "water_tank":
-        simulation.initialise_plant(T=T, f=2.0, A=0.5, input_type="square_wave")
+        simulation.initialise_plant(T=T, f=2.0, A=1.0, input_type="square_wave")
     else:
         simulation.initialise_plant(T=T, f=args.r_f[0], A=args.r_a[0], input_type="square_wave")
     simulation.run()
