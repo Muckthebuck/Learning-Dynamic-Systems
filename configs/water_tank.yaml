@@ -10,7 +10,7 @@ apply_disturbance: true
 disturbance: 50
 controller: lqr
 L: [[0.8]] # 2.7 x optimal F
-Q: [[0.8]] # 2.7 x optimal F
+Q: [[0.9]] # 2.7 x optimal F
 R: [[0.2]]
 reference: [square]
 r_a: [0.55] # when using constant reference

@@ -198,6 +198,7 @@ class SPS:
             self.logger.info(f" y: {self.data.y.shape}, u: {self.data.u.shape}")
         
         tries = 0
+        self.fusion.reset_used_idx_set()
         while tries < MAX_TRIES[self.n_params]:
             tries += 1
             try:
@@ -220,7 +221,10 @@ class SPS:
 
         if tries == MAX_TRIES[self.n_params]:
             self.logger.warning(f"[SPS] Max tries reached, skipping")
+            self.fusion.reset_last_successful_centers()
         else:
+            # successful search
+            self.fusion.last_succesfull_centers = self.fusion.center_pts
             # fuse
             ins = np.concatenate([ins, boundaries], axis=0)
             self.fusion.fuse(new_hull=hull, ins=ins)
@@ -283,12 +287,13 @@ class SPS:
         try:
             G, H, A, B, C = self.construct_gh_from_params(params.flatten())
             # # closed loop stability check if controller is not None
-            # if self.controller.F is not None and self.controller.L is not None:
-            #     self.model.transform_to_open_loop(G=G, H=H,F=self.controller.F, L=self.controller.L)
-            return True
+            if self.controller.F is not None and self.controller.L is not None:
+                self.model.transform_to_open_loop(G=G, H=H,F=self.controller.F, L=self.controller.L)
         except Exception as e:
             self.logger.debug(f"[SPS] not valid param. {e}")
             return False
+        
+        return True
 
     def construct_gh_from_params(self, params):
         """
