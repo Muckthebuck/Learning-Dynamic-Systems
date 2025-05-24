@@ -100,7 +100,7 @@ class SPS:
                              forget=forget, 
                              random_centers=random_centers, 
                              steepness= steepness, 
-                             p=p)
+                             p=p, fn_stability_check= self.stability_check)
 
         
     def search_factory(self, search_type: str, center: np.ndarray, test_cb: callable):
@@ -204,6 +204,9 @@ class SPS:
                 if self.fusion.hull:
                     # closed loop, randomly select next set of points
                     self.fusion.choose_random_centers()
+                    if self.fusion.center_pts.shape[0] == 0:
+                        self.logger.warning(f"[SPS] No centers found, skipping")
+                        raise RuntimeError("[SPS] No centers found for SPS search. Trying again.")
                 search = self.search_factory(search_type=self.search_type, 
                                             center=self.fusion.center_pts, 
                                             test_cb=self._get_search_fn(self.data.sps_type))

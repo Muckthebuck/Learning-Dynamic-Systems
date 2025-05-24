@@ -17,11 +17,13 @@ class Fusion:
                  bounds: np.ndarray, 
                  num_points: np.ndarray, 
                  dim: int, 
+                 fn_stability_check: callable,
                  p: float = 0.80,
                  forget: float = 0.0,
                  random_centers: int = 50, 
-                 fusion_prob: float = 0.99,
-                 steepness: float = 100.0):
+                 fusion_prob: float = 0.95,
+                 steepness: float = 100.0,
+                 ):
         
         self.bounds = bounds
         self.X: np.ndarray = self.sample_uniform_combinations_meshgrid(bounds, num_points,dim)
@@ -39,6 +41,7 @@ class Fusion:
         self.n_vertices = max(10 * self.dim, self.dim ** 2)
         self.best_points_reached = False
         self.selected_pts = None
+        self.fn_stability_check = fn_stability_check
         if self.dim >= 3:
             self.pca = PCA(n_components=2)
             self.proj = self.pca.fit_transform(self.X)
@@ -51,8 +54,8 @@ class Fusion:
         """
         if self.dim == 2:
             if self.best_points_reached:
-                return self.selected_pts
-            return self.hull.points[self.hull.vertices]
+                return self.filter_points(self.selected_pts)
+            return self.filter_points(self.hull.points[self.hull.vertices])
 
         points = self.hull.points[self.hull.vertices]
         if points.shape[0] < self.n_vertices:
@@ -105,7 +108,7 @@ class Fusion:
                 logging.info("[Fusion] Skipping fusion: Likelihood update is too weak (flat).")
                 return
             self.curr_p_map = fuse_numba(new_info_log=p_B, prior_log=self.curr_p_map, forget=self.forget)
-            selected_pts = sample_conf_region_from_points(self.X, self.curr_p_map, cumprob=self.p)
+            selected_pts = sample_conf_region_from_points(self.X, self.curr_p_map, cumprob=self.fusion_prob)
             # If too few points, skip hull update
             if selected_pts.shape[0] <= self.dim:
                 logging.warning(f"[Fusion] Skipping fusion: too few points ({selected_pts.shape[0]}) to form convex hull.")
@@ -120,7 +123,17 @@ class Fusion:
             self.hull = ConvexHull(selected_pts)
         self.step+=1
         self.new_update = True
-
+    def filter_points(self, points: np.ndarray):
+        """
+        Filter points based on the stability callback function.
+        """
+        if self.fn_stability_check is None:
+            return points
+        filtered_points = []
+        for pt in points:
+            if self.fn_stability_check(pt):
+                filtered_points.append(pt)
+        return np.array(filtered_points).reshape(-1, self.dim)
     def sample_points(self, n_points: int = 1000):
         """
         Sample points inside and outside the convex hull.
@@ -152,7 +165,8 @@ class Fusion:
         if self.hull is None:
             raise ValueError("Convex hull not defined. Call fuse() first.")
         inside, outside = self.sample_points(self.n_centers)
-        self.center_pts = np.concatenate([inside, outside], axis=0)
+        center_pts = np.concatenate([inside, outside], axis=0)
+        self.center_pts = self.filter_points(center_pts)
         logging.info(f"[Fusion] Random centers  set {self.center_pts.shape}")
 
     def initialise_plot(self):
@@ -197,13 +211,19 @@ class Fusion:
         if not self.new_update or self.curr_p_map is None:
             plt.pause(1.0)  # keep GUI responsive
             return  # No update needed or nothing to plot
-        normalised_probs = log_probs_to_normalized_probs(self.curr_p_map)
+        
+        points, log_ps = sample_conf_region_from_points_and_prob(self.X, self.curr_p_map, cumprob=self.fusion_prob)
+        normalised_probs = log_probs_to_normalized_probs(log_ps)
         MAX_POINTS_TO_PLOT = 10000  # adjustable upper limit
         vmin = np.min(normalised_probs)
         vmax = np.max(normalised_probs)
 
         if self.dim == 2:
-            self.scatter.set_offsets(self.X)
+            if points.shape[0] > MAX_POINTS_TO_PLOT:
+                idx = np.random.choice(points.shape[0], size=MAX_POINTS_TO_PLOT, replace=False)
+                points = points[idx]
+                normalised_probs = normalised_probs[idx]
+            self.scatter.set_offsets(points)
             self.scatter.set_array(normalised_probs)
 
             segments = [
@@ -214,27 +234,19 @@ class Fusion:
 
         elif self.dim >= 3:
             if self.proj.shape[0]>0:
-                threshold = (vmin + vmax) / 2
-                if np.abs(vmin-vmax)<EPS:
-                    points = self.proj
-                    values = normalised_probs
-                else:
-                    mask = np.abs(normalised_probs-threshold) > EPS
-                    points = self.proj[mask]
-                    values = normalised_probs[mask]
-
+                points, log_ps = sample_conf_region_from_points_and_prob(self.proj, self.curr_p_map, cumprob=self.fusion_prob)
+                normalised_probs = log_probs_to_normalized_probs(log_ps)
                 if points.shape[0] > MAX_POINTS_TO_PLOT:
                     idx = np.random.choice(points.shape[0], size=MAX_POINTS_TO_PLOT, replace=False)
                     points = points[idx]
-                    values = values[idx]
-
+                    normalised_probs = normalised_probs[idx]
                 self.scatter.set_offsets(points)
-                self.scatter.set_array(values)
-                # Reset axis limits for  plots
-                x_min, y_min = np.min(points, axis=0)*2
-                x_max, y_max = np.max(points, axis=0)*2
-                self.ax.set_xlim(x_min, x_max)
-                self.ax.set_ylim(y_min, y_max)
+                self.scatter.set_array(normalised_probs)
+                # # Reset axis limits for  plots
+                # x_min, y_min = np.min(points, axis=0)*2
+                # x_max, y_max = np.max(points, axis=0)*2
+                # self.ax.set_xlim(x_min, x_max)
+                # self.ax.set_ylim(y_min, y_max)
 
         self.scatter.set_clim(vmin, vmax)
         self.colorbar.update_normal(self.scatter)
@@ -285,6 +297,15 @@ def log_probs_to_normalized_probs(log_probs):
 #     # Select points above this threshold
 #     mask = probs >= threshold
 #     return points[mask]
+
+@numba.njit(cache=True, fastmath=True)
+def sample_conf_region_from_points_and_prob(points: np.ndarray, log_probs: np.ndarray, cumprob: float = 0.95):
+    probs = np.exp(log_probs - np.max(log_probs))  # normalize for stability
+
+    threshold = np.percentile(probs, cumprob * 100)
+    mask = probs >= threshold
+    return points[mask], probs[mask]
+
 @numba.njit(cache=True, fastmath=True)
 def sample_conf_region_from_points(points: np.ndarray, log_probs: np.ndarray, cumprob: float = 0.95):
     probs = np.exp(log_probs - np.max(log_probs))  # normalize for stability

@@ -104,7 +104,7 @@ class WaterTank:
                     self.holes.pop(min_idx)
                     self.leak_trails.pop(min_idx)
 
-    def punch_hole(self, rate=0.1, y=None, y_m=None):
+    def punch_hole(self, rate=0.2, y=None, y_m=None):
         tank_bottom = self.vis_height - self.padding_bottom
         tank_top = self.padding_top
 

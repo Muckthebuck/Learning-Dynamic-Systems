@@ -9,8 +9,8 @@ dB: sim_data.db
 apply_disturbance: true
 disturbance: 50
 controller: lqr
-L: [[1.0]] # 2.7 x optimal F
-Q: [[1.0]] # 2.7 x optimal F
+L: [[0.8]] # 2.7 x optimal F
+Q: [[0.8]] # 2.7 x optimal F
 R: [[0.2]]
 reference: [square]
 r_a: [0.55] # when using constant reference
@@ -25,7 +25,7 @@ n_outputs: 1
 n_refs: 1
 n_noise_order: -1
 C_obs: [[1]] # observation matrix
-n_points: [200, 200]
+n_points: [100, 100]
 m: 100
 q: 5
 N: 200
@@ -35,5 +35,5 @@ Lambda: [[1, 0], [0, 1]]
 search: radial # grid or radial
 bounds: [[-1.2,-0.8], [-0.2, 0.2]]
 forget: 0.0
-random_centers: 200
-steepness: 400
+random_centers: 100
+steepness: 300
