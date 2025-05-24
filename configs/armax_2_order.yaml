@@ -10,9 +10,12 @@ apply_disturbance: true
 disturbance: 50
 controller: lqr
 L: [[-1.2]] # 2.7 x optimal F
+Q: [[0.4, 0.0], [0.0, 0.4]] # state x state
+R: [[1.0]] # input x input
 reference: [square]
 r_a: [1.0] # when using constant reference
 r_f: [0.2]
+r_c: [0.0]
 A: [1.0, -0.7, -0.1]
 B: [0.0, -0.4, 0.2]
 C: [1.0]
@@ -25,7 +28,7 @@ n_outputs: 1
 n_refs: 1
 n_noise_order: -1
 C_obs: [[0, 1]] # observation matrix
-n_points: [100, 100, 100, 100]
+n_points: [40, 40, 40, 40]
 m: 100
 q: 5
 N: 200
@@ -35,4 +38,4 @@ Lambda: [[1, 0], [0, 1]]
 search: radial # grid or radial
 bounds: [[-1.2,1.0], [-0.6, 0.2], [-1.0, -0.4], [-0.2, 0.6]]
 forget: 0.01
-random_centers: 500
+random_centers: 300

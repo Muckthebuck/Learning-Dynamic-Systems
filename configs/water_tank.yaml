@@ -37,3 +37,4 @@ bounds: [[-1.2,-0.8], [-0.2, 0.2]]
 forget: 0.0
 random_centers: 100
 steepness: 300
+K: 10    # number of most probable points to use for L estimation

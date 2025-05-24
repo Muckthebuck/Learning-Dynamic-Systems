@@ -1,6 +1,7 @@
 from typing import Union
 import numpy as np
 import numba
+from numba import prange
 from scipy.spatial import ConvexHull
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
@@ -11,7 +12,7 @@ import logging
 EPS = 1e-12
 MAX_LOG = 700.0
 MIN_LOG = -700.0
-
+MAX_POINTS_TO_PLOT = 10000  # adjustable upper limit
 class Fusion:
     def __init__(self, 
                  bounds: np.ndarray, 
@@ -23,6 +24,7 @@ class Fusion:
                  random_centers: int = 50, 
                  fusion_prob: float = 0.95,
                  steepness: float = 100.0,
+                 K: int = 10
                  ):
         
         self.bounds = bounds
@@ -42,6 +44,10 @@ class Fusion:
         self.best_points_reached = False
         self.selected_pts = None
         self.fn_stability_check = fn_stability_check
+        self.plot_points = None
+        self.plot_probs = None
+        self.k_probable = None
+        self.K = K
         if self.dim >= 3:
             self.pca = PCA(n_components=2)
             self.proj = self.pca.fit_transform(self.X)
@@ -57,11 +63,17 @@ class Fusion:
                 return self.filter_points(self.selected_pts)
             return self.filter_points(self.hull.points[self.hull.vertices])
 
-        points = self.hull.points[self.hull.vertices]
-        if points.shape[0] < self.n_vertices:
-            return points.reshape(-1,self.dim)
-        mvee = LowResMVEE(pts=points.T, max_n_verts=self.n_vertices)
-        return mvee.vertices.T
+        # points = self.hull.points[self.hull.vertices]
+        # if points.shape[0] < self.n_vertices:
+        #     return points.reshape(-1,self.dim)
+        # mvee = LowResMVEE(pts=points.T, max_n_verts=self.n_vertices)
+        filtered_points = self.filter_points(self.hull.points[self.hull.vertices])
+        if filtered_points.shape[0] < self.dim:
+            return self.hull.points[self.hull.vertices].reshape(-1, self.dim)
+        else:
+            return filtered_points.reshape(-1, self.dim)
+        
+
     
     def sample_uniform_combinations_meshgrid(self, bounds, num_points,d):
         """
@@ -95,7 +107,10 @@ class Fusion:
                 return
             # if ins not empty, then we can use it the way it is as selected points
             # attempt to create a convex hull
-            ins = np.unique(ins, axis=0)
+            ins = self.filter_points(ins)
+            if ins.shape[0] < self.dim:
+                logging.warning(f"[Fusion] Skipping fusion: not enough points ({ins.shape[0]}) to form convex hull.")
+                return
             hull = ConvexHull(ins)
             if hull.equations.shape[0] < self.dim:
                 logging.warning(f"[Fusion] Skipping fusion: hull is degenerate ({hull.equations.shape[0]} vertices).")
@@ -104,25 +119,73 @@ class Fusion:
         if self.hull is not None:
             p_B = point_in_hull_likelihood(self.X, new_hull.equations, p=self.p, steepness=self.steepness)
             # If the new likelihood is too flat, skip
-            if np.max(p_B) - np.min(p_B) < 1e-6:
+            if np.max(p_B) - np.min(p_B) < EPS:
                 logging.info("[Fusion] Skipping fusion: Likelihood update is too weak (flat).")
                 return
             self.curr_p_map = fuse_numba(new_info_log=p_B, prior_log=self.curr_p_map, forget=self.forget)
-            selected_pts = sample_conf_region_from_points(self.X, self.curr_p_map, cumprob=self.fusion_prob)
+            selected_pts, selected_probs = sample_conf_region_from_points(self.X, self.curr_p_map, cumprob=self.fusion_prob)
             # If too few points, skip hull update
             if selected_pts.shape[0] <= self.dim:
                 logging.warning(f"[Fusion] Skipping fusion: too few points ({selected_pts.shape[0]}) to form convex hull.")
                 logging.info(f"[Fusion] the selected points are stored in self.selected_pts")
                 self.selected_pts = selected_pts
                 self.best_points_reached = True
-                return
-            self.hull = ConvexHull(selected_pts)
+            else:
+                self.hull = ConvexHull(selected_pts)
         else:
             self.curr_p_map = point_in_hull_likelihood(self.X, new_hull.equations, p=self.p, steepness=self.steepness)
-            selected_pts = sample_conf_region_from_points(self.X, self.curr_p_map, cumprob=self.fusion_prob)
+            logging.info(f"[Fusion] Initializing convex hull with {self.curr_p_map.shape[0]} points.")
+            selected_pts, selected_probs = sample_conf_region_from_points(self.X, self.curr_p_map, cumprob=self.fusion_prob)
+            logging.info(f"[Fusion] Selected {selected_pts.shape[0]} points for convex hull.")
             self.hull = ConvexHull(selected_pts)
+        
+        self.k_probable = self.get_K_probable_points(selected_pts, selected_probs, K=self.K)
+        # plotting values
+        plot_points = self.pca.transform(selected_pts) if self.dim >= 3 else selected_pts
+        # ensure unique points
+        if plot_points.shape[0] > MAX_POINTS_TO_PLOT:
+            plot_points, selected_probs = sample_conf_region_from_points_and_prob(plot_points, selected_probs, cumprob=0.60)
+            # sort by probabilities and get top MAX_POINTS_TO_PLOT
+            if plot_points.shape[0] > MAX_POINTS_TO_PLOT:
+                idx = np.argsort(selected_probs)[::-1]
+                plot_points = plot_points[idx][:MAX_POINTS_TO_PLOT]
+                selected_probs = selected_probs[idx][:MAX_POINTS_TO_PLOT]
+
+        self.plot_points = plot_points
+        self.plot_probs = log_probs_to_normalized_probs(selected_probs)
+
         self.step+=1
         self.new_update = True
+
+    def get_K_probable_points(self, points: np.ndarray, prob, K: int = 10):
+        """
+        Get K most probable points based on the provided probabilities.
+        Uses np.argpartition for fast top-K selection.
+        """
+        if points.shape[0] < K:
+            logging.warning(f"[Fusion] Not enough points to select {K} most probable points. Returning all {points.shape[0]} points.")
+            return points.reshape(-1, self.dim)
+
+        # Fast partial selection of top-K*2 candidates
+        max_k = min(K*2, points.shape[0])
+        idx = np.argpartition(prob, -max_k)[-max_k:]
+        
+        # Sort candidates by descending probability
+        idx = idx[np.argsort(prob[idx])[::-1]]
+        candidate_points = points[idx]
+
+        # Filter the candidate points
+        filtered_points = self.filter_points(candidate_points)
+
+        # Fallback: nothing passed filtering
+        if filtered_points.shape[0] == 0:
+            idx = np.argpartition(prob, -K)[-K:]
+            logging.warning(f"[Fusion] No points passed stability check. Returning top {K} points based on probabilities.")
+            return points[idx].reshape(-1, self.dim)
+
+        # Return as many filtered points as possible (up to K)
+        return filtered_points[:K].reshape(-1, self.dim)
+
     def filter_points(self, points: np.ndarray):
         """
         Filter points based on the stability callback function.
@@ -134,7 +197,8 @@ class Fusion:
             if self.fn_stability_check(pt):
                 filtered_points.append(pt)
         return np.array(filtered_points).reshape(-1, self.dim)
-    def sample_points(self, n_points: int = 1000):
+    
+    def sample_points(self):
         """
         Sample points inside and outside the convex hull.
         """
@@ -157,6 +221,25 @@ class Fusion:
             
         return inside, outside
 
+    def sample_points_inside(self):
+        """
+        Sample points inside and outside the convex hull.
+        """
+        if self.hull is None:
+            raise ValueError("Convex hull not defined. Call fuse() first.")
+        selected_pts = self.hull.points
+        n = selected_pts.shape[0]
+     
+        if n>self.n_centers:
+            # inside points
+            idx = np.random.choice(n, size=self.n_centers, replace=False)
+            inside = selected_pts[idx].reshape(-1, self.dim)
+        else:
+            combined_pts = np.concatenate([selected_pts, self.hull.points[self.hull.vertices]], axis=0)
+            inside = combined_pts[inside].reshape(-1, self.dim)
+            
+        return inside
+
     
     def choose_random_centers(self):
         """
@@ -164,9 +247,9 @@ class Fusion:
         """
         if self.hull is None:
             raise ValueError("Convex hull not defined. Call fuse() first.")
-        inside, outside = self.sample_points(self.n_centers)
-        center_pts = np.concatenate([inside, outside], axis=0)
-        self.center_pts = self.filter_points(center_pts)
+        # inside, outside = self.sample_points_(self.n_centers)
+        # center_pts = np.concatenate([inside, outside], axis=0)
+        self.center_pts = self.sample_points_inside()
         logging.info(f"[Fusion] Random centers  set {self.center_pts.shape}")
 
     def initialise_plot(self):
@@ -211,42 +294,29 @@ class Fusion:
         if not self.new_update or self.curr_p_map is None:
             plt.pause(1.0)  # keep GUI responsive
             return  # No update needed or nothing to plot
-        
-        points, log_ps = sample_conf_region_from_points_and_prob(self.X, self.curr_p_map, cumprob=self.fusion_prob)
-        normalised_probs = log_probs_to_normalized_probs(log_ps)
-        MAX_POINTS_TO_PLOT = 10000  # adjustable upper limit
-        vmin = np.min(normalised_probs)
-        vmax = np.max(normalised_probs)
+
+
+        vmin = np.min(self.plot_probs)
+        vmax = np.max(self.plot_probs)
+        plot_probs = self.plot_probs
+        plot_points = self.plot_points
 
         if self.dim == 2:
-            if points.shape[0] > MAX_POINTS_TO_PLOT:
-                idx = np.random.choice(points.shape[0], size=MAX_POINTS_TO_PLOT, replace=False)
-                points = points[idx]
-                normalised_probs = normalised_probs[idx]
-            self.scatter.set_offsets(points)
-            self.scatter.set_array(normalised_probs)
-
+            # for 2d we also want to plot the convex hull edges
             segments = [
                 [self.hull.points[simplex[0]], self.hull.points[simplex[1]]]
                 for simplex in self.hull.simplices
             ]
             self.line_collection.set_segments(segments)
 
-        elif self.dim >= 3:
-            if self.proj.shape[0]>0:
-                points, log_ps = sample_conf_region_from_points_and_prob(self.proj, self.curr_p_map, cumprob=self.fusion_prob)
-                normalised_probs = log_probs_to_normalized_probs(log_ps)
-                if points.shape[0] > MAX_POINTS_TO_PLOT:
-                    idx = np.random.choice(points.shape[0], size=MAX_POINTS_TO_PLOT, replace=False)
-                    points = points[idx]
-                    normalised_probs = normalised_probs[idx]
-                self.scatter.set_offsets(points)
-                self.scatter.set_array(normalised_probs)
-                # # Reset axis limits for  plots
-                # x_min, y_min = np.min(points, axis=0)*2
-                # x_max, y_max = np.max(points, axis=0)*2
-                # self.ax.set_xlim(x_min, x_max)
-                # self.ax.set_ylim(y_min, y_max)
+        self.scatter.set_offsets(plot_points)
+        self.scatter.set_array(plot_probs)
+        
+        # readjust axis limits if needed
+        xmin, ymin = np.min(plot_points, axis=0)*2
+        xmax, ymax = np.max(plot_points, axis=0)*2
+        self.ax.set_xlim(xmin, xmax)
+        self.ax.set_ylim(ymin, ymax)
 
         self.scatter.set_clim(vmin, vmax)
         self.colorbar.update_normal(self.scatter)
@@ -254,6 +324,7 @@ class Fusion:
         self.new_update = False
         plt.pause(0.005)
 
+        
 
 @numba.njit(inline='always')
 def logsumexp_two(a, b):
@@ -306,16 +377,43 @@ def sample_conf_region_from_points_and_prob(points: np.ndarray, log_probs: np.nd
     mask = probs >= threshold
     return points[mask], probs[mask]
 
-@numba.njit(cache=True, fastmath=True)
+# @numba.njit(cache=True, fastmath=True)
+# def sample_conf_region_from_points(points: np.ndarray, log_probs: np.ndarray, cumprob: float = 0.95):
+#     probs = np.exp(log_probs - np.max(log_probs))  # normalize for stability
+
+#     threshold = np.percentile(probs, cumprob * 100)
+#     mask = probs >= threshold
+#     return points[mask]
+
+@numba.njit(cache=True, fastmath=True, parallel=True)
 def sample_conf_region_from_points(points: np.ndarray, log_probs: np.ndarray, cumprob: float = 0.95):
-    probs = np.exp(log_probs - np.max(log_probs))  # normalize for stability
+    # Normalize for numerical stability
+    probs = np.exp(log_probs - np.max(log_probs))
+    
+    # Replace np.percentile using sorting
+    n = probs.shape[0]
+    sorted_probs = np.empty_like(probs)
+    for i in prange(n):
+        sorted_probs[i] = probs[i]
+    
+    # In-place sort (Numba supports ndarray.sort())
+    sorted_probs.sort()
 
-    threshold = np.percentile(probs, cumprob * 100)
+    # Calculate the index corresponding to the desired percentile
+    k = int(np.floor((1.0 - cumprob) * n))
+    if k < 0:
+        k = 0
+    elif k >= n:
+        k = n - 1
+
+    threshold = sorted_probs[k]
+
+    # Apply the mask as before
     mask = probs >= threshold
-    return points[mask]
+    return points[mask], log_probs[mask]
 
 
-@numba.njit(cache=True, fastmath=True)
+@numba.njit(cache=True, fastmath=True, parallel=True)
 def point_in_hull_likelihood(points, equations, p, steepness=100.0):
     N, d = points.shape
     M = equations.shape[0]
@@ -323,7 +421,7 @@ def point_in_hull_likelihood(points, equations, p, steepness=100.0):
 
     log_p = np.log(max(p, EPS))  # base log prob inside hull
 
-    for i in range(N):
+    for i in prange(N):
         max_violation = -np.inf
         for j in range(M):
             val = 0.0

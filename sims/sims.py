@@ -52,7 +52,7 @@ class Sim:
                  Q: np.ndarray = None,
                  R: np.ndarray = None,
                  db: Database = None,
-                 buffer_delay: int = 10,
+                 buffer_delay: int = 20,
                  logger: logging.Logger = None):
         self.logger = logger if logger else logging.getLogger(__name__)
         self.T = T

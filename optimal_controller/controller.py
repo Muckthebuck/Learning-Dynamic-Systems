@@ -22,6 +22,7 @@ class Plant:
         self.initialised = False
         # sim params
         self.ss = None
+        self.ss_k = None
         self.new_update = False
         self.db = Database(db_name=db)
           
@@ -37,7 +38,11 @@ class Plant:
         B: list of B ss matrices in OCF form
         """
         logging.info("[Controller] State space matrices updated")
-        self.ss = self.db._deserialize(ss)
+        result = self.db._deserialize(ss)
+        # result is a namespace with ss and ss_k attributes
+        # each has .A, .B, .C, .D attributes which are lists of matrices
+        self.ss: SimpleNamespace = result.ss
+        self.ss_k: SimpleNamespace = result.ss_k
         self.new_update = True
 
         if not self.initialised:

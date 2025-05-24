@@ -32,7 +32,7 @@ class SPS:
                  C_obs: np.ndarray = None, n_noise_order: int = 1, n_points: List[int] = [11, 21, 11],
                  m: int=100, q: int=5, N: int = 50, db: Database = None, search_type: str = "radial",
                  debug: bool = False, epsilon: float = 1e-10, random_centers: int = 50, 
-                 logger: logging.Logger = None, steepness: float = 100.0):
+                 logger: logging.Logger = None, steepness: float = 100.0, K: int = 10):
         """"
         Initialize the SPS model search.
         For SISO models. ensure n_states represents the max delay in A,B
@@ -227,10 +227,7 @@ class SPS:
             self.logger.info(f"[SPS] Fused Regions")
 
         # get the results
-        results = self.fusion.approximate_hull()
-        A, B, C, D = self.get_ss_region(results=results)
-        if self.db is not None:
-            self.write_state_space_to_db(A, B, C, D)
+        self.write_results_to_db()
         
 
         
@@ -290,7 +287,7 @@ class SPS:
             #     self.model.transform_to_open_loop(G=G, H=H,F=self.controller.F, L=self.controller.L)
             return True
         except Exception as e:
-            self.logger.info(f"[SPS] not valid param. {e}")
+            self.logger.debug(f"[SPS] not valid param. {e}")
             return False
 
     def construct_gh_from_params(self, params):
@@ -402,7 +399,7 @@ class SPS:
             if self.controller is None:
                 raise RuntimeError("Controller not found in database")
         except Exception as e:
-            self.logger.warning(f"[SPS] not valid param. {e}")
+            self.logger.debug(f"[SPS] not valid param. {e}")
             return False
         except RuntimeError:
             if self.debug:
@@ -418,8 +415,8 @@ class SPS:
                                              sps_type=SPSType.CLOSED_LOOP,
                                              F=self.controller.F, L=self.controller.L, Lambda=None)
         except Exception as e:
-            self.logger.warning("SPS Failed")
-            self.logger.warning(f"{e}")
+            self.logger.debug("SPS Failed")
+            self.logger.debug(f"{e}")
             in_sps = False
         
         return in_sps
@@ -444,6 +441,37 @@ class SPS:
         res = optimize.least_squares(self.get_error_norm, x0, args=(Y,U))
         params_ls = res.x
         return params_ls
+
+    def write_results_to_db(self):
+        try:
+            hull_results = self.fusion.approximate_hull()
+            A, B, C, D = self.get_ss_region(results=hull_results)
+            ss = SimpleNamespace(
+                    A=A,
+                    B=B,
+                    C=C,
+                    D=D
+                )
+            if self.fusion.k_probable is not None:
+                A_k, B_k, C_k, D_k = self.get_ss_region(results=self.fusion.k_probable)
+                ss_k = SimpleNamespace(
+                    A=A_k,
+                    B=B_k,
+                    C=C_k,
+                    D=D_k
+                )
+            else:
+                ss_k = None
+            
+            results = SimpleNamespace(
+                ss=ss,
+                ss_k=ss_k,
+            )
+            
+            if self.db is not None:
+                self.db.write_ss(ss=results)
+        except Exception as e:
+            self.logger.error(f"Failed to write results to database: {e}")
 
     def write_state_space_to_db(self, A, B, C, D):
         try:
@@ -502,6 +530,7 @@ def parse_args(raw_args=None, db:Database = None):
                         help="fusion forgetting factor")
     parser.add_argument("--steepness", type=float, default=100.0,
                         help="fusion steepness factor")
+    parser.add_argument("--K", type=int, default=10, help="Number of most probable points for L estimation")
     args = parser.parse_args(raw_args)
     if db is None:
         db = Database(args.dB)
@@ -537,7 +566,8 @@ def run_sps(raw_args=None, db:Database = None, args: argparse.Namespace = None, 
         bounds=args.bounds,
         random_centers=args.random_centers,
         logger=logger,
-        steepness=args.steepness
+        steepness=args.steepness,
+        K=args.K
     )
     # sps.update_sps_region(data)
     sps.plot_sps_region()
