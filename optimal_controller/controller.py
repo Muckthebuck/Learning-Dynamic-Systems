@@ -1,6 +1,6 @@
 import numpy as np
 from dB.sim_db import Database
-from optimal_controller.optimal_controls import get_optimal_controller
+from optimal_controller.optimal_controls import get_optimal_controller, compute_optimal_L
 from types import SimpleNamespace
 import threading
 import logging
@@ -96,6 +96,7 @@ class Controller:
             self.K = self.design_lqr()
         self.logger = logging.getLogger(__name__)
         self.heard_back = False
+        self.integrator_val = 0
         
     def design_lqr(self):
         """
@@ -104,15 +105,26 @@ class Controller:
         Returns:
             tuple: State-space model and LQR gain matrix.
         """
-        # LQR design
-
+        # standard LQR design
         K = get_optimal_controller(self.plant.ss.A, self.plant.ss.B, self.Q, self.R)
-        # K = np.dot(self.plant.ss.C, K.T).reshape(K.shape[0], -1)
-        # G, H, F, L 
+
+        # augmented-with-integrator LQR design
+        A_set = np.array([ [[a.item(), 0], [-1, 1]] for a in self.plant.ss.A ])
+        B_set = np.array([ [[b.item()], [0]] for b in self.plant.ss.B ])
+        self.logger.info(f"[Controller] A_set has shape {A_set.shape}")
+        self.logger.info(f"[Controller] B set has shape {B_set.shape}")
+        Kaug = get_optimal_controller(A_set, B_set, uncertainty_region_method='all_plants')
+        self.kx = Kaug.squeeze()[0]
+        self.ki = Kaug.squeeze()[1]
+        self.integrator_val = 0 # reset integral of error
+        
+        
         self.logger.info(f"[Controller] New controller K: {K}")
+        self.logger.info(f"[Controller] New integrator-augmented controller: kx={self.kx}, ki={self.ki}")
         # @c-hars TODO: update the F,L matrices to reflect the integrator tracking
         if K is not None:
             self.F = K
+            self.L, _, _ = compute_optimal_L(self.plant.ss_k.A, self.plant.ss_k.B, K.item())
             armax = {'F': K, 'L': self.L}
             armax = SimpleNamespace(**armax)
             self.plant.db.write_controller(controller=armax)
@@ -137,7 +149,9 @@ class Controller:
         r = r.reshape(-1,1)
         y = y.reshape(-1,1)
         # @c-hars TODO: update the input version to reflect the integrator tracking
-        u = np.dot(self.L,r) - np.dot(self.F,y)
+        # u = np.dot(self.L,r) - np.dot(self.F,y)
+        self.integrator_val += (r - y).item()
+        u = -self.kx * y - self.ki * self.integrator_val
         # u = np.clip(u, -100, 100)
         return u.flatten()
 

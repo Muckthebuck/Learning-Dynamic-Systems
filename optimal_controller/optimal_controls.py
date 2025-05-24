@@ -438,4 +438,36 @@ def get_hull_verts(matrix_list: np.ndarray):
     # Map back to matrix space
     M0 = matrix_list[0]
     return map_v_to_mat(M0, where_unc, v, n)
+
+# Functions for the water plant demo / general first order optimisation of reference gain L
+
+# Reference tracking error for a given L and plant (a,b,k)
+def compute_reference_tracking_error(a, b, k, L):
+    return abs(1 - b * L / (1 - (a - b * k)))
+
+# Worst-case error across all plants
+def compute_worst_reference_tracking_error(L, a_set, b_set, k):
+    return max(compute_reference_tracking_error(ai, bi, k, L) for ai, bi in zip(a_set, b_set))
+
+def compute_optimal_L(a_set, b_set, k):
+    # Initial guess for L - assuming the mean plant, this value of L gives zero steady-state error
+    a0 = np.mean(a_set)
+    b0 = np.mean(b_set)
+    init_L = (1 / b0) * (1 - (a0 - b0 * k))
+    init_J = compute_worst_reference_tracking_error(init_L, a_set, b_set, k)
+    print(f"init_L = {init_L}")
+    print(f"init_J = {init_J}")
+
+    # Minimize
+    obj = lambda L: compute_worst_reference_tracking_error(L[0], a_set, b_set, k)
+    res = minimize(obj, x0=[init_L], method='Nelder-Mead', options={'disp': False})
+    opt_L = res.x[0]
+    opt_J = compute_worst_reference_tracking_error(opt_L, a_set, b_set, k)
+    print(f"opt_L = {opt_L}")
+    print(f"opt_J = {opt_J}")
+
+    if res.success == False:
+        print(f"Warning: L optimisation terminated unsuccessfully, {res.message}")
+
+    return opt_L, opt_J, res.success
     
