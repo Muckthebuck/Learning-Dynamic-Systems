@@ -20,8 +20,9 @@ class Fusion:
                  p: float = 0.80,
                  forget: float = 0.0,
                  random_centers: int = 50, 
-                 fusion_prob: float = 0.95,
+                 fusion_prob: float = 0.99,
                  steepness: float = 100.0):
+        
         self.bounds = bounds
         self.X: np.ndarray = self.sample_uniform_combinations_meshgrid(bounds, num_points,dim)
         self.dim: float = dim

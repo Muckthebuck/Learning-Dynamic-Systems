@@ -32,7 +32,7 @@ class SPS:
                  C_obs: np.ndarray = None, n_noise_order: int = 1, n_points: List[int] = [11, 21, 11],
                  m: int=100, q: int=5, N: int = 50, db: Database = None, search_type: str = "radial",
                  debug: bool = False, epsilon: float = 1e-10, random_centers: int = 50, 
-                 logger: logging.Logger = None):
+                 logger: logging.Logger = None, steepness: float = 100.0):
         """"
         Initialize the SPS model search.
         For SISO models. ensure n_states represents the max delay in A,B
@@ -97,7 +97,10 @@ class SPS:
         self.fusion = Fusion(bounds=bounds, 
                              num_points=n_points, 
                              dim=self.n_params, 
-                             forget=forget, random_centers=random_centers, p=p)
+                             forget=forget, 
+                             random_centers=random_centers, 
+                             steepness= steepness, 
+                             p=p)
 
         
     def search_factory(self, search_type: str, center: np.ndarray, test_cb: callable):
@@ -272,7 +275,20 @@ class SPS:
         C = np.array(C_list)
         D = np.array(D_list)
         return A,B,C,D
-        
+    
+    def stability_check(self, params: np.ndarray) -> bool:
+        """
+        Check if the given parameters are stable.
+        """
+        try:
+            G, H, A, B, C = self.construct_gh_from_params(params.flatten())
+            # # closed loop stability check if controller is not None
+            # if self.controller.F is not None and self.controller.L is not None:
+            #     self.model.transform_to_open_loop(G=G, H=H,F=self.controller.F, L=self.controller.L)
+            return True
+        except Exception as e:
+            self.logger.info(f"[SPS] not valid param. {e}")
+            return False
 
     def construct_gh_from_params(self, params):
         """
@@ -481,6 +497,8 @@ def parse_args(raw_args=None, db:Database = None):
                         help="Bound of the region for each direction. For example [[-2, 2], [-2, 2]]")
     parser.add_argument("--forget", type=float, default=0.0, 
                         help="fusion forgetting factor")
+    parser.add_argument("--steepness", type=float, default=100.0,
+                        help="fusion steepness factor")
     args = parser.parse_args(raw_args)
     if db is None:
         db = Database(args.dB)
@@ -515,7 +533,8 @@ def run_sps(raw_args=None, db:Database = None, args: argparse.Namespace = None, 
         search_type=args.search,
         bounds=args.bounds,
         random_centers=args.random_centers,
-        logger=logger
+        logger=logger,
+        steepness=args.steepness
     )
     # sps.update_sps_region(data)
     sps.plot_sps_region()

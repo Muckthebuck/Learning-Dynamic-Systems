@@ -47,6 +47,7 @@ usage() {
     echo "  --epsilon EPSILON      Epsilon value"
     echo "  --search STRATEGY      Search strategy (grid or radial)"
     echo "  --bounds BOUNDS        Bounds as list-like string"
+    echo "  --steepness STEEPNESS  Steepness of the Fusion function"
     echo "  -h                     Show help"
     exit 1
 }
@@ -98,6 +99,7 @@ if [[ -n "$CONFIG_FILE" ]]; then
     bounds=$(yq -o=json '.bounds // ""' "$CONFIG_FILE")
     forget=$(yq -o=json '.forget // 0' "$CONFIG_FILE")
     random_centers=$(yq -o=json '.random_centers // 20' "$CONFIG_FILE")
+    steepness=$(yq '.steepness // 100.0' "$CONFIG_FILE")
 fi
 
 # --- Re-parse CLI overrides ---
@@ -124,6 +126,7 @@ while [ $# -gt 0 ]; do
         --bounds) bounds="$2"; shift 2 ;;
         --forget) forget="$2"; shift 2 ;;
         --random_centers) random_centers="$2"; shift 2 ;;
+        --steepness) steepness="$2"; shift 2 ;;
         -h|--help) usage ;;
         *) echo "Unknown option: $1"; usage ;;
     esac
@@ -150,4 +153,5 @@ python -m indirect_identification.sps \
     --search "$search" \
     --bounds "$bounds" \
     --forget "$forget" \
-    --random_centers "$random_centers"
+    --random_centers "$random_centers" \
+    --steepness "$steepness" 
