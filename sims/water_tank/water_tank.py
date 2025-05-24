@@ -218,8 +218,7 @@ class WaterTank:
             self.leak_trails[i] = new_trail
 
         # Friendly labels
-        level_percent = int(self.level * 100)
-        cv2.putText(img, f"Water Level: {level_percent}%", (tank_left + 10, tank_bottom + 30),
+        cv2.putText(img, f"Water Level: {self.level} m", (tank_left + 10, tank_bottom + 30),
             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2, cv2.LINE_AA)
 
         cv2.putText(img, f"Inflow: {self.inflow:.2f}", (tank_left + 10, tank_top - 10),
