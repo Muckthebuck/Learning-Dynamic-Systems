@@ -6,7 +6,7 @@ import argparse
 from dB.sim_db import Database, SPSType
 from sims.pendulum import Pendulum, CartPendulum
 from sims.water_tank import WaterTank
-from sims.car import CarlaSps
+from sims.carla import CarlaSps
 from sims.armax import ARMAX
 from optimal_controller.controller import Plant, Controller, LTuner
 import numpy as np

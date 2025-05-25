@@ -8,3 +8,4 @@ sqlite
 numba
 scikit-learn
 redis
+pygame # for car sim
