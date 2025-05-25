@@ -184,13 +184,11 @@ class SPS:
         self.logger.info(f"[SPS] Data: {self.data.sps_type}")
         self.logger.info(f"[SPS] Number of params: {self.n_params}")
         
-        if self.data.sps_type == SPSType.OPEN_LOOP:
-            self.fusion.center_pts = self.get_lse(Y=self.data.y, U=self.data.u)
-            self.logger.info(f"center {self.fusion.center_pts}")
+        # if self.data.sps_type == SPSType.OPEN_LOOP:
+        #     self.fusion.center_pts = self.get_lse(Y=self.data.y, U=self.data.u)
+        #     self.logger.info(f"center {self.fusion.center_pts}")
 
-        if self.fusion.center_pts is None:
-            self.logger.warning(f"No center provided sps will fail.")
-            return
+
         
         if self.data.r is not None:
             self.logger.info(f" y: {self.data.y.shape}, u: {self.data.u.shape}, r: {self.data.u.shape}")
@@ -202,6 +200,12 @@ class SPS:
         while tries < MAX_TRIES[self.n_params]:
             tries += 1
             try:
+                if self.data.sps_type == SPSType.OPEN_LOOP and self.fusion.hull is None:
+                    self.fusion.center_pts = self.get_pem(Y=self.data.y, U=self.data.u)
+                    self.logger.info(f"center {self.fusion.center_pts}")
+                    if self.fusion.center_pts is None:
+                        self.logger.warning(f"No center provided sps will fail.")
+                        return
                 if self.fusion.hull:
                     # closed loop, randomly select next set of points
                     self.fusion.choose_random_centers()
@@ -217,6 +221,10 @@ class SPS:
                 break
             except Exception as e:
                 self.logger.info(f"{e}")
+                if self.data.sps_type == SPSType.OPEN_LOOP:
+                    # exit if open loop search fails
+                    self.logger.error(f"[SPS] Open loop search failed, exiting")
+                    return
                 self.logger.info(f"[SPS] retrying")
 
         if tries == MAX_TRIES[self.n_params]:
@@ -430,18 +438,24 @@ class SPS:
         try:
             G, H , A, B, C = self.construct_gh_from_params(params)
         except Exception:
-            return SPS_MAX
+            return np.full(N.size, fill_value=SPS_MAX)
         if self.n_inputs==1 and self.n_outputs==1:
             Hinv = d_tfs((A, C))
             YGU = Y - G*U
             N = Hinv*YGU
-            error_norm = np.linalg.norm(N@N.T)
+            # error_norm = np.linalg.norm(N@N.T)
         else:
             YGU = Y - apply_tf_matrix(G,U)
             N = apply_tf_matrix(Hinv,YGU)
-            error_norm = np.linalg.norm(N@N.T)
-        return error_norm
-    def get_lse(self, Y,U):
+            # error_norm = np.linalg.norm(N@N.T)
+
+        if np.any(np.isnan(N)) or np.any(np.isinf(N)):
+            # Return a flat array of penalty residuals matching total number of residuals
+            return np.full(N.size, fill_value=SPS_MAX)
+
+        return N.flatten()
+    
+    def get_pem(self, Y,U):
         x0 = np.zeros(self.n_params)
         res = optimize.least_squares(self.get_error_norm, x0, args=(Y,U))
         params_ls = res.x

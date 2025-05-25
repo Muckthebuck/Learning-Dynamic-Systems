@@ -14,7 +14,7 @@ Q: [[0.9, 0.0], [0.0, 0.4]] # state x state
 R: [[1.0]] # input x input
 reference: [square]
 r_a: [1.0] # when using constant reference
-r_f: [4.0]
+r_f: [0.4]
 r_c: [0.0]
 A: [1.0, -0.7, -0.1]
 B: [0.0, -0.4, -0.2]
@@ -28,7 +28,7 @@ n_outputs: 1
 n_refs: 1
 n_noise_order: -1
 C_obs: [[0, 1]] # observation matrix
-n_points: [40, 40, 20, 20]
+n_points: [40, 40, 40, 10]
 m: 100
 q: 5
 N: 200
@@ -36,6 +36,7 @@ debug: true
 epsilon: 1e-10
 Lambda: [[1, 0], [0, 1]]
 search: radial # grid or radial
-bounds: [[-1.2,0.0], [-0.6, 0.2], [-1.0, -0.1], [-0.4, 0.5]]
-forget: 0.01
+bounds: [[-1.5,0], [-0.7, 0.2], [-0.8, 0.2], [-1, 0.0]]
+forget: 0.0
 random_centers: 300
+steepness: 200

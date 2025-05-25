@@ -13,6 +13,11 @@ EPS = 1e-12
 MAX_LOG = 700.0
 MIN_LOG = -700.0
 MAX_POINTS_TO_PLOT = 10000  # adjustable upper limit
+
+# error for no centers in hull
+class NoCentersError(Exception):
+    """Exception raised when no centers are found."""
+    pass
 class Fusion:
     def __init__(self, 
                  bounds: np.ndarray, 
@@ -48,9 +53,10 @@ class Fusion:
         self.plot_points = None
         self.plot_probs = None
         self.k_probable = None
-        self.used_idx_set = set()
+        self.used_idx_mask  = np.zeros(self.X.shape[0], dtype=bool)
         self.last_succesfull_centers = None
         self.last_succesfull_centers_idx = None
+        self.curr_p_map_sorted_idx = None
 
         self.xmin, self.xmax = None, None
         self.ymin, self.ymax = None, None
@@ -68,7 +74,11 @@ class Fusion:
         """
         if self.dim == 2:
             if self.best_points_reached:
-                self.best_points_reached = False    
+                logging.info("[Fusion] Best points reached, returning selected points.")
+                # check if the selected points are less than dim, if so keep the best points reached
+                if self.selected_pts is None or self.selected_pts.shape[0] > self.dim:
+                    self.best_points_reached = False    
+             
                 return self.selected_pts.reshape(-1, self.dim)
             return self.hull.points[self.hull.vertices]
 
@@ -157,11 +167,17 @@ class Fusion:
             self.hull = ConvexHull(selected_pts)
             self.curr_p_map = curr_p_map
         except Exception:
-            logging.error(f"[Fusion] Failed to create convex hull")
-            mvee = LowResMVEE(pts=selected_pts.T, max_n_verts=self.n_vertices)
-            logging.info(f"[Fusion] Using low-res MVEE with {mvee.vertices.shape[0]} vertices.")
-            mvee_verts = np.concatenate([mvee.vertices.reshape(-1, self.dim), selected_pts], axis=0)
-            logging.info(f"[Fusion] Using low-res MVEE modified {mvee_verts.shape[0]} vertices instead.")
+            try: 
+                logging.error(f"[Fusion] Failed to create convex hull")
+                mvee = LowResMVEE(pts=selected_pts.T, max_n_verts=self.n_vertices)
+                logging.info(f"[Fusion] Using low-res MVEE with {mvee.vertices.shape[0]} vertices.")
+                mvee_verts = np.concatenate([mvee.vertices.reshape(-1, self.dim), selected_pts], axis=0)
+                logging.info(f"[Fusion] Using low-res MVEE modified {mvee_verts.shape[0]} vertices instead.")
+            except Exception:
+                self.best_points_reached = True
+                self.selected_pts = selected_pts
+                logging.error(f"[Fusion] Failed to create mvee from selected points")
+                return
             try:
                 self.hull = ConvexHull(mvee_verts)
                 self.curr_p_map = curr_p_map
@@ -170,15 +186,16 @@ class Fusion:
                 self.selected_pts = selected_pts
                 logging.error(f"[Fusion] Failed to create convex hull from MVEE")
                 return
+           
 
-
+        logging.info(f"[Fusion] Convex hull created with {self.hull.points.shape[0]} points and {self.hull.equations.shape[0]} vertices.")
         self.hull_pmap = selected_probs
         self.k_probable = self.get_K_probable_points(selected_pts, selected_probs, K=self.K)
         # plotting values
         plot_points = self.pca.transform(selected_pts) if self.dim >= 3 else selected_pts
         # ensure unique points
         if plot_points.shape[0] > MAX_POINTS_TO_PLOT:
-            plot_points, selected_probs = sample_conf_region_from_points_and_prob(plot_points, selected_probs, cumprob=0.80)
+            plot_points, selected_probs = sample_conf_region_from_points_and_prob(plot_points, selected_probs, cumprob=0.60)
             # sort by probabilities and get top MAX_POINTS_TO_PLOT
             if plot_points.shape[0] > MAX_POINTS_TO_PLOT:
                 idx = np.argsort(selected_probs)[::-1]
@@ -194,9 +211,10 @@ class Fusion:
         """
         Reset the used index set to allow re-sampling of points.
         """
-        self.used_idx_set = set()
-        if self.hull is not None:
-            self.used_idx_set.update(self.unstable_points_idx(self.hull.points[self.hull.vertices]))
+        self.used_idx_mask = np.zeros(self.X.shape[0], dtype=bool)
+        if self.curr_p_map is not None:
+            # lets first increase the density of points in the hull by 2
+            self.curr_p_map_sorted_idx = np.argsort(self.curr_p_map)[::-1]  # descending order of log-probs
         logging.info("[Fusion] Used index set reset.")
 
     def get_K_probable_points(self, points: np.ndarray, prob, K: int = 10):
@@ -287,25 +305,6 @@ class Fusion:
             
         return inside, outside
 
-    # def sample_points_inside(self):
-    #     """
-    #     Sample points inside and outside the convex hull.
-    #     """
-    #     if self.hull is None:
-    #         raise ValueError("Convex hull not defined. Call fuse() first.")
-    #     selected_pts = self.hull.points
-    #     n = selected_pts.shape[0]
-     
-    #     if n>self.n_centers:
-    #         # inside points
-    #         idx = np.random.choice(n, size=self.n_centers, replace=False)
-    #         inside = selected_pts[idx].reshape(-1, self.dim)
-    #     else:
-    #         combined_pts = np.concatenate([selected_pts, self.hull.points[self.hull.vertices]], axis=0)
-    #         inside = combined_pts[inside].reshape(-1, self.dim)
-            
-    #     return inside
-
     def sample_points_inside(self, alpha=0.7):
         """
         Sample points inside the convex hull using a blended score of log-probabilities
@@ -326,7 +325,8 @@ class Fusion:
         available_indices = all_indices[mask]
 
         if len(available_indices) == 0:
-            raise RuntimeError("No unused points left to sample from.")
+            self.use_random_centers = True
+            raise NoCentersInHullError("No available points left to sample from the convex hull.")
 
         available_points = selected_pts[available_indices]
         available_logp = self.hull_pmap[available_indices]
@@ -345,6 +345,11 @@ class Fusion:
 
         # Step 4: Update used index set
         self.used_idx_set.update(sampled_global_idx.tolist())
+
+        # check if we have used all points
+        if len(self.used_idx_set) >= n:
+            self.use_random_centers = True
+            logging.info("[Fusion] All points used, switching to random centers sampling in next iteration.")
 
         # Step 5: Return points
         inside = selected_pts[sampled_global_idx].reshape(-1, self.dim)
@@ -401,11 +406,24 @@ class Fusion:
             self.center_pts = self.last_succesfull_centers
             self.last_succesfull_centers = None
             if self.last_succesfull_centers_idx is not None:
-                self.used_idx_set.update(self.last_succesfull_centers_idx.tolist())
+                self.used_idx_mask[self.last_succesfull_centers_idx] = True
             logging.info(f"[Fusion] Using last successful centers: {self.center_pts.shape}")
             return
-        self.center_pts, self.last_succesfull_centers_idx = self.sample_points_inside()
-        logging.info(f"[Fusion] Random centers  set {self.center_pts.shape}")
+
+        center_pts, last_succesfull_centers_idx, self.used_idx_mask = sample_from_sorted_pmap_numba(points=self.X,
+                                                                    log_probs=self.curr_p_map,
+                                                                    used_mask=self.used_idx_mask,
+                                                                    sorted_indices=self.curr_p_map_sorted_idx,
+                                                                    n_samples=self.n_centers)
+        
+        stable_centers_idx = self.stable_points_idx(center_pts)
+        if stable_centers_idx.shape[0] == 0:
+            raise NoCentersError("No stable centers found after random sampling.")
+        else:
+            self.center_pts = center_pts[stable_centers_idx]
+            self.last_succesfull_centers_idx = last_succesfull_centers_idx[stable_centers_idx]
+            logging.info(f"[Fusion] Chose {self.center_pts.shape} stable centers from probability.")
+
 
     def initialise_plot(self):
         """
@@ -467,18 +485,18 @@ class Fusion:
         self.scatter.set_array(plot_probs)
         
         # # readjust axis limits if needed
-        xmin, ymin = np.min(plot_points, axis=0)*2
-        xmax, ymax = np.max(plot_points, axis=0)*2
-        if self.xmin is None or self.xmax is None or self.ymin is None or self.ymax is None:
-            self.xmin, self.ymin = xmin, ymin
-            self.xmax, self.ymax = xmax, ymax
-        else:
-            self.xmin = min(self.xmin, xmin)
-            self.ymin = min(self.ymin, ymin)
-            self.xmax = max(self.xmax, xmax)
-            self.ymax = max(self.ymax, ymax)
-        self.ax.set_xlim(self.xmin, self.xmax)
-        self.ax.set_ylim(self.ymin, self.ymax)
+        # xmin, ymin = np.min(plot_points, axis=0)*2
+        # xmax, ymax = np.max(plot_points, axis=0)*2
+        # if self.xmin is None or self.xmax is None or self.ymin is None or self.ymax is None:
+        #     self.xmin, self.ymin = xmin, ymin
+        #     self.xmax, self.ymax = xmax, ymax
+        # else:
+        #     self.xmin = min(self.xmin, xmin)
+        #     self.ymin = min(self.ymin, ymin)
+        #     self.xmax = max(self.xmax, xmax)
+        #     self.ymax = max(self.ymax, ymax)
+        # self.ax.set_xlim(self.xmin, self.xmax)
+        # self.ax.set_ylim(self.ymin, self.ymax)
 
         self.scatter.set_clim(vmin, vmax)
         self.colorbar.update_normal(self.scatter)
@@ -574,6 +592,54 @@ def sample_conf_region_from_points_and_prob(points: np.ndarray, log_probs: np.nd
 #     mask = probs >= threshold
 #     return points[mask], log_probs[mask]
 
+
+
+@numba.njit(cache=True, fastmath=True)
+def sample_from_sorted_pmap_numba(points, log_probs, used_mask, sorted_indices, n_samples):
+    """
+    Numba-compatible version to sample points by descending log-probability,
+    skipping already-used points.
+
+    Args:
+        points: (N, D) array
+        log_probs: (N,) array
+        used_mask: (N,) boolean array
+        sorted_indices: (N,) array, sorted descending by log_probs
+        n_samples: int 
+
+    Returns:
+        selected_points: (M, D)
+        selected_indices: (M,)
+        updated used_mask
+    """
+    N, D = points.shape
+
+    probs = np.exp(log_probs - np.max(log_probs))
+    probs /= np.sum(probs)
+
+    max_output =  min(n_samples, N)
+    selected_indices = np.empty(max_output, dtype=np.int32)
+    selected_points = np.empty((max_output, D), dtype=points.dtype)
+
+    count = 0
+    cum_sum = 0.0
+
+    for i in range(N):
+        idx = sorted_indices[i]
+        if used_mask[idx]:
+            continue
+
+        selected_indices[count] = idx
+        selected_points[count] = points[idx]
+        used_mask[idx] = True
+        cum_sum += probs[idx]
+        count += 1
+
+        if count >= n_samples:
+            break
+  
+
+    return selected_points[:count], selected_indices[:count], used_mask
 
 @numba.njit(cache=True, fastmath=True)
 def sample_conf_region_from_points(points: np.ndarray, log_probs: np.ndarray, cumprob: float = 0.95):

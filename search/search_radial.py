@@ -113,7 +113,7 @@ class RadialSearch:
                 self.center = self.center_options
                 return
             
-        raise Exception("No provided center values found in confidence region.")
+        raise Exception("[RADIAL] No provided center values found in confidence region.")
 
 
     def _test_one_direction(self, vector_index):

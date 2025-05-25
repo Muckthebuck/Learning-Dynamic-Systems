@@ -3,10 +3,12 @@ import matplotlib.pyplot as plt
 import cv2
 from typing import Tuple, Optional, Union
 
+np.random.seed(42)  # For reproducibility
 class WaterTank:
-    def __init__(self, dt=0.01, history_limit=10, noise_std=0.05, plot_system=True, visual=True,
+    def __init__(self, dt=0.02, history_limit=10, noise_std=0.05, plot_system=True, visual=True,
                  vis_width=800, vis_height=600, padding_left=100, padding_right=100,
-                 padding_top=80, padding_bottom=80, tank_height_m=2.0, tank_width_m=1.0, g= 9.81):
+                 padding_top=80, padding_bottom=80, tank_height_m=2.0, tank_width_m=1.0, 
+                 a=5.0, b=1.0):
 
         self.dt = dt
         self.noise_std = noise_std
@@ -20,9 +22,11 @@ class WaterTank:
         self.history_limit = int(history_limit / dt)
         self.current_time = 0.0
         self.inflow = 0.0
-        self.input_limit = np.array([0.0, 2.0])
+        self.input_limit = np.array([0.0, 10.0])
         self.done = False
-        self.g = 9.81  # gravity constant
+        # dh/dt = a * self.inflow - b * self.level  # simplified dynamics
+        self.a = a
+        self.b = b
         # Real dimensions in meters
         self.tank_height_m = tank_height_m
         self.tank_width_m = tank_width_m
@@ -67,7 +71,7 @@ class WaterTank:
         self.axs[0].legend()
         self.axs[0].grid()
         self.line_inflow, = self.axs[1].plot([], [], label="Inflow U")
-        self.axs[1].set_ylim(0, 2.0)
+        self.axs[1].set_ylim(*self.input_limit)
         self.axs[1].legend()
         self.axs[1].grid()
         self.fig.canvas.mpl_connect('close_event', self._on_close)
@@ -104,7 +108,7 @@ class WaterTank:
                     self.holes.pop(min_idx)
                     self.leak_trails.pop(min_idx)
 
-    def punch_hole(self, rate=0.2, y=None, y_m=None):
+    def punch_hole(self, y=None, y_m=None):
         tank_bottom = self.vis_height - self.padding_bottom
         tank_top = self.padding_top
 
@@ -113,7 +117,8 @@ class WaterTank:
         elif y is None:
             y = int(tank_bottom - self.level * (tank_bottom - tank_top))
 
-        self.holes.append({'rate': rate, 'time': self.current_time, 'y': y})
+        height_m = (tank_bottom - y) / self.pixels_per_meter  # convert pixel to meters
+        self.holes.append({'rate': self.a, 'time': self.current_time, 'y': y, 'height_m': height_m})
         self.leak_trails.append([])
 
     def step(self, u: Union[float, np.ndarray], 
@@ -138,13 +143,11 @@ class WaterTank:
 
         leak = 0
         for hole in self.holes:
-            hole_height_m = (tank_bottom - hole['y']) / self.pixels_per_meter  # convert pixel to meters
+            hole_height_m = hole['height_m']
             if self.level > hole_height_m:
                 h = self.level - hole_height_m
-                leak += hole['rate'] * np.sqrt(2*self.g*h)
-
-        delta = u - leak  # u and leak must be consistent units (m/s height rate)
-        self.level += delta * self.dt
+                leak += (1- hole['rate'] * self.dt)
+        self.level = leak * self.level + self.b * u * self.dt
         self.level = np.clip(self.level, 0.0, self.tank_height_m)
 
 
@@ -218,7 +221,7 @@ class WaterTank:
             self.leak_trails[i] = new_trail
 
         # Friendly labels
-        cv2.putText(img, f"Water Level: {self.level} m", (tank_left + 10, tank_bottom + 30),
+        cv2.putText(img, f"Water Level: {self.level:.2f} m", (tank_left + 10, tank_bottom + 30),
             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2, cv2.LINE_AA)
 
         cv2.putText(img, f"Inflow: {self.inflow:.2f}", (tank_left + 10, tank_top - 10),
@@ -340,7 +343,7 @@ class WaterTank:
         axs[0].legend()
         axs[0].grid()
         axs[1].plot(t_vals, data[:, 1], label="Inflow U")
-        axs[1].set_ylim(0, 2.0)
+        axs[1].set_ylim(*self.input_limit)
         axs[1].legend()
         axs[1].grid()
         plt.show()
@@ -363,7 +366,7 @@ def test_water_tank_controller_forever():
 
         y = tank.level
         u = L * r - F * y
-        u = np.clip(u, 0, 2.0)
+        u = np.clip(u, *tank.input_limit)
 
         _, done = tank.step(u, r=r)
         if done:
