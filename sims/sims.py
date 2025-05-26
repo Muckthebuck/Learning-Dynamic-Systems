@@ -16,6 +16,7 @@ import time
 import ast
 import sympy as sp
 import cv2
+import keyboard
 
 SIM_CLASS_MAP = {
     "Pendulum": (Pendulum, np.array([np.pi/4, 0.0]), (2,1)),
@@ -69,6 +70,8 @@ class Sim:
         self.initial_state = state
         self.buffer_delay = buffer_delay
 
+        self.is_paused = False
+
         match sim_type:
             case "armax":
                 self.initial_state = np.zeros(max(len(A)-1, len(B)-1))
@@ -95,6 +98,8 @@ class Sim:
         self.r_f=r_f
         self.r_c =r_c
         self.i=0
+
+        keyboard.add_hotkey("p", self.toggle_pause  )
 
         # tuner = LTuner(self.controller)
         # tuner.start()  # opens the slider window
@@ -221,6 +226,9 @@ class Sim:
         self.logger.info("[Init] Waiting for SS update...")
         while self.controller_plant.initialised_event.is_set() is False:
             # continue running the simulation with the same input recurrently
+            if self.is_paused:
+                continue
+
             self.sim.step(u=u[self.i%n_u], t=curr_t)
             self.i += 1
             curr_t += self.dt
@@ -255,7 +263,9 @@ class Sim:
                 r[i] = _get_r(r_type, f, a, c)
             return r
 
-
+    def toggle_pause(self):
+        print("Pause pressed")
+        self.is_paused = not self.is_paused
 
     def run(self):
         """
@@ -271,6 +281,9 @@ class Sim:
         start_i = self.i
         buffer_delay = self.buffer_delay
         while True:
+            if self.is_paused:
+                continue
+            
             # get the controller output
             r = self.get_r(self.i)
             u = self.controller.get_u(state, r=r)
