@@ -283,7 +283,7 @@ class Sim:
         while True:
             if self.is_paused:
                 continue
-            
+
             # get the controller output
             r = self.get_r(self.i)
             u = self.controller.get_u(state, r=r)
@@ -387,7 +387,7 @@ def parse_sim_args(raw_args: List[str] = None) -> argparse.Namespace:
 
 
 def run_simulation(raw_args=None, db: Database = None, logger: logging.Logger = None):
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     logger = logger if logger else logging.getLogger(__name__)
 
     # Parse and unpack arguments
