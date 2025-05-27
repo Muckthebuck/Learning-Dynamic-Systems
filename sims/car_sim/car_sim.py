@@ -9,41 +9,128 @@ import os
 np.random.seed(42)
 
 class CarSim:
-    def __init__(self, lanes=3):
-        self.road_length = 100  # total road length units
+    def __init__(self, 
+                 lanes=3, 
+                 road_speed=0.3,
+                 road_length=100, 
+                 car_pos=[1, 0], 
+                 batch_length=100, 
+                 safety_dist=25,
+                 lane_change_length=12,
+                 denstity=0.1):
+        self.road_length = road_length # total road length units
+        self.batch_length = batch_length
         self.lanes = lanes
+        self.safety_dist = safety_dist
+        self.lane_change_length = lane_change_length
+        self.road_spped = road_speed  # speed in road units per step
+        self.density = denstity
         # Changed lane centers to integer indices for simpler consistent mapping
         self.lane_centers = [i for i in range(self.lanes)]
-        self.car_pos = [1, 0]  # lateral position, longitudinal position
+        self.car_pos = car_pos # lane , longitudinal position
+        self.current_lane = car_pos[0]
+        self.car_heading = 0
         self.prev_car_pos = self.car_pos.copy()
         self.state = np.array(self.car_pos)
         self.done = False
-        self._init_plot()
-        self._init_visual()
-        self.obstacles = self._generate_traffic()
-        self.ref_path = self._compute_reference_path()
+        self.obstacles = []  # list of (y, lane) tuples
+        self.smooth_ref_path = []
 
+
+        self.speed = 0.5  # speed in road units per step
         self.view_length = 30  # how much road length units visible ahead
         self.car_screen_y = 500  # fixed vertical pixel pos of car on screen
+        self._init_plot()
+        self._init_visual()
 
-    def _generate_traffic(self):
+         # Generate next segment
+        self._load_initial_batches()
+
+
+
+    def _load_initial_batches(self):
+        # Load first batch
+        batch1 = self.generate_batch(start_y=0, batch_length=self.batch_length, initial_lane=self.current_lane, density=self.density)
+        self.current_spline = batch1['spline']
+        self.next_lane = batch1['final_lane']
+        self.smooth_ref_path = batch1['path']
+        self.obstacles = batch1['obstacles']
+
+
+        # Load next batch
+        batch2 = self.generate_batch(start_y=self.batch_length, batch_length=self.batch_length, density=self.density,initial_lane=self.next_lane, initial_x=batch1['final_x'])
+        self.next_spline = batch2['spline']
+        self.next_batch_y = self.batch_length
+        self.next_lane = batch2['final_lane']
+        self.next_smooth_ref_path = batch2['path']
+        self.next_obstacles = batch2['obstacles']
+    
+    def _switch_to_next_batch(self):
+        # Swap current spline to next spline
+        self.current_spline = self.next_spline
+        self.current_lane = self.next_lane
+        self.smooth_ref_path = self.next_smooth_ref_path
+        self.obstacles = self.next_obstacles
+
+        # Load next batch after current one
+        next_start_y = self.next_batch_y + self.batch_length
+        batch = self.generate_batch(start_y=next_start_y, batch_length=self.batch_length, initial_lane=self.current_lane, density=self.density)
+        self.next_spline = batch['spline']
+        self.next_batch_y = next_start_y
+        self.next_lane = batch['final_lane']
+        self.next_smooth_ref_path = batch['path']
+        self.next_obstacles = batch['obstacles']
+        
+    
+    def get_reference_x(self):
+        y = self.car_pos[1]
+        return self.current_spline(y)
+
+    def generate_batch(self, start_y=0, batch_length=None, offset=10, density=0.15, buffer=8, 
+                    initial_lane=1, initial_x=None):
+        # Generate obstacles for this batch starting at start_y
+        obstacles = self._generate_traffic(start_y=start_y, batch_length=batch_length, offset=offset, density=density, buffer=buffer)
+        
+        # Compute the reference path starting at start_y, using initial lane and lateral position
+        path, final_lane, final_x, spline = self._compute_reference_path(obstacles=obstacles,
+                                                    current_lane=initial_lane,
+                                                    start_y=start_y,
+                                                    start_x=initial_x,
+                                                    safety_dist=self.safety_dist,
+                                                    lane_change_length=self.lane_change_length
+                                                )
+        # If no obstacles, ensure we have a valid path                                
+        return {
+            'obstacles': obstacles,
+            'path': path,
+            'final_lane': final_lane,
+            'final_x': final_x,
+            'spline': spline
+        }
+
+    def _generate_traffic(self, start_y=0, batch_length=100, offset=10, density=0.15, buffer=8):
         obs = []
-        density = 0.15
-        num_obstacles = int(self.road_length * density)
-        buffer = 8  # minimum gap between cars in the same lane
+        if batch_length is None:
+            batch_length = self.road_length
 
-        segment_length = self.road_length / num_obstacles
+        effective_start = start_y + offset
+        effective_length = batch_length - offset
+        if effective_length <= 0:
+            return []  # No space to generate obstacles after offset
+
+        num_obstacles = int(effective_length * density)
+        segment_length = effective_length / num_obstacles if num_obstacles > 0 else effective_length
 
         for i in range(num_obstacles):
-            # Random y within the segment
-            y = np.random.uniform(i * segment_length, (i + 1) * segment_length)
+            y = np.random.uniform(effective_start + i * segment_length, effective_start + (i + 1) * segment_length)
             lane = np.random.randint(0, self.lanes)
 
-            # Offset y if overlapping with existing obs in the same lane
+            # Adjust y to avoid overlap within buffer distance on both sides
             while any(abs(y - oy) < buffer and lane == ol for oy, ol in obs):
+                # Push y forward by buffer until no overlap
                 y += buffer
-                if y > self.road_length:
-                    y = self.road_length
+                if y > start_y + batch_length:
+                    y = start_y + batch_length
                     break
 
             obs.append((y, lane))
@@ -51,23 +138,36 @@ class CarSim:
         obs.sort(key=lambda x: x[0])
         return obs
 
-    def _compute_reference_path(self, safety_dist=30, lane_change_length=10):
+
+    def _compute_reference_path(self, obstacles,
+                                safety_dist=30, 
+                                lane_change_length=10, 
+                                current_lane=1, 
+                                start_y=0, 
+                                start_x=None):
         y_points = []
         x_points = []
 
-        current_lane = 1  # Start center lane
         lane_change_start_y = None
         lane_change_end_y = None
-        start_x = self.lane_centers[current_lane]
         target_lane = current_lane
 
-        for y in range(self.road_length):
+        # Use lane center for current lane if start_x not given
+        if start_x is None:
+            start_x = self.lane_centers[current_lane]
+
+        # Current lateral position - start_x
+        x = start_x
+
+        y_range = range(start_y, start_y + self.road_length)
+
+        for y in y_range:
             # Check if we are in a lane change segment
             in_lane_change = lane_change_start_y is not None and lane_change_start_y <= y <= lane_change_end_y
 
             if not in_lane_change:
-                # Find obstacles near this y
-                close_obstacles = [(oy, ol) for oy, ol in self.obstacles if 0 <= oy - y < safety_dist]
+                # Find obstacles near this y (relative to global y)
+                close_obstacles = [(oy, ol) for oy, ol in obstacles if 0 <= oy - y < safety_dist]
                 lanes_blocked = [ol for oy, ol in close_obstacles]
 
                 if current_lane in lanes_blocked:
@@ -86,15 +186,13 @@ class CarSim:
                         # Start lane change
                         lane_change_start_y = y
                         lane_change_end_y = y + lane_change_length
-                        start_x = self.lane_centers[current_lane]
+                        start_x = x
                         end_x = self.lane_centers[target_lane]
 
             if in_lane_change:
                 # Compute normalized progress along lane change [0,1]
                 t = (y - lane_change_start_y) / lane_change_length
-                # Use a smooth polynomial to interpolate lateral position
-                # Let's use a simple cubic polynomial for smoothness (ease in/out)
-                # x(t) = start_x + (end_x - start_x) * (3t^2 - 2t^3)
+                # Smooth cubic interpolation between start_x and end_x
                 x = start_x + (end_x - start_x) * (3 * t ** 2 - 2 * t ** 3)
 
                 if y == lane_change_end_y:
@@ -111,12 +209,13 @@ class CarSim:
 
         # Fit a spline for smoothing (optional, your path is already smooth)
         spline = CubicSpline(y_points, x_points)
-        smooth_y = np.linspace(0, self.road_length - 1, 500)
+        smooth_y = np.linspace(y_range.start, y_range.stop - 1, 500)
         smooth_x = spline(smooth_y)
+        smooth_ref_path = list(zip(smooth_y, smooth_x))
 
-        self.spline = spline
-        self.smooth_ref_path = list(zip(smooth_y, smooth_x))
-        return self.smooth_ref_path
+        # Return final lane and lateral position for next batch continuity
+        return smooth_ref_path, current_lane, x_points[-1], spline
+
 
 
 
@@ -125,12 +224,12 @@ class CarSim:
         self.track_plot = self.axs[0].plot([], [], label="Car")[0]
         self.ref_plot = self.axs[0].plot([], [], label="Reference")[0]
         self.axs[0].legend()
-        self.axs[0].set_xlim(0, self.road_length)
+        self.axs[0].set_xlim(0, self.view_length)
         self.axs[0].set_ylim(-1, self.lanes + 1)
         self.axs[0].set_title("Tracking Reference Path")
 
         self.input_plot = self.axs[1].plot([], [], label="u (lateral vel)")[0]
-        self.axs[1].set_xlim(0, self.road_length)
+        self.axs[1].set_xlim(0, self.view_length)
         self.axs[1].set_ylim(-1, 1)
         self.axs[1].set_title("Control Input")
         plt.tight_layout()
@@ -173,8 +272,6 @@ class CarSim:
         return np.array([state[1]])
     
 
-
-
     def step(self, u: Union[float, np.ndarray],
              r: Optional[float] = None,
              t: Optional[float] = None,
@@ -183,14 +280,14 @@ class CarSim:
         if self.done or self.car_pos[1] >= self.road_length:
             self.done = True
             return np.array([self.car_pos[1]]), True
-
+        
         # Update lateral position (clamped)
         x = self.car_pos[0] + u
         x = np.clip(x, 0, self.lanes - 1)
         self.car_pos[0] = x
 
         # Advance forward
-        self.car_pos[1] += 0.5  # speed in road units per step
+        self.car_pos[1] += self.road_spped  # speed in road units per step
         self.state = np.array(self.car_pos)
 
         # Calculate heading based on movement vector
@@ -203,7 +300,9 @@ class CarSim:
         self.prev_car_pos = self.car_pos.copy()
 
         noise = np.random.normal(0, 0.01, size=1)
-
+        if self.car_pos[1] >= self.next_batch_y:
+            # Switch to next batch
+            self._switch_to_next_batch()
         sim._update_visual()
         sim._update_plot(u)
 
@@ -416,26 +515,78 @@ class CarSim:
             i += 1
 
 
+    # def _update_plot(self, u):
+    #     x, y = self.car_pos
+    #     ref_x = self.current_spline(y) if y < self.road_length else self.lane_centers[1]
+
+    #     self.plot_data["y"].append(y)
+    #     self.plot_data["x"].append(x)
+    #     self.plot_data["ref_x"].append(ref_x)
+    #     self.plot_data["u"].append(u)
+
+    #     self.track_plot.set_data(self.plot_data["y"], self.plot_data["x"])
+    #     self.ref_plot.set_data(self.plot_data["y"], self.plot_data["ref_x"])
+    #     self.input_plot.set_data(self.plot_data["y"], self.plot_data["u"])
+
+    #     for ax in self.axs:
+    #         ax.relim()
+    #         ax.autoscale_view()
+
+    #     self.fig.canvas.draw()
+    #     self.fig.canvas.flush_events()
+    #     plt.pause(0.001)
+
     def _update_plot(self, u):
+        y_now = self.car_pos[1]
+        y_min = max(0,y_now - self.view_length)
+        y_max = y_now
+
+        # Save current point
         x, y = self.car_pos
-        ref_x = self.spline(y) if y < self.road_length else self.lane_centers[1]
+        ref_x = self.current_spline(y)
 
         self.plot_data["y"].append(y)
         self.plot_data["x"].append(x)
         self.plot_data["ref_x"].append(ref_x)
         self.plot_data["u"].append(u)
 
+        # Trim old data outside the view window (pop from the front)
+        while self.plot_data["y"] and self.plot_data["y"][0] < y_min:
+            self.plot_data["y"].pop(0)
+            self.plot_data["x"].pop(0)
+            self.plot_data["ref_x"].pop(0)
+            self.plot_data["u"].pop(0)
+
+        # Generate smooth reference curve for the full window
+        y_dense = np.linspace(y_min, y_max, 300)
+        ref_dense = self.current_spline(y_dense)
+
+        # Update plots
         self.track_plot.set_data(self.plot_data["y"], self.plot_data["x"])
-        self.ref_plot.set_data(self.plot_data["y"], self.plot_data["ref_x"])
+        self.ref_plot.set_data(y_dense, ref_dense)
         self.input_plot.set_data(self.plot_data["y"], self.plot_data["u"])
 
         for ax in self.axs:
+            ax.set_xlim(y_min, y_max)
             ax.relim()
-            ax.autoscale_view()
+            ax.autoscale_view(scalex=False)
 
         self.fig.canvas.draw()
         self.fig.canvas.flush_events()
         plt.pause(0.001)
+    
+    def reset(self):
+        self.car_pos = [1, 0]
+        self.current_lane = 1
+        self.prev_car_pos = self.car_pos.copy()
+        self.state = np.array(self.car_pos)
+        self.done = False
+        self.obstacles = []
+        self.smooth_ref_path = []
+        self._load_initial_batches()
+        self.plot_data = {"y": [], "x": [], "ref_x": [], "u": []}
+        
+
 
     def show_final_plot(self):
         plt.ioff()
@@ -443,22 +594,19 @@ class CarSim:
 
 
 if __name__ == "__main__":
-    sim = CarSim(lanes=4)
+    sim = CarSim(lanes=4, road_length=200)
     plt.ion()
 
-    def simple_lateral_controller(state, spline):
+
+    def simple_lateral_controller(state, ref_x):
         x, y = state
-        if y >= sim.road_length:
-            return 0
-        ref_x = spline(y)
         error = ref_x - x
         return 0.1 * error
 
-    sim.set_initial_state([1.5, 0])
 
     while not sim.done:
         state = sim.curr_full_state()
-        u = simple_lateral_controller(state, sim.spline)
+        u = simple_lateral_controller(state, sim.get_reference_x())
 
         sim.step(u)
 

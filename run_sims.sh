@@ -27,6 +27,7 @@ usage() {
     echo "  --B <array>                         ARMAX B polynomial"
     echo "  --C <array>                         ARMAX C polynomial"
     echo "  --N <int>                           SPS N points"
+    echo "  --iters <int>                         Number of iterations (default: 1)"
     echo "  -h, --help                           Show help"
     exit 0
 }
@@ -80,6 +81,7 @@ A=$(yq -o=json '.A // ""' "$CONFIG_FILE")
 B=$(yq -o=json '.B // ""' "$CONFIG_FILE")
 C=$(yq -o=json '.C // ""' "$CONFIG_FILE")
 N=$(yq -o=json '.N // ""' "$CONFIG_FILE")
+ITERS=$(yq '.iters // 1' "$CONFIG_FILE")
 
 if [[ $(yq '.plot_system // true' "$CONFIG_FILE") == "false" ]]; then
     PLOT_ARG="--no-plot_system"
@@ -119,6 +121,7 @@ while [[ "$#" -gt 0 ]]; do
         --B) B="$2"; shift 2 ;;
         --C) C="$2"; shift 2 ;;
         --N) N="$2"; shift 2 ;;
+        --iters) ITERS="$2"; shift 2 ;;
         -h|--help) usage ;;
         *) echo "Unknown parameter: $1"; usage ;;
     esac
@@ -159,6 +162,7 @@ python -m sims.sims \
     --r_f "$R_F" \
     --r_c "$R_C" \
     --N "$N" \
+    --iters "$ITERS" \
     "${args[@]}"
 
 # --- Deactivate ---

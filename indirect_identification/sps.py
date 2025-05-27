@@ -63,6 +63,7 @@ class SPS:
         self.C = C_obs
         # assert the shape of C
         assert self.C.shape == (self.n_outputs, self.n_states)
+        self.resetting = False
 
         # empty data and controller
         self.data = None
@@ -72,6 +73,7 @@ class SPS:
         self.db = db
         self.db.subscribe("data", self.data_callback)
         self.db.subscribe("controller", self.controller_callback)
+        self.db.subscribe("reset", self.reset_callback)
         self.model = SPS_indirect_model(m=self.m, q=self.q, N=self.N, epsilon=self.epsilon,
                                         n_states=self.n_states, n_inputs=self.n_inputs, 
                                         n_outputs=self.n_outputs, n_noise=self.n_noise_order)
@@ -115,11 +117,28 @@ class SPS:
             case _:
                 raise RuntimeError(f"{search_type} not supported.")
         return search 
+    
+    def reset_callback(self, data):
+        self.resetting = True
+        reset_data = self.db._deserialize(data)
+        self.logger.info(f"[SPS] Reset callback received: {reset_data}")
+        if reset_data:
+            try:
+                self.logger.info("[SPS] Reset callback")
+                self.fusion.reset()
+            except Exception as e:
+                self.logger.error(f"[SPS] Error during reset: {e}")
+            
+
 
     def data_callback(self, data):
         """
         data attributes: y, u, r, sps_type
         """
+        if self.resetting:
+            self.logger.info("[SPS] Resetting, skipping data callback")
+            self.resetting = False
+            return
         self.logger.info("[SPS] Data callback")
         self.data = self.db._deserialize(data)
         self.data.y = np.array(self.data.y, dtype=np.float64)
@@ -133,9 +152,14 @@ class SPS:
         """
         controller attributes: F, L
         """
+        if self.resetting:
+            self.logger.info("[SPS] Resetting, skipping data callback")
+            self.resetting = False
+            return
         self.logger.info("[SPS] Controller callback")
         controller = self.db._deserialize(controller)
-        self.run_in_thread(self._convert_controller_to_dtfs, controller)
+        self.logger.info(f"[SPS] Controller callback received: {controller}")
+        self._convert_controller_to_dtfs(controller)
      
     
     def run_in_thread(self, target_fn, *args):

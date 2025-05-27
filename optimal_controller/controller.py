@@ -30,6 +30,13 @@ class Plant:
         self.db.subscribe("ss", self.ss_callback)
         self.initialised_event = threading.Event()
         self.initialised_event.clear()
+    
+    def reset(self):
+        self.initialised = False
+        self.ss = None
+        self.ss_k = None
+        self.new_update = False
+        self.initialised_event.clear()
 
     def ss_callback(self, ss):
         """
@@ -96,6 +103,14 @@ class Controller:
             self.K = self.design_lqr()
         self.logger = logging.getLogger(__name__)
         self.heard_back = False
+    
+    def reset(self):
+        """
+        Resets the controller state.
+        """
+        self.heard_back = False
+        self.plant.reset()
+        self.logger.info("[Controller] Controller reset")
         
     def design_lqr(self):
         """

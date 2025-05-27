@@ -57,6 +57,21 @@ class PendulumSimBase(ABC):
         plt.ion()
         plt.show()
     
+    def reset(self) -> None:
+        """
+        Resets the simulation state and history.
+        """
+        self.state = np.zeros_like(self.state)
+        self.history = []
+        if self.plot_system:
+            for line in self.lines:
+                line.set_data([], [])
+            for ax in self.axs:
+                ax.relim()
+                ax.autoscale_view()
+            plt.draw()
+            plt.pause(0.001)
+    
     @abstractmethod
     def dynamics(self, y: np.ndarray, u: float) -> np.ndarray:
         """

@@ -67,6 +67,33 @@ class Fusion:
             self.proj = self.pca.fit_transform(self.X)
         self.initialise_plot()
 
+    def reset(self):
+        """
+        Reset the fusion state, including the convex hull and current probability map.
+        """
+        logging.info("[Fusion] Resetting state.")
+        self.hull = None
+        self.curr_p_map = None
+        self.hull_pmap = None
+        self.step = 0
+        self.new_update = False
+        self.best_points_reached = False
+        self.selected_pts = None
+        self.plot_points = None
+        self.plot_probs = None
+        self.k_probable = None
+        self.reset_used_idx_set()
+        self.last_succesfull_centers = None
+        self.last_succesfull_centers_idx = None
+        # clear plots
+        self.scatter = self.ax.scatter([],[], c=[], cmap='viridis', s=10)
+        if self.dim == 2:
+            self.line_collection = LineCollection([], colors='r', linewidths=2)
+
+        
+
+        logging.info("[Fusion] State reset.")
+
     def approximate_hull(self):
         """
         Approximate convex hull with MVEE and sample points on the ellipsoid surface.
@@ -305,61 +332,10 @@ class Fusion:
             
         return inside, outside
 
-    def sample_points_inside(self, alpha=0.7):
-        """
-        Sample points inside the convex hull using a blended score of log-probabilities
-        and geometric centrality, avoiding previously used points.
-        """
-        if self.hull is None:
-            raise ValueError("Convex hull not defined. Call fuse() first.")
-
-        selected_pts = self.hull.points
-        n = selected_pts.shape[0]
-
-        if self.hull_pmap is None or len(self.hull_pmap) != n:
-            raise ValueError("Invalid or missing hull_pmap (log-probabilities).")
-
-        # Step 1: Get available indices
-        all_indices = np.arange(n)
-        mask = np.array([i not in self.used_idx_set for i in all_indices])
-        available_indices = all_indices[mask]
-
-        if len(available_indices) == 0:
-            self.use_random_centers = True
-            raise NoCentersInHullError("No available points left to sample from the convex hull.")
-
-        available_points = selected_pts[available_indices]
-        available_logp = self.hull_pmap[available_indices]
-
-        # Step 2: Scoring
-        logp_probs = log_probs_to_normalized_probs(available_logp)
-        centroid = np.mean(selected_pts, axis=0)
-        centrality = compute_centrality(available_points, centroid)
-        blended_scores = blend_scores(logp_probs, centrality, alpha)
-        blended_scores /= np.sum(blended_scores)
-
-        # Step 3: Sample
-        sample_size = min(self.n_centers, len(available_indices))
-        sampled_idx_local = np.random.choice(len(available_indices), size=sample_size, replace=False, p=blended_scores)
-        sampled_global_idx = available_indices[sampled_idx_local]
-
-        # Step 4: Update used index set
-        self.used_idx_set.update(sampled_global_idx.tolist())
-
-        # check if we have used all points
-        if len(self.used_idx_set) >= n:
-            self.use_random_centers = True
-            logging.info("[Fusion] All points used, switching to random centers sampling in next iteration.")
-
-        # Step 5: Return points
-        inside = selected_pts[sampled_global_idx].reshape(-1, self.dim)
-        return inside, sampled_global_idx
-
-
-    # def sample_points_inside(self):
+    # def sample_points_inside(self, alpha=0.7):
     #     """
-    #     Sample points inside the convex hull using a log-probability map
-    #     that biases sampling toward central points.
+    #     Sample points inside the convex hull using a blended score of log-probabilities
+    #     and geometric centrality, avoiding previously used points.
     #     """
     #     if self.hull is None:
     #         raise ValueError("Convex hull not defined. Call fuse() first.")
@@ -370,19 +346,41 @@ class Fusion:
     #     if self.hull_pmap is None or len(self.hull_pmap) != n:
     #         raise ValueError("Invalid or missing hull_pmap (log-probabilities).")
 
-    #     # Convert log-probabilities to normalized probabilities
-    #     probs = log_probs_to_normalized_probs(self.hull_pmap)
+    #     # Step 1: Get available indices
+    #     all_indices = np.arange(n)
+    #     mask = np.array([i not in self.used_idx_set for i in all_indices])
+    #     available_indices = all_indices[mask]
 
-    #     # Sample indices based on probabilities
-    #     if n >= self.n_centers:
-    #         idx = np.random.choice(n, size=self.n_centers, replace=False, p=probs)
-    #         inside = selected_pts[idx].reshape(-1, self.dim)
-    #     else:
-    #         # if not enough points, order the points by probabilities
-    #         idx = np.argsort(probs)[::-1][:self.n_centers]
-    #         inside = selected_pts[idx].reshape(-1, self.dim)
+    #     if len(available_indices) == 0:
+    #         self.use_random_centers = True
+    #         raise NoCentersError("No available points left to sample from the convex hull.")
 
-    #     return inside
+    #     available_points = selected_pts[available_indices]
+    #     available_logp = self.hull_pmap[available_indices]
+
+    #     # Step 2: Scoring
+    #     logp_probs = log_probs_to_normalized_probs(available_logp)
+    #     centroid = np.mean(selected_pts, axis=0)
+    #     centrality = compute_centrality(available_points, centroid)
+    #     blended_scores = blend_scores(logp_probs, centrality, alpha)
+    #     blended_scores /= np.sum(blended_scores)
+
+    #     # Step 3: Sample
+    #     sample_size = min(self.n_centers, len(available_indices))
+    #     sampled_idx_local = np.random.choice(len(available_indices), size=sample_size, replace=False, p=blended_scores)
+    #     sampled_global_idx = available_indices[sampled_idx_local]
+
+    #     # Step 4: Update used index set
+    #     self.used_idx_set.update(sampled_global_idx.tolist())
+
+    #     # check if we have used all points
+    #     if len(self.used_idx_set) >= n:
+    #         self.use_random_centers = True
+    #         logging.info("[Fusion] All points used, switching to random centers sampling in next iteration.")
+
+    #     # Step 5: Return points
+    #     inside = selected_pts[sampled_global_idx].reshape(-1, self.dim)
+    #     return inside, sampled_global_idx
 
     def reset_last_successful_centers(self):
         """
@@ -459,7 +457,8 @@ class Fusion:
                 self.ax.set_ylim(ylim)
 
         self.colorbar = self.fig.colorbar(self.scatter, ax=self.ax, label='Fused Posterior Probabilities')
-
+        # grid
+        self.ax.grid(True)
         self.fig.canvas.draw()
         plt.show(block=False)
 

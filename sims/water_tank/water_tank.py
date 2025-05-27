@@ -61,7 +61,23 @@ class WaterTank:
         elif isinstance(state, (float, np.floating)):
             return np.array([state])
         
-    
+    def reset(self):
+        self.level = 0.0
+        self.holes = []
+        self.history = []
+        self.current_time = 0.0
+        self.inflow = 0.0
+        self.done = False
+        self.state = np.array([self.level])
+        self.leak_trails = []
+        self.punch_hole()
+        
+        if self.plot_system:
+            self._update_plot()
+        if self.visual:
+            self._update_visual()
+
+        return np.array([self.level])
 
     def _init_plot(self):
         self.fig, self.axs = plt.subplots(2, 1, figsize=(8, 4), sharex=True)
@@ -96,7 +112,7 @@ class WaterTank:
                 level_y = 1 - ((y - tank_top) / (tank_bottom - tank_top))
                 level_y = np.clip(level_y, 0, 1)
                 hole_y = int(tank_bottom - level_y * (tank_bottom - tank_top))
-                self.punch_hole(rate=0.05, y=hole_y)
+                self.punch_hole(y=hole_y)
 
         elif event == cv2.EVENT_RBUTTONDOWN:
             click_pos = np.array([x, y])
@@ -352,7 +368,7 @@ class WaterTank:
 
 def test_water_tank_controller_forever():
     tank = WaterTank(noise_std=0.05, plot_system=True, visual=True)  # noise off for stability
-    tank.punch_hole(rate=0.1)
+    tank.punch_hole()
 
     # Controller gains (tweak as needed)
     F = 1.5

@@ -101,7 +101,7 @@ class Database:
             - timestamp: DATETIME (Default: CURRENT_TIMESTAMP)
     """
 
-    POOL_SIZE = 5
+    POOL_SIZE = 6
 
     def __init__(self, db_name: str = "sim.db", redis_host: str = "localhost", 
                  redis_port: int = 6379, redis_db: int = 0,
@@ -111,14 +111,14 @@ class Database:
                                               retry=retry, retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError])
         self.logger = logger or logging.getLogger(__name__)
         self.pubsub = self.redis_client.pubsub()
-        self.possible_topics = ["ss", "data", "controller"]
+        self.possible_topics = ["ss", "data", "controller", "reset"]
         self.db_name = db_name
         self.lock = threading.Lock()
 
         self.pool = Queue(maxsize=self.POOL_SIZE)
         self._init_pool()
         self._init_db()
-
+        self._is_shutting_down = False    
         self.pubsub_threads = []
         self.subscriptions = {}
 
@@ -127,7 +127,7 @@ class Database:
 
 
     def _init_pool(self) -> None:
-        """Initialize the connection pool."""
+        """Initialise the connection pool."""
         for _ in range(self.POOL_SIZE):
             conn = sqlite3.connect(self.db_name, check_same_thread=False)
             self.pool.put(conn)
@@ -151,7 +151,7 @@ class Database:
         self._release_connection(conn)
 
     def _init_db(self) -> None:
-        """Initialize database tables if they do not exist."""
+        """Initialise database tables if they do not exist."""
         # make sure the database is cleared before creating tables
         self._clear_db()
         # create tables
@@ -218,7 +218,7 @@ class Database:
         """Write data to the specified table."""
         serialized_data = self._serialize(data)
         self.redis_client.publish(table, serialized_data)
-        self.logger.debug(f"[DB] Published {table} to Redis")
+        self.logger.info(f"[DB] Published {table} to Redis")
         with self.lock:
             conn = self._get_connection()
             cursor = conn.cursor()
@@ -227,6 +227,12 @@ class Database:
             self._release_connection(conn)
             self.logger.debug(f"[DB] Data written to {table}")
 
+    def reset_sps(self) -> None:
+        """Send a reset signal to reset topic subscribers."""
+        self.logger.inf("[DB] Resetting system process state...")
+        serialised_data = self._serialize(obj=True)
+        self.redis_client.publish("reset", serialised_data)
+        self.logger.debug("[DB] Reset signal published to Redis")
 
     def get_latest_controller(self) -> Optional[Any]:
         """Get the latest controller data."""
@@ -289,18 +295,20 @@ class Database:
 
     def exception_handler(self, ex: Exception, pubsub: redis.client.PubSub, thread: threading.Thread) -> None:
         """Handle exceptions in the subscriber thread."""
-        self.logger.error(f"Exception in subscriber thread: {ex}")
-        self._restart_pubsub()
+        self.logger.error(f"Exception in subscriber thread {thread.name}: {ex}")
+        if not self._is_shutting_down:
+            self._restart_pubsub()
+
     
-    def subscribe(self, topic: str, callback: Callable[[Any], None]) -> None:
-        """Subscribe a callback function to a topic."""
-        self.logger.debug(f"[DB] Subscribing to topic: {topic}")
-        if topic not in self.possible_topics:
-            raise ValueError(f"Invalid topic: {topic}. Possible topics are: {self.possible_topics}")
-        self.pubsub.subscribe(**{topic: callback})
-        thread = self.pubsub.run_in_thread(sleep_time=0.001, daemon=True, exception_handler=self.exception_handler)
-        self.pubsub_threads.append(thread)
-        self.logger.debug(f"[DB] Subscribed to topic: {topic}")
+    # def subscribe(self, topic: str, callback: Callable[[Any], None]) -> None:
+    #     """Subscribe a callback function to a topic."""
+    #     self.logger.debug(f"[DB] Subscribing to topic: {topic}")
+    #     if topic not in self.possible_topics:
+    #         raise ValueError(f"Invalid topic: {topic}. Possible topics are: {self.possible_topics}")
+    #     self.pubsub.subscribe(**{topic: callback})
+    #     thread = self.pubsub.run_in_thread(sleep_time=0.001, daemon=True, exception_handler=self.exception_handler, thread_name=f"PubSubThread-{topic}" )
+    #     self.pubsub_threads.append(thread)
+    #     self.logger.debug(f"[DB] Subscribed to topic: {topic}")
 
     def subscribe(self, topic: str, callback: Callable[[Any], None]) -> None:
         """Subscribe a callback function to a topic with resiliency."""
@@ -317,14 +325,18 @@ class Database:
         if not self.pubsub_threads:
             self.pubsub_threads = []
         thread = self.pubsub.run_in_thread(
-            sleep_time=0.001, daemon=True, exception_handler=self.exception_handler
+            sleep_time=0.001, 
+            daemon=True, 
+            exception_handler=self.exception_handler
         )
+        thread.name = f"PubSubThread-{topic}"
         self.pubsub_threads.append(thread)
         self.logger.debug("[DB] Started Redis pubsub listener thread.")
 
         self.logger.debug(f"[DB] Subscribed to topic: {topic}")
     def _shutdown(self, signum: int, frame: Any) -> None:
         """Gracefully shut down the system on receiving termination signals."""
+        self._is_shutting_down = True  # <--- set shutdown flag
         self.logger.info("[DB] Shutting down gracefully...")
         for thread in self.pubsub_threads:
             thread.stop()

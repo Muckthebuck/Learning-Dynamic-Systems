@@ -1,6 +1,7 @@
 # sims args
 sim: water_tank
-T: -1
+T: 40
+iters: 2 # repeating
 dt: 0.02
 T_updates: 15 #  10/0.02 = 500 points =, sps taking max 18 (start), min 8 seconds
 plot_system: true

@@ -322,7 +322,7 @@ class Sim:
                 self.logger.info("[Sim] Simulation finished")
                 break
 
-        self.sim.show_final_plot()
+        # self.sim.show_final_plot()
 
 # Function to parse the input string into a NumPy array
 def parse_array(input_string):
@@ -383,6 +383,7 @@ def parse_sim_args(raw_args: List[str] = None) -> argparse.Namespace:
     parser.add_argument("--B",type=parse_array, help="ARMAX sim B polynomial")
     parser.add_argument("--C",type=parse_array, help="ARMAX sim C polynomial")
     parser.add_argument("--N",type=int, help="SPS number of points")
+    parser.add_argument("--iters", type=int, default=1, help="Number of iterations to run the simulation")
     return parser.parse_args(raw_args)
 
 
@@ -426,11 +427,22 @@ def run_simulation(raw_args=None, db: Database = None, logger: logging.Logger = 
 
     logger.info("[Init] Simulation instance created")
     T = (args.N+100)*args.dt
-    if args.sim == "water_tank":
-        simulation.initialise_plant(T=T, f=2.0, A=1.0, input_type="square_wave")
-    else:
-        simulation.initialise_plant(T=T, f=args.r_f[0], A=args.r_a[0], input_type="square_wave")
-    simulation.run()
+
+    iters = args.iters if args.iters > 0 else np.inf
+    
+    while iters > 0:
+        logger.info(f"[Init] Running simulation iteration {args.iters-iters+1}/{args.iters}")
+
+        if args.sim == "water_tank":
+            simulation.initialise_plant(T=T, f=2.0, A=1.0, input_type="square_wave")
+        else:
+            simulation.initialise_plant(T=T, f=args.r_f[0], A=args.r_a[0], input_type="square_wave")
+        simulation.run()
+        simulation.sim.reset()
+        simulation.controller.reset()
+        # send the reset signal
+        simulation.db.reset_sps()
+        iters -= 1
 
  
 

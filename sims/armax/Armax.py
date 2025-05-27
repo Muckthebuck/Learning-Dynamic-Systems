@@ -54,6 +54,19 @@ class ARMAX:
     def set_initial_state(self, state):
         return 
 
+    def reset(self):
+        self.y_buffer.fill(0.0)
+        self.u_buffer.fill(0.0)
+        self.n_buffer.fill(0.0)
+        self.idx = 0
+        self.current_time = 0.0
+        self.done = False
+        self.history = []
+        self.state = np.zeros(self.full_state_length).reshape(1,-1)
+
+        if self.plot_system:
+            self._update_plot()
+
     def _on_close(self, event):
         self.done = True
 
