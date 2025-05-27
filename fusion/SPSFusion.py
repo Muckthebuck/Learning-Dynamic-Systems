@@ -427,6 +427,7 @@ class Fusion:
 
     def initialise_plot(self):
         """
+
         Initialise interactive plot and setup figure, including PCA projection for dim > 3.
         """
         self.new_update = False  # reset update flag
@@ -438,7 +439,8 @@ class Fusion:
             self.ax.set_title("SPS Region (2D)")
             self.ax.set_xlim(self.bounds[0])
             self.ax.set_ylim(self.bounds[1])
-            self.scatter = self.ax.scatter([], [], c=[], cmap='viridis', s=10)
+            self.ax.grid(True)
+            self.scatter = self.ax.scatter([], [], c=[], cmap='viridis', s=10,)
             self.line_collection = LineCollection([], colors='r', linewidths=2)
             self.ax.add_collection(self.line_collection)
 
