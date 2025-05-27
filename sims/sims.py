@@ -8,6 +8,7 @@ from sims.pendulum import Pendulum, CartPendulum
 from sims.water_tank import WaterTank
 from sims.carla import CarlaSps
 from sims.armax import ARMAX
+from sims.car_sim import CarSim
 from optimal_controller.controller import Plant, Controller, LTuner
 import numpy as np
 from typing import Union, List
@@ -24,6 +25,7 @@ SIM_CLASS_MAP = {
     "Carla": (CarlaSps, np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), (11,1)), 
     "armax": (ARMAX, np.array([0]), (1,1)),
     "water_tank": (WaterTank, np.array([0]), (1,1)),
+    "car_sim": (CarSim, np.array([1]), (1,1))
 }
 
 
@@ -63,7 +65,7 @@ class Sim:
         self.disturbance = disturbance
         self.L = L
         n_r,n_o = self.L.shape
-        sim_type = sim
+        self.sim_type = sim
         sim, state, self.n = SIM_CLASS_MAP[sim]
         n_o,n_i = self.n
         self.n = (n_o,n_i,n_r)
@@ -72,7 +74,7 @@ class Sim:
 
         self.is_paused = False
 
-        match sim_type:
+        match self.sim_type:
             case "armax":
                 self.initial_state = np.zeros(max(len(A)-1, len(B)-1))
                 self.sim: ARMAX = sim(A=A, B=B, C=C, dt=self.dt, 
@@ -86,6 +88,9 @@ class Sim:
                                                                     history_limit=history_limit)
             case "water_tank":
                 self.sim: WaterTank = sim(plot_system=True, visual=True)
+            case "car_sim":
+                road_length = int(self.T/self.dt) if self.T>0 else np.inf
+                self.sim: CarSim = sim(dt=dt, road_length=road_length)
             case _:
                 raise NotImplementedError
         
@@ -177,11 +182,14 @@ class Sim:
 
     def sim_model_response(self, T, f, A, c, input_type="square_wave"):
         def _input():
-            input_funcs = {"impulse_wave": self.impulse_wave,
-                           "square_wave": self.square_wave}
-            if input_type not in input_funcs:
-                raise ValueError(f"Invalid input type: {input_type}. Must be one of {list(input_funcs.keys())}")
-            input_func = input_funcs[input_type]
+            if self.sim_type == "car_sim":
+                input_func = self.sim.open_loop_input_sequence
+            else:
+                input_funcs = {"impulse_wave": self.impulse_wave,
+                            "square_wave": self.square_wave}
+                if input_type not in input_funcs:
+                    raise ValueError(f"Invalid input type: {input_type}. Must be one of {list(input_funcs.keys())}")
+                input_func = input_funcs[input_type]
             inputs = input_func(T=T, f=f, fs=1/self.dt,A=A,c=c)
             return inputs
         t, u = _input()
@@ -240,6 +248,8 @@ class Sim:
 
     def get_r(self, i: int) -> Union[float, np.ndarray]:
         def _get_r(r_type, f, a, c=0):
+            if self.sim_type == "car_sim":
+                return self.sim.get_reference_x()
             if r_type == "constant":
                 return a
             elif r_type == "sin":
@@ -364,7 +374,7 @@ def parse_sim_args(raw_args: List[str] = None) -> argparse.Namespace:
     parser.add_argument("--T_updates", type=float, default=10, help="Time between each update. Please ensure there is enough time.")
     parser.add_argument("--dt", type=float, default=0.02, help="Simulation time step")
     parser.add_argument("--sim", type=str, required=True,
-                        choices=["Pendulum", "Cart-Pendulum", "Carla", "armax", "water_tank"],
+                        choices=["Pendulum", "Cart-Pendulum", "Carla", "armax", "water_tank", "car_sim"],
                         help="Simulation type")
     parser.add_argument("--plot_system", action="store_true", help="Enable plotting")
     parser.add_argument("--history_limit", type=float, default=2, help="Limit of history for plotting")

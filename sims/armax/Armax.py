@@ -144,7 +144,8 @@ class ARMAX:
             ax.autoscale_view()
             if len(t_vals) >= 2:
                 ax.set_xlim(t_vals[0], t_vals[-1])
-
+        self.fig.canvas.draw_idle()
+        self.fig.canvas.flush_events()
         plt.pause(0.01)
 
     def show_final_plot(self):

@@ -356,7 +356,7 @@ class WaterTank:
 
 def test_water_tank_controller_forever():
     tank = WaterTank(noise_std=0.05, plot_system=True, visual=True)  # noise off for stability
-    tank.punch_hole(rate=0.1)
+    tank.punch_hole()
 
     # Controller gains (tweak as needed)
     F = 1.5

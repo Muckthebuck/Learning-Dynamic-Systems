@@ -6,7 +6,7 @@ usage() {
     echo ""
     echo "Options:"
     echo "  --config <file>                      YAML config file path (required)"
-    echo "  --sim <Pendulum|Cart-Pendulum|Carla|armax>   Simulation type"
+    echo "  --sim <Pendulum|Cart-Pendulum|Carla|armax|car_sim>   Simulation type"
     echo "  --T <float>                          Total simulation time"
     echo "  --T_updates <float>                          Total simulation time"
     echo "  --dt <float>                         Simulation time step"

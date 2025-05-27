@@ -438,7 +438,7 @@ class SPS:
         try:
             G, H , A, B, C = self.construct_gh_from_params(params)
         except Exception:
-            return np.full(N.size, fill_value=SPS_MAX)
+            return np.full(Y.size, fill_value=SPS_MAX)
         if self.n_inputs==1 and self.n_outputs==1:
             Hinv = d_tfs((A, C))
             YGU = Y - G*U

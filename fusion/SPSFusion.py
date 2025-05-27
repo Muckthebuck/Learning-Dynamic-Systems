@@ -327,7 +327,7 @@ class Fusion:
 
         if len(available_indices) == 0:
             self.use_random_centers = True
-            raise NoCentersInHullError("No available points left to sample from the convex hull.")
+            raise NoCentersError("No available points left to sample from the convex hull.")
 
         available_points = selected_pts[available_indices]
         available_logp = self.hull_pmap[available_indices]
@@ -464,8 +464,9 @@ class Fusion:
 
         self.colorbar = self.fig.colorbar(self.scatter, ax=self.ax, label='Fused Posterior Probabilities')
 
-        self.fig.canvas.draw()
-        plt.show(block=False)
+        self.fig.canvas.draw_idle()
+        self.fig.canvas.flush_events()
+        plt.pause(0.001)  # allow GUI to update
 
     def plot_curr_region(self):
         if not self.new_update or self.curr_p_map is None:
@@ -501,12 +502,12 @@ class Fusion:
         #     self.ymax = max(self.ymax, ymax)
         # self.ax.set_xlim(self.xmin, self.xmax)
         # self.ax.set_ylim(self.ymin, self.ymax)
-
+        self.new_update = False
         self.scatter.set_clim(vmin, vmax)
         self.colorbar.update_normal(self.scatter)
-        self.ax.figure.canvas.draw_idle()
-        self.new_update = False
-        plt.pause(0.005)
+        self.fig.canvas.draw_idle()
+        self.fig.canvas.flush_events()
+        plt.pause(0.001)
 
         
 
