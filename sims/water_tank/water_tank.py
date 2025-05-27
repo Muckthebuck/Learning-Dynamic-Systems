@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cv2
 from typing import Tuple, Optional, Union
+from plot_helpers.plot_helpers import move_figure
 
 np.random.seed(42)  # For reproducibility
 class WaterTank:
@@ -76,10 +77,13 @@ class WaterTank:
         self.axs[1].grid()
         self.fig.canvas.mpl_connect('close_event', self._on_close)
         plt.ion()
+        move_figure(self.fig, 1000, 0)
         plt.show()
+
 
     def _init_visual(self):
         cv2.namedWindow("Water Tank")
+        cv2.moveWindow("Water Tank", 1000, 800)
         cv2.setMouseCallback("Water Tank", self._mouse_callback)
 
     def _on_close(self, event):
@@ -96,7 +100,7 @@ class WaterTank:
                 level_y = 1 - ((y - tank_top) / (tank_bottom - tank_top))
                 level_y = np.clip(level_y, 0, 1)
                 hole_y = int(tank_bottom - level_y * (tank_bottom - tank_top))
-                self.punch_hole(rate=0.05, y=hole_y)
+                self.punch_hole(y=hole_y)
 
         elif event == cv2.EVENT_RBUTTONDOWN:
             click_pos = np.array([x, y])
@@ -125,7 +129,7 @@ class WaterTank:
              r: Optional[float] = None, 
              t: Optional[float] = None, 
              full_state : Optional[bool] = False) -> Union[Tuple[np.ndarray, bool], Tuple[np.ndarray, bool, np.ndarray]]:
-
+        
         if self.done:
             if full_state:
                 return np.array([0.0]), True, np.array([0.0])

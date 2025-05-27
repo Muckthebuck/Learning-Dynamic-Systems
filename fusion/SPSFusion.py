@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from optimal_controller.lowres_MVEE import LowResMVEE
 import logging
+from plot_helpers.plot_helpers import move_figure
 
 EPS = 1e-12
 MAX_LOG = 700.0
@@ -433,6 +434,7 @@ class Fusion:
         self.new_update = False  # reset update flag
         plt.ion()  # interactive mode on
         self.fig = plt.figure(figsize=(8, 6))
+        move_figure(self.fig, 0, 0)
 
         if self.dim == 2:
             self.ax = self.fig.add_subplot(111)
