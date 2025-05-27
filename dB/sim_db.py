@@ -109,6 +109,8 @@ class Database:
         retry = Retry(ExponentialBackoff(), 3)
         self.redis_client = redis.Redis(host=redis_host, port=redis_port, db=redis_db, 
                                               retry=retry, retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError])
+        self.redis_client_pub = redis.Redis(host=redis_host, port=redis_port, db=redis_db, 
+                                              retry=retry, retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError])
         self.logger = logger or logging.getLogger(__name__)
         self.pubsub = self.redis_client.pubsub()
         self.possible_topics = ["ss", "data", "controller", "reset"]
@@ -217,7 +219,7 @@ class Database:
     def write_table(self, table: str, data: Any) -> None:
         """Write data to the specified table."""
         serialized_data = self._serialize(data)
-        self.redis_client.publish(table, serialized_data)
+        self.redis_client_pub.publish(table, serialized_data)
         self.logger.info(f"[DB] Published {table} to Redis")
         with self.lock:
             conn = self._get_connection()
@@ -229,9 +231,9 @@ class Database:
 
     def reset_sps(self) -> None:
         """Send a reset signal to reset topic subscribers."""
-        self.logger.inf("[DB] Resetting system process state...")
+        self.logger.info("[DB] Resetting system process state...")
         serialised_data = self._serialize(obj=True)
-        self.redis_client.publish("reset", serialised_data)
+        self.redis_client_pub.publish("reset", serialised_data)
         self.logger.debug("[DB] Reset signal published to Redis")
 
     def get_latest_controller(self) -> Optional[Any]:
