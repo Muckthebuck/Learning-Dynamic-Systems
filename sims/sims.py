@@ -289,6 +289,13 @@ class Sim:
         history_y = []
         history_u = []
         history_r = []
+
+        results = []
+        epoch_number = 0
+
+        def add_result(epoch, scores):
+            results[epoch] = scores
+
         n_iters = int(self.T/self.dt) if self.T>0 else np.inf
         start_i = self.i
         buffer_delay = self.buffer_delay
@@ -326,6 +333,8 @@ class Sim:
                 # Log results for the previous epoch
                 stats = plot_tracking(np.array(history_y), np.array(history_r))
                 self.logger.info("MRAE: %.6f" % (stats["mrae"]))
+                self.logger.info("RMSE: %.6f" % (stats["rmse"]))
+                self.logger.info("r2: %.6f" % (stats["r2"]))
                 
                 history_y = []
                 history_u = []

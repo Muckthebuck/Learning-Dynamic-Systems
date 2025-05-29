@@ -395,7 +395,9 @@ def compute_convhull(vectors):
     n_d = vectors.shape[1]
 
     if n_d > 1:
-        vertex_indices = ConvexHull(vectors).vertices # NB: qhull_options='QJ' results in a less precise hull, but is faster and often more reliable computation
+        hull = ConvexHull(vectors) # NB: qhull_options='QJ' results in a less precise hull, but is faster and often more reliable computation
+        vertex_indices = hull.vertices
+        self.logger.info("Hull Volume:", hull.volume)
         vertex_indices = np.unique(vertex_indices)
         vertices = vectors[vertex_indices, :]
         n_vertices = vertices.shape[0]
