@@ -121,18 +121,19 @@ class ARMAX:
         else:
             return output, done
         
-    # def curr_full_state(self):
-    #     full_state = np.array(self.history[-self.full_state_length:])[:,0]
-    #     full_state = np.flip(full_state)
-    #     # padd zero if nto full length 
-    #     # Pad with zeros if not full length
-    #     if len(full_state) < self.full_state_length:
-    #         padding = np.zeros(self.full_state_length - len(full_state))
-    #         full_state = np.concatenate((full_state, padding))
+    def curr_full_state(self):
+        return self.state
+        # full_state = np.array(self.history[-self.full_state_length:])[:,0]
+        # full_state = np.flip(full_state)
+        # # padd zero if nto full length 
+        # # Pad with zeros if not full length
+        # if len(full_state) < self.full_state_length:
+        #     padding = np.zeros(self.full_state_length - len(full_state))
+        #     full_state = np.concatenate((full_state, padding))
                 
     #     return full_state.reshape(-1,1)
     def full_state_to_obs_y(self, state):
-        return np.array([state.flatten()[0]])
+        return np.array([state.flatten()[-1]])
     
     def _update_plot(self):
         history_arr = np.array(self.history)
