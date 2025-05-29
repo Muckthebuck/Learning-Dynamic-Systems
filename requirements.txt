@@ -7,4 +7,5 @@ opencv-python
 sqlite
 numba
 scikit-learn
-redis[hiredis]
+redis
+pygame # for car sim

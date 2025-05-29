@@ -40,7 +40,8 @@ class PendulumSimBase(ABC):
         # initialise plotting
         if plot_system:
             self._initialise_plotting()
-
+    def set_initial_state(self, state):
+        self.state = state
     def _initialise_plotting(self):
         # History for live plotting
         self.history: list[np.ndarray] = []
@@ -70,8 +71,10 @@ class PendulumSimBase(ABC):
         """
         raise NotImplementedError("Subclasses must implement 'compute_dynamics'.")
 
-
-    def step(self, u: float, t, full_state: bool = False) -> Union[Tuple[np.ndarray, bool], Tuple[np.ndarray, bool, np.ndarray]]:
+    def full_state_to_obs_y(self, state):
+        return np.dot(self.C, state)
+    
+    def step(self, u: float, t, full_state: bool = False, r: Optional[float] = None) -> Union[Tuple[np.ndarray, bool], Tuple[np.ndarray, bool, np.ndarray]]:
         """
         Advances the simulation by one time step using RK4 integration.
 

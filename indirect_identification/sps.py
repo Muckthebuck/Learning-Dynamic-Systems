@@ -1,30 +1,42 @@
-from typing import Tuple, List, Union
+from typing import Tuple, List
 import numpy as np
-from search.search import SPSSearch
-from indirect_identification.sps_indirect import SPS_indirect_model
-from indirect_identification.d_tfs import d_tfs
+from search.search_radial import RadialSearch
+from indirect_identification.sps_indirect import SPS_indirect_model, OpenLoopStabilityError
+from indirect_identification.d_tfs import d_tfs, apply_tf_matrix
 from dB.sim_db import Database, SPSType
 from types import SimpleNamespace
-import scipy.signal as signal
-import matplotlib.pyplot as plt
+from scipy.spatial import ConvexHull
 import argparse
 import ast
 import logging
 import time
-from indirect_identification.sps_utils import get_construct_ss_from_params_method
+from indirect_identification.sps_utils import get_construct_ss_from_params_method, get_max_radius, get_construct_ss_from_params_method_siso
 from indirect_identification.tf_methods.fast_tfs_methods_fast_math import _is_stable
+from scipy import optimize
+import threading
+from fusion.SPSFusion import Fusion
+
+
+SEARCH_METHODS = {"radial": RadialSearch,}
+OPTIMAL_N_VECTORS = {2: 100, 3: 400, 4: 1500}
+MAX_TRIES ={2: 10, 3: 100, 4: 300}
+SPS_MAX = 1e10
 class SPS:
     """
     Sign Perturbed Sum (SPS) class.
     """
 
 
-    def __init__(self, Lambda: np.ndarray, n_states: int=2, n_inputs: int = 1, n_output: int = 1, 
-                 C: np.ndarray = None, n_noise_order: int = 1, n_points: List[int] = [11, 21, 11],
-                 m: int=100, q: int=5, N: int = 50, db: Database = None, 
-                 debug: bool = False, epsilon: float = 1e-10, logger: logging.Logger = None):
+    def __init__(self, Lambda: np.ndarray, bounds: np.ndarray, n_A: int = None, n_B: int = None,
+                 n_states: int=2, n_inputs: int = 1, n_outputs: int = 1, n_refs: int = 1, forget:float=0.0,
+                 C_obs: np.ndarray = None, n_noise_order: int = 1, n_points: List[int] = [11, 21, 11],
+                 m: int=100, q: int=5, N: int = 50, db: Database = None, search_type: str = "radial",
+                 debug: bool = False, epsilon: float = 1e-10, random_centers: int = 50, 
+                 logger: logging.Logger = None, steepness: float = 100.0, K: int = 10):
         """"
-        Initialize the SPS model search."
+        Initialize the SPS model search.
+        For SISO models. ensure n_states represents the max delay in A,B
+        so the order of A is n_states, order of B is n_states otherwise provide n_A, n_B
         """
         self.Lambda = Lambda
         self.logger = logger if logger else logging.getLogger(__name__)
@@ -36,17 +48,21 @@ class SPS:
         # counts
         self.n_states = n_states
         self.n_inputs = n_inputs
-        self.n_output = n_output
+        self.n_outputs = n_outputs
+        self.n_refs = n_refs
         self.n_noise_order = n_noise_order
-        self.n_params = n_states + n_states*n_inputs + n_output*(n_noise_order+1)
-        self.nA = n_states
-        self.nB = n_states*n_inputs
-        self.nH = n_output*(n_noise_order+1)
-        self.n_points = np.repeat(n_points, [self.nA, self.nB, self.nH])
+        if n_inputs==1 and n_outputs==1 and n_A and n_B:
+            self.nA = n_A
+            self.nB = n_B
+        else:
+            self.nA = n_states
+            self.nB = n_states*n_inputs
+        self.nH = n_outputs*(n_noise_order+1)
+        self.n_params = self.nA + self.nB + self.nH
         # C matrix: n_output x n_state matrix
-        self.C = C
+        self.C = C_obs
         # assert the shape of C
-        assert self.C.shape == (self.n_output, self.n_states)
+        assert self.C.shape == (self.n_outputs, self.n_states)
 
         # empty data and controller
         self.data = None
@@ -58,60 +74,181 @@ class SPS:
         self.db.subscribe("controller", self.controller_callback)
         self.model = SPS_indirect_model(m=self.m, q=self.q, N=self.N, epsilon=self.epsilon,
                                         n_states=self.n_states, n_inputs=self.n_inputs, 
-                                        n_outputs=self.n_output, n_noise=self.n_noise_order)
-        self._construct_ss_from_params = get_construct_ss_from_params_method(n_states=self.n_states, 
-                                                                             n_inputs=self.n_inputs,
-                                                                             n_outputs=self.n_output,
-                                                                             C=self.C)
+                                        n_outputs=self.n_outputs, n_noise=self.n_noise_order)
+        if self.n_inputs==1 and self.n_outputs==1:
+            self._construct_ss_from_params = get_construct_ss_from_params_method_siso(n_A=self.nA,
+                                                                                      n_B=self.nB)
+        else:
+            self._construct_ss_from_params = get_construct_ss_from_params_method(n_states=self.n_states, 
+                                                                                n_inputs=self.n_inputs,
+                                                                                n_outputs=self.n_outputs,
+                                                                                C=self.C)
+        if search_type not in SEARCH_METHODS:
+            raise RuntimeError(f"{search_type} not supported.")
+        self.search_type = search_type
+        self.bounds = bounds
+        self.max_radius = get_max_radius(bounds)
+        self.center = None
+        self.controller = SimpleNamespace()
+        self.controller.F = None
+        self.controller.L = None
+        # initialise Fusion
+        p=1-q/m
+        self.fusion = Fusion(bounds=bounds, 
+                             num_points=n_points, 
+                             dim=self.n_params, 
+                             forget=forget, 
+                             random_centers=random_centers, 
+                             steepness= steepness, 
+                             p=p, fn_stability_check= self.stability_check)
+
         
-        
-    
+    def search_factory(self, search_type: str, center: np.ndarray, test_cb: callable):
+        match search_type:
+            case "radial":
+                search = RadialSearch(n_dimensions=self.n_params,
+                                      n_vectors=OPTIMAL_N_VECTORS[self.n_params],
+                                      center_options=center,
+                                      test_cb=test_cb,
+                                      max_radius=self.max_radius
+                                      )
+            case _:
+                raise RuntimeError(f"{search_type} not supported.")
+        return search 
+
     def data_callback(self, data):
         """
         data attributes: y, u, r, sps_type
         """
         self.logger.info("[SPS] Data callback")
         self.data = self.db._deserialize(data)
-        self.update_sps_region()
+        self.data.y = np.array(self.data.y, dtype=np.float64)
+        self.data.u = np.array(self.data.u, dtype=np.float64)
+        if self.data.r is not None:
+            self.data.r = np.array(self.data.r, dtype=np.float64)
+        self.run_in_thread(self.update_sps_region)
+
     
     def controller_callback(self, controller):
         """
         controller attributes: F, L
         """
         self.logger.info("[SPS] Controller callback")
-        self.controller = self.db._deserialize(controller)
+        controller = self.db._deserialize(controller)
+        self.run_in_thread(self._convert_controller_to_dtfs, controller)
+     
+    
+    def run_in_thread(self, target_fn, *args):
+        def wrapper():
+            try:
+                target_fn(*args)
+            except Exception as e:
+                self.logger.exception(f"Exception in thread for {target_fn.__name__}: {e}")
+        threading.Thread(target=wrapper, daemon=True).start()
+
+
+
+    def _convert_controller_to_dtfs(self, controller):
+        controller.L = np.array(controller.L, dtype=np.float64)
+        controller.F = np.array(controller.F, dtype=np.float64)
+        
+        one = np.array([1.0], dtype=np.float64)
+
+        # SISO case: SPS wants just d_tfs objects; L and F must be 1D
+        if self.n_inputs == 1 and self.n_outputs == 1:
+            F = d_tfs((controller.F.flatten(), one))
+            L = d_tfs((controller.L.flatten(), one))
+        else:
+            # F: (n_inputs, n_outputs)
+            controller.F = controller.F.reshape(self.n_inputs, self.n_outputs)
+            F = np.empty((self.n_inputs, self.n_outputs), dtype=object)
+            for i in range(self.n_inputs):
+                for j in range(self.n_outputs):
+                    F[i, j] = d_tfs((np.atleast_1d(controller.F[i, j]), one))
+            
+            # L: (n_inputs, n_refs)
+            controller.L = controller.L.reshape(self.n_inputs, self.n_refs)
+            L = np.empty((self.n_inputs, self.n_refs), dtype=object)
+            for i in range(self.n_inputs):
+                for j in range(self.n_refs):
+                    L[i, j] = d_tfs((np.atleast_1d(controller.L[i, j]), one))
+        
+        self.controller.F = F
+        self.controller.L = L
+
+            
 
         
     def update_sps_region(self):
         self.logger.info("[SPS] Starting Search")
-        self.logger.debug(f"[SPS] Data: {self.data.sps_type}")
-        self.logger.debug(f"[SPS] Number of params: {self.n_params}")
-        search = SPSSearch(
-                mins=[0]*self.n_params,
-                maxes=[1]*self.n_params,
-                n_dimensions=self.n_params,
-                n_points=self.n_points,
-                test_cb=self._get_search_fn(self.data.sps_type),
-                logger=self.logger
-            )
-        self.logger.debug(f"[SPS] Search Initialized")
-        search.go()
-        # get the results
-        results = search.get_results()
-        A, B, C, D = self.get_ss_region(results=results)
-        self.logger.warning(A, B, C, D)
-        if self.db is not None:
-            self.write_state_space_to_db(A, B, C, D)
-        pass
+        self.logger.info(f"[SPS] Data: {self.data.sps_type}")
+        self.logger.info(f"[SPS] Number of params: {self.n_params}")
+        
+        # if self.data.sps_type == SPSType.OPEN_LOOP:
+        #     self.fusion.center_pts = self.get_lse(Y=self.data.y, U=self.data.u)
+        #     self.logger.info(f"center {self.fusion.center_pts}")
 
+
+        
+        if self.data.r is not None:
+            self.logger.info(f" y: {self.data.y.shape}, u: {self.data.u.shape}, r: {self.data.u.shape}")
+        else:
+            self.logger.info(f" y: {self.data.y.shape}, u: {self.data.u.shape}")
+        
+        tries = 0
+        self.fusion.reset_used_idx_set()
+        while tries < MAX_TRIES[self.n_params]:
+            tries += 1
+            try:
+                if self.data.sps_type == SPSType.OPEN_LOOP and self.fusion.hull is None:
+                    self.fusion.center_pts = self.get_pem(Y=self.data.y, U=self.data.u)
+                    self.logger.info(f"center {self.fusion.center_pts}")
+                    if self.fusion.center_pts is None:
+                        self.logger.warning(f"No center provided sps will fail.")
+                        return
+                if self.fusion.hull:
+                    # closed loop, randomly select next set of points
+                    self.fusion.choose_random_centers()
+                    if self.fusion.center_pts.shape[0] == 0:
+                        self.logger.warning(f"[SPS] No centers found, skipping")
+                        raise RuntimeError("[SPS] No centers found for SPS search. Trying again.")
+                search = self.search_factory(search_type=self.search_type, 
+                                            center=self.fusion.center_pts, 
+                                            test_cb=self._get_search_fn(self.data.sps_type))
+                self.logger.info(f"[SPS] Search Initialized")
+                ins, outs, boundaries, hull, expanded_hull = search.search()
+                self.logger.info(f"[SPS] Search Finished")
+                break
+            except Exception as e:
+                self.logger.info(f"{e}")
+                if self.data.sps_type == SPSType.OPEN_LOOP:
+                    # exit if open loop search fails
+                    self.logger.error(f"[SPS] Open loop search failed, exiting")
+                    return
+                self.logger.info(f"[SPS] retrying")
+
+        if tries == MAX_TRIES[self.n_params]:
+            self.logger.warning(f"[SPS] Max tries reached, skipping")
+            self.fusion.reset_last_successful_centers()
+        else:
+            # successful search
+            self.fusion.last_succesfull_centers = self.fusion.center_pts
+            # fuse
+            ins = np.concatenate([ins, boundaries], axis=0)
+            self.fusion.fuse(new_hull=hull, ins=ins)
+            self.logger.info(f"[SPS] Fused Regions")
+
+        # get the results
+        self.write_results_to_db()
+        
+
+        
+    
     def plot_sps_region(self):
-        """
-        Plot the SPS region.
-        """
-        # TODO: implement the plotting of the SPS region
-        # run infinite loop for now with some sleep time
         while True:
-            time.sleep(0.0001)
+            #plt.pause if happening in the function to keep things resposnive
+            self.fusion.plot_curr_region()
+
 
     def _get_search_fn(self, sps_type: SPSType):
         """
@@ -125,25 +262,46 @@ class SPS:
             self.logger.error(f"Unknown SPS type: {sps_type}")
             raise ValueError(f"Unknown SPS type: {sps_type}")
         
-    def get_ss_region(self, results:np.ndarray) -> np.ndarray:
+    def get_ss_region(self, results:np.ndarray) -> Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
         """
         Get the state space region from the given parameters.
         """
         # Construct state space matrices from the given parameters
         if results is None:
             raise ValueError("No results found")
-        # if results is a 1D array, means only one parameter set is given
-        self.logger.debug(f"[SPS] Results: {results}")
-        self.logger.debug(f"[SPS] Results shape: {results.shape}")
-        self.logger.debug(f"[SPS] Results dim: {results.ndim}")
-        if results.shape[1] == 0:
+
+        self.logger.info(f"[SPS] Results shape: {results.shape}")
+        if results.ndim==2 and results.shape[0] == 0:
             # no results found
             raise ValueError("No results found")
         
-        # results is a 2D array of shape (n_points, n_params)
-        result_ss = np.apply_along_axis(self._construct_ss_from_params, 0, results)
-        return result_ss
         
+        results = [self._construct_ss_from_params(np.ascontiguousarray(row)) for row in results]
+
+        # Unpack first 4 outputs, ignore the rest
+        A_list, B_list, C_list, D_list, *_ = zip(*results)
+
+        # Convert to numpy arrays
+        A = np.array(A_list)
+        B = np.array(B_list)
+        C = np.array(C_list)
+        D = np.array(D_list)
+        return A,B,C,D
+    
+    def stability_check(self, params: np.ndarray) -> bool:
+        """
+        Check if the given parameters are stable.
+        """
+        try:
+            G, H, A, B, C = self.construct_gh_from_params(params.flatten())
+            # # closed loop stability check if controller is not None
+            if self.controller.F is not None and self.controller.L is not None:
+                self.model.transform_to_open_loop(G=G, H=H,F=self.controller.F, L=self.controller.L)
+        except Exception as e:
+            self.logger.debug(f"[SPS] not valid param. {e}")
+            return False
+        
+        return True
 
     def construct_gh_from_params(self, params):
         """
@@ -160,11 +318,17 @@ class SPS:
         A_obs, B_obs, C_obs, D_obs, A,B = self._construct_ss_from_params(params)
 
         # G Transfer function matrix, no need to check value assumption, guaranteed to be 0
-        G = d_tfs.ss_to_tf(A_obs, B_obs, C_obs, D_obs, check_assumption=False, epsilon=self.epsilon)
+        if self.n_inputs==1 and self.n_outputs==1:
+            G = d_tfs((B,A))
+        else: 
+            G = d_tfs.ss_to_tf(A_obs, B_obs, C_obs, D_obs, check_assumption=False, epsilon=self.epsilon)
         if not _is_stable(A, epsilon=self.epsilon):
-            return False
+            raise OpenLoopStabilityError
         
-        H, C = self._get_H_from_params(params, A)
+        try: 
+            H, C = self._get_H_from_params(params, A)
+        except Exception:
+            raise OpenLoopStabilityError
 
         return G, H, A, B, C
     
@@ -172,33 +336,34 @@ class SPS:
         # H Transfer function matrix
         if self.n_noise_order == -1:
             # if noise order is -1 then H is a scalar transfer function
-            if self.n_output == 1:
+            if self.n_outputs == 1:
                 C = np.array([1.0])
                 H = d_tfs((C, A))
             else:
-                C = np.empty((self.n_output, 1))
-                H = np.zeros((self.n_output, self.n_output), dtype=object)
-                for i in range(self.n_output):
-                    C[i]=np.array([1])
+                C = np.empty((self.n_outputs, 1))
+                H = np.zeros((self.n_outputs, self.n_outputs), dtype=object)
+                for i in range(self.n_outputs):
+                    C[i]=np.array([1.0])
                     H[i,i]=d_tfs((np.array([1.0]),A))
         else:
             # rest of params form H matrix, H is a n_state x n_state matrix
             # the diagonals of H are the noise transfer functions
             # each tf has numerator and denominator of order n_noise_order
-            C = np.empty((self.n_output, self.n_noise_order+1))
-            if self.n_output == 1:
+            if self.n_outputs == 1:
                 # if only one output, H is a scalar transfer function
                 # H = np.zeros((self.n_states, self.n_states), dtype=object)
                 j = self.n_states + self.n_states*self.n_inputs
                 num = params[j:j+(self.n_noise_order+1)]
                 den = A
                 H = d_tfs((num, den))
+                C = num
                 # test assumptions
                 d_tfs.sps_assumption_check(tf=H, value=1, epsilon=self.epsilon)
                 d_tfs.sps_assumption_check(tf=d_tfs((den,num)), value=1, epsilon=self.epsilon)
             else:
-                H = np.zeros((self.n_output, self.n_output), dtype=object)
-                for i in range(self.n_output):
+                C = np.empty((self.n_outputs, self.n_noise_order+1))
+                H = np.zeros((self.n_outputs, self.n_outputs), dtype=object)
+                for i in range(self.n_outputs):
                     j = self.n_states + self.n_states*self.n_inputs + i*(self.n_noise_order+1)
                     # numerator and denominator of the transfer function
                     num = params[j:j+self.n_noise_order+1]
@@ -215,10 +380,11 @@ class SPS:
         """
         Perform open loop SPS search for the given parameters.
         """
-        # Transform to open loop
+        in_sps = False
         try:
             G, H , A, B, C = self.construct_gh_from_params(params)
-        except ValueError:
+        except Exception as e:
+            self.logger.debug(f"[SPS] not valid param. {e}")
             return False
 
         # Check the condition and store the result if true
@@ -229,8 +395,9 @@ class SPS:
             in_sps = self.model.sps_indicator(G=G, H=H, A=A, B=B, C=C,
                                              Y_t=self.data.y, U_t=self.data.u, 
                                              sps_type=SPSType.OPEN_LOOP, Lambda=None)
-        except ValueError:
-            self.logger.warning("SPS Failed")
+        except Exception as e:
+            self.logger.debug("SPS Failed")
+            self.logger.debug(f"{e}")
             in_sps = False
         self.logger.debug(f"[SPS] Params: {params}, SPS: {in_sps}")
         return in_sps
@@ -239,11 +406,13 @@ class SPS:
         """
         Perform closed loop SPS search for the given parameters.
         """
+        in_sps = False
         try:
             G, H, A, B, C = self.construct_gh_from_params(params)
             if self.controller is None:
                 raise RuntimeError("Controller not found in database")
-        except ValueError:
+        except Exception as e:
+            self.logger.debug(f"[SPS] not valid param. {e}")
             return False
         except RuntimeError:
             if self.debug:
@@ -253,16 +422,75 @@ class SPS:
             raise RuntimeError("Data not found in database")
         
         try:
+            
             in_sps = self.model.sps_indicator(G=G, H=H, A=A, B=B, C=C,
                                              Y_t=self.data.y, U_t=self.data.u, R_t=self.data.r,
                                              sps_type=SPSType.CLOSED_LOOP,
-                                             F=self.controller.F, L=self.controller.L, Lambda=self.Lambda)
-        except ValueError:
+                                             F=self.controller.F, L=self.controller.L, Lambda=None)
+        except Exception as e:
+            self.logger.debug("SPS Failed")
+            self.logger.debug(f"{e}")
             in_sps = False
         
         return in_sps
     
+    def get_error_norm(self, params, Y, U):
+        try:
+            G, H , A, B, C = self.construct_gh_from_params(params)
+        except Exception:
+            return np.full(Y.size, fill_value=SPS_MAX)
+        if self.n_inputs==1 and self.n_outputs==1:
+            Hinv = d_tfs((A, C))
+            YGU = Y - G*U
+            N = Hinv*YGU
+            # error_norm = np.linalg.norm(N@N.T)
+        else:
+            YGU = Y - apply_tf_matrix(G,U)
+            N = apply_tf_matrix(Hinv,YGU)
+            # error_norm = np.linalg.norm(N@N.T)
 
+        if np.any(np.isnan(N)) or np.any(np.isinf(N)):
+            # Return a flat array of penalty residuals matching total number of residuals
+            return np.full(N.size, fill_value=SPS_MAX)
+
+        return N.flatten()
+    
+    def get_pem(self, Y,U):
+        x0 = np.zeros(self.n_params)
+        res = optimize.least_squares(self.get_error_norm, x0, args=(Y,U))
+        params_ls = res.x
+        return params_ls
+
+    def write_results_to_db(self):
+        try:
+            hull_results = self.fusion.approximate_hull()
+            A, B, C, D = self.get_ss_region(results=hull_results)
+            ss = SimpleNamespace(
+                    A=A,
+                    B=B,
+                    C=C,
+                    D=D
+                )
+            if self.fusion.k_probable is not None:
+                A_k, B_k, C_k, D_k = self.get_ss_region(results=self.fusion.k_probable)
+                ss_k = SimpleNamespace(
+                    A=A_k,
+                    B=B_k,
+                    C=C_k,
+                    D=D_k
+                )
+            else:
+                ss_k = None
+            
+            results = SimpleNamespace(
+                ss=ss,
+                ss_k=ss_k,
+            )
+            
+            if self.db is not None:
+                self.db.write_ss(ss=results)
+        except Exception as e:
+            self.logger.error(f"Failed to write results to database: {e}")
 
     def write_state_space_to_db(self, A, B, C, D):
         try:
@@ -298,19 +526,30 @@ def parse_args(raw_args=None, db:Database = None):
     
     # Define arguments
     parser.add_argument("--Lambda", type=parse_array, help="Weight matrix output by output as a list-like string")
-    parser.add_argument("--n_states", type=int, default=2, help="Number of states")
-    parser.add_argument("--n_inputs", type=int, default=1, help="Number of inputs")
-    parser.add_argument("--n_output", type=int, default=1, help="Number of outputs")
+    parser.add_argument("--n_A", type=int, default=2, help="Polynomial A order")
+    parser.add_argument("--n_B", type=int, default=2, help="Polynomical B order")
+    parser.add_argument("--n_states", type=int, required=True, help="Number of states")
+    parser.add_argument("--n_inputs", type=int, required=True, help="Number of inputs")
+    parser.add_argument("--n_outputs", type=int, required=True, help="Number of references")
+    parser.add_argument("--n_refs", type=int, required=True, help="Number of outputs")
     parser.add_argument("--C", type=parse_array, help="C matrix as a list-like string")
     parser.add_argument("--n_noise_order", type=int, default=3, help="Noise order")
     parser.add_argument("--n_points", type=parse_array, help="Number of points as a list-like string")
     parser.add_argument("--m", type=int, default=100, help="Number of samples")
     parser.add_argument("--q", type=int, default=5, help="Number of points")
     parser.add_argument("--N", type=int, default=50, help="N samples")
+    parser.add_argument("--random_centers", type=int, default=50, help="random samples to take in hull for center")
     parser.add_argument("--dB", type=str, default="sim.db", help="Database file name")
     parser.add_argument("--debug", action='store_true', help="Enable debug mode")
     parser.add_argument("--epsilon", type=float, default=1e-10, help="Epsilon value for stability check")
-    
+    parser.add_argument("--search",type=str, choices=["grid", "radial"], required=True, help="Search strategy" )
+    parser.add_argument("--bounds", type=parse_array, required=True, 
+                        help="Bound of the region for each direction. For example [[-2, 2], [-2, 2]]")
+    parser.add_argument("--forget", type=float, default=0.0, 
+                        help="fusion forgetting factor")
+    parser.add_argument("--steepness", type=float, default=100.0,
+                        help="fusion steepness factor")
+    parser.add_argument("--K", type=int, default=10, help="Number of most probable points for L estimation")
     args = parser.parse_args(raw_args)
     if db is None:
         db = Database(args.dB)
@@ -321,15 +560,19 @@ def run_sps(raw_args=None, db:Database = None, args: argparse.Namespace = None, 
     """
     Run the SPS Indirect Identification.
     """
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     if args is None:
         args, db = parse_args(raw_args=raw_args, db=db)
     sps = SPS(
         Lambda=args.Lambda,
+        forget=args.forget,
+        n_A=args.n_A,
+        n_B=args.n_B,
         n_states=args.n_states,
         n_inputs=args.n_inputs,
-        n_output=args.n_output,
-        C=args.C,
+        n_outputs=args.n_outputs,
+        n_refs=args.n_refs,
+        C_obs=args.C,
         n_noise_order=args.n_noise_order,
         n_points=args.n_points,
         m=args.m,
@@ -338,7 +581,12 @@ def run_sps(raw_args=None, db:Database = None, args: argparse.Namespace = None, 
         db=db,
         debug=args.debug,
         epsilon=args.epsilon,
-        logger=logger
+        search_type=args.search,
+        bounds=args.bounds,
+        random_centers=args.random_centers,
+        logger=logger,
+        steepness=args.steepness,
+        K=args.K
     )
     # sps.update_sps_region(data)
     sps.plot_sps_region()

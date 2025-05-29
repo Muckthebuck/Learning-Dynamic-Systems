@@ -40,6 +40,7 @@ class Pendulum(PendulumSimBase):
         self.m: float = 1.0
         self.d: float = 0.5
         self.inertia: float = self.m * (self.L ** 2)
+        self.sim.input_limit = None
 
 
     def dynamics(self, y: np.ndarray, u: Union[float, np.ndarray]) -> np.ndarray:

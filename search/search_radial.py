@@ -2,7 +2,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial import ConvexHull
 from search.hull_helpers import expand_convex_hull
+import logging
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 class RadialSearch:
     def __init__(self,
@@ -68,13 +71,14 @@ class RadialSearch:
 
         # Validate that the center is in the confidence region
         self._test_center()
-
+        logger.info("[Radial Search] Search Center Found")
         # Test each direction
         for idx in range(self.n_vectors):
             new_ins, new_outs, boundary = self._test_one_direction(idx)
             ins.extend(new_ins)
             outs.extend(new_outs)
             boundaries.append(boundary)
+            # logger.info(f"tested {idx} directions")
 
         # Get results
         ins = np.array(ins)
@@ -109,7 +113,7 @@ class RadialSearch:
                 self.center = self.center_options
                 return
             
-        raise Exception("No provided center values found in confidence region.")
+        raise Exception("[RADIAL] No provided center values found in confidence region.")
 
 
     def _test_one_direction(self, vector_index):

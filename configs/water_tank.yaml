@@ -1,0 +1,40 @@
+# sims args
+sim: water_tank
+T: -1
+dt: 0.02
+T_updates: 15 #  10/0.02 = 500 points =, sps taking max 18 (start), min 8 seconds
+plot_system: true
+history_limit: 5.0 # seconds
+dB: sim_data.db
+apply_disturbance: true
+disturbance: 50
+controller: lqr
+L: [[5.652]] # 2.7 x optimal F
+Q: [[1.0]] # 2.7 x optimal F
+R: [[0.1]]
+reference: [square]
+r_a: [0.55] # when using constant reference
+r_f: [0.1]
+r_c: [1.0]
+# sps args
+n_A: 1
+n_B: 1
+n_states: 1
+n_inputs: 1
+n_outputs: 1
+n_refs: 1
+n_noise_order: -1
+C_obs: [[1]] # observation matrix
+n_points: [100, 100]
+m: 100
+q: 5
+N: 200
+debug: true
+epsilon: 1e-10
+Lambda: [[1, 0], [0, 1]]
+search: radial # grid or radial
+bounds: [[-1.1,0.0], [-0.4, 0.4]]
+forget: 0.0
+random_centers: 200
+steepness: 100
+K: 10    # number of most probable points to use for L estimation

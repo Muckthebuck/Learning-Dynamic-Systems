@@ -1,5 +1,5 @@
 from numba import njit, float64, prange
-from indirect_identification.tf_methods.fast_tfs_methods_fast_math import lfilter_numba
+from indirect_identification.tf_methods.fast_tfs_methods_fast_math import lfilter_numba, _ensure_same_size
 from dB.sim_db import SPSType
 import numpy as np
 from typing import Optional, Union, Tuple, Callable
@@ -8,8 +8,23 @@ all = [
     'get_U_perturbed_nhat',
     'compute_S',
     'get_construct_ss_from_params_method',
+    'get_construct_ss_from_params_method_siso',
     'get_phi_method',
+    'get_max_radius'
 ]
+
+#---------------------------------------------------------------------------
+# helper funcs used in sps.py
+#---------------------------------------------------------------------------
+@njit(cache=True, fastmath=True)
+def get_max_radius(bounds):
+    r_min = 1e10
+    for i in range(bounds.shape[0]):
+        r = 0.5 * (bounds[i, 1] - bounds[i, 0])
+        if r < r_min:
+            r_min = r
+    return r_min
+
 #---------------------------------------------------------------------------
 # SPS mimo methods
 #---------------------------------------------------------------------------
@@ -177,6 +192,44 @@ def compute_phi_lambda_phiT_and_phi_lambda_Y(phi_tilde, Lambda_inv, Lambda_n, N_
 
     return Delta_lambda, Delta_lambda_n, Delta_lambda_Y
 
+def get_construct_ss_from_params_method_siso(n_A: int, n_B: int):
+    """
+    Returns the function to construct state space matrices from parameters.
+    """
+
+    @njit(cache=True)
+    def _construct_ss_from_params(params: np.ndarray):
+        """
+        Returns state space matrices A_obs, B_obs, C_obs, D_obs and the A, B polynomials.
+        """
+        # Extract A parameters
+        n_states = max(n_A, n_B)
+        A = params[:n_A]
+        B = params[n_A:n_A + n_B]
+
+        # Polynomial form
+        A_poly = np.hstack((np.array([1.0]), A)).flatten()  # Ensure array concatenation
+        B_poly = np.hstack((np.array([0.0]), B)).flatten()
+
+        A, B  = _ensure_same_size(A, B)
+        B = B.reshape(1, n_states)
+        # A_obs: Observable canonical form of A
+        top_block = np.zeros((1, n_states - 1))
+        bottom_block = np.eye(n_states - 1)
+        A_obs_left = np.vstack((top_block, bottom_block))
+        A_obs_right = -np.flipud(A.reshape(-1, 1))
+        A_obs = np.hstack((A_obs_left, A_obs_right))
+        # Extract B parameters and build B_obs
+        B_obs = np.flipud(B.T)
+
+        # C and D matrices
+        C_obs = np.zeros((1, n_states))
+        C_obs[0, n_states-1] = 1
+        D_obs = np.zeros((1, 1))
+
+        return A_obs, B_obs, C_obs, D_obs, A_poly, B_poly
+
+    return _construct_ss_from_params
 
 
 def get_construct_ss_from_params_method(n_states: int, n_inputs: int, n_outputs: int, C: np.ndarray):
@@ -244,7 +297,7 @@ def create_phi_optimized_siso(Y: np.ndarray, U: np.ndarray, A: np.ndarray, B: np
     
     Parameters:
     Y (array): Output matrix of shape (m, t).
-    U (array): Input vector of shape (t,).
+    U (array): Input vector of shape (m,t). for open loop its (1,t)
     len_a (int): len of A polynomial
     len_b (int): len of B polynomial
     c (float): c0 of the C polynomial.
@@ -252,27 +305,23 @@ def create_phi_optimized_siso(Y: np.ndarray, U: np.ndarray, A: np.ndarray, B: np
     Returns:
     array: Phi matrix of shape (m, t, n_a + n_b).
     """
-    n_a=len(A)-1
-    n_b=len(B)-1
+    n_a = len(A) - 1
+    n_b = len(B) - 1
     m, t = Y.shape
     phi = np.zeros((m, t, n_a + n_b), dtype=Y.dtype)
-    cl = U.ndim == 2
-    for j in range(m):  # for each output dimension
+
+    for j in range(m):
         for lag in range(1, n_a + 1):
             for i in range(lag, t):
-                phi[j, i, lag - 1] = Y[j, i - lag] 
+                phi[j, i, lag - 1] = Y[j, i - lag]
 
     for lag in range(1, n_b + 1):
         for i in range(lag, t):
-            for j in range(m):  # input is shared across outputs
-                if cl:
-                    _U = U[j, i-lag]
-                else:
-                    _U = U[i - lag]
+            for j in range(m):
+                _U = U[j, i - lag]
                 phi[j, i, n_a + lag - 1] = -_U
 
     return phi
-
 
 
 

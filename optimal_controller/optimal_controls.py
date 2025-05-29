@@ -131,55 +131,62 @@ class OptimalControlSolver:
     
     def compute_vertices(self):
 
-        if self.uncertainty_region_method == 'all_plants':
+        try:
+
+            if self.uncertainty_region_method == 'all_plants':
+                self.A_verts = self.A_list
+                self.B_verts = self.B_list
+
+            elif self.uncertainty_region_method == 'convhull_oliveira':
+
+                # Compute hulls A,B individually
+                (A_verts, n_A, _) = get_hull_verts(self.A_list)
+                (B_verts, n_B, _) = get_hull_verts(self.B_list)
+                self.logger.info(f" Convex hull of A set has {n_A} vertices")
+                self.logger.info(f" Convex hull of B set has {n_B} vertices")
+                self.logger.info(f" This will lead to {n_A*n_B} LMI constraints")            
+
+                # Enumerate to get the combined vertices (A_ij, B_ij)
+                A_idx, B_idx = np.meshgrid(np.arange(n_A), np.arange(n_B), indexing='ij')
+                A_idx = A_idx.flatten()
+                B_idx = B_idx.flatten()
+                A_paired = [A_verts[i] for i in A_idx]
+                B_paired = [B_verts[i] for i in B_idx]
+
+                self.A_verts = np.array(A_paired)
+                self.B_verts = np.array(B_paired)        
+
+            elif self.uncertainty_region_method == 'convhull_peaucelle':
+
+                # Compute AB hull
+                AB_list = [np.hstack((A, B)) for A, B in zip(self.A_list, self.B_list)]
+                AB_list = np.array(AB_list)
+                (AB_verts, _, _) = get_hull_verts(AB_list)
+                self.A_verts = AB_verts[:, :, :self.n_states]
+                self.B_verts = AB_verts[:, :,  self.n_states:]
+                
+            elif self.uncertainty_region_method == 'lowresMVEE':
+
+                # Pair the A and B
+                AB_list = [np.hstack((A, B)) for A, B in zip(self.A_list, self.B_list)]
+                AB_list = np.array(AB_list)
+
+                # Vectorise the uncertain entries and compute the enclosing polytope
+                pts, where_unc = vectorise_unc_entries(AB_list)
+                lrMVEE = LowResMVEE(pts.T, max_n_verts=self.max_n_verts)
+                v = lrMVEE.vertices.T
+                n = v.shape[0]
+
+                # Map back to matrix space
+                M0 = AB_list[0]
+                (AB_verts, _, _) = map_v_to_mat(M0, where_unc, v, n)
+                self.A_verts = AB_verts[:, :, :self.n_states]
+                self.B_verts = AB_verts[:, :,  self.n_states:]
+        
+        except Exception as e:
+            self.logger.warning(f" Failed to compute reduced uncertainty region via {self.uncertainty_region_method} with {self.n_plants} plant(s). Reverting to all_plants.")
             self.A_verts = self.A_list
             self.B_verts = self.B_list
-
-        elif self.uncertainty_region_method == 'convhull_oliveira':
-
-            # Compute hulls A,B individually
-            (A_verts, n_A, _) = get_hull_verts(self.A_list)
-            (B_verts, n_B, _) = get_hull_verts(self.B_list)
-            self.logger.info(f" Convex hull of A set has {n_A} vertices")
-            self.logger.info(f" Convex hull of B set has {n_B} vertices")
-            self.logger.info(f" This will lead to {n_A*n_B} LMI constraints")            
-
-            # Enumerate to get the combined vertices (A_ij, B_ij)
-            A_idx, B_idx = np.meshgrid(np.arange(n_A), np.arange(n_B), indexing='ij')
-            A_idx = A_idx.flatten()
-            B_idx = B_idx.flatten()
-            A_paired = [A_verts[i] for i in A_idx]
-            B_paired = [B_verts[i] for i in B_idx]
-
-            self.A_verts = np.array(A_paired)
-            self.B_verts = np.array(B_paired)        
-
-        elif self.uncertainty_region_method == 'convhull_peaucelle':
-
-            # Compute AB hull
-            AB_list = [np.hstack((A, B)) for A, B in zip(self.A_list, self.B_list)]
-            AB_list = np.array(AB_list)
-            (AB_verts, _, _) = get_hull_verts(AB_list)
-            self.A_verts = AB_verts[:, :, :self.n_states]
-            self.B_verts = AB_verts[:, :,  self.n_states:]
-            
-        elif self.uncertainty_region_method == 'lowresMVEE':
-
-            # Pair the A and B
-            AB_list = [np.hstack((A, B)) for A, B in zip(self.A_list, self.B_list)]
-            AB_list = np.array(AB_list)
-
-            # Vectorise the uncertain entries and compute the enclosing polytope
-            pts, where_unc = vectorise_unc_entries(AB_list)
-            lrMVEE = LowResMVEE(pts.T, max_n_verts=self.max_n_verts)
-            v = lrMVEE.vertices.T
-            n = v.shape[0]
-
-            # Map back to matrix space
-            M0 = AB_list[0]
-            (AB_verts, _, _) = map_v_to_mat(M0, where_unc, v, n)
-            self.A_verts = AB_verts[:, :, :self.n_states]
-            self.B_verts = AB_verts[:, :,  self.n_states:]
 
     def get_K_stab(self):
 
