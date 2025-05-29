@@ -238,6 +238,8 @@ class SPS:
             self.fusion.fuse(new_hull=hull, ins=ins)
             self.logger.info(f"[SPS] Fused Regions")
 
+        self.logger.info("Hull volume %.6f", hull.volume)
+
         # get the results
         self.write_results_to_db()
         

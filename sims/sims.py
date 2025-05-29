@@ -1,3 +1,4 @@
+from results import plot_tracking
 from types import SimpleNamespace
 from scipy import signal
 import math
@@ -274,8 +275,9 @@ class Sim:
             return r
 
     def toggle_pause(self):
-        print("Pause pressed")
-        self.is_paused = not self.is_paused
+        pass
+        # print("Pause pressed")
+        # self.is_paused = not self.is_paused
 
     def run(self):
         """
@@ -310,6 +312,7 @@ class Sim:
             history_y.append(y.copy())
             history_u.append(u.copy())
             history_r.append(r.copy())
+
             if self.controller.heard_back and buffer_delay>0:
                 buffer_delay -= 1
             if self.controller.heard_back and buffer_delay<=0 and len(history_y)==buffer_len:
@@ -319,6 +322,10 @@ class Sim:
                                       sps_type=SPSType.CLOSED_LOOP)
                 self.controller.heard_back = False
                 buffer_delay = self.buffer_delay
+
+                # Log results for the previous epoch
+                stats = plot_tracking(np.array(history_y), np.array(history_r))
+                self.logger.info("MRAE: %.6f" % (stats["mrae"]))
                 
                 history_y = []
                 history_u = []
