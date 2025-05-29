@@ -1,9 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Tuple, Optional, Union
+from optimal_controller.state_space import tf_to_ocf
 
 class ARMAX:
-    def __init__(self, A, B, C, dt=0.01, history_limit=10, noise_std=0.2,
+    def __init__(self, A, B, C, dt=0.01, history_limit=10, noise_std=0.02,
                  plot_system=False, initial_state:np.ndarray=np.array([0])):
         self.A = np.array(A)
         self.B = np.array(B)
@@ -23,9 +24,10 @@ class ARMAX:
         self.history_limit = int(history_limit / dt)
         self.current_time = 0.0
         self.done = False
-        self.state = np.zeros(self.full_state_length).reshape(1,-1)
+        self.state = np.zeros(self.full_state_length).reshape(1,-1).T
         if plot_system:
             self._init_plot()
+        self.A_mat_ocf, self.B_mat_ocf, self.C_mat_ocf = tf_to_ocf(self.B, self.A)
 
     def _init_plot(self):
         self.fig, self.axs = plt.subplots(3, 1, figsize=(8, 6), sharex=True)
@@ -110,21 +112,25 @@ class ARMAX:
 
         done = False
         output = np.array([y0])
-        self.state = self.curr_full_state()
+
+        # self.state = self.curr_full_state()
+        self.state = self.A_mat_ocf @ self.state + self.B_mat_ocf * u
+
         if full_state:
             return output, done, self.state
         else:
             return output, done
-    def curr_full_state(self):
-        full_state = np.array(self.history[-self.full_state_length:])[:,0]
-        full_state = np.flip(full_state)
-        # padd zero if nto full length 
-        # Pad with zeros if not full length
-        if len(full_state) < self.full_state_length:
-            padding = np.zeros(self.full_state_length - len(full_state))
-            full_state = np.concatenate((full_state, padding))
+        
+    # def curr_full_state(self):
+    #     full_state = np.array(self.history[-self.full_state_length:])[:,0]
+    #     full_state = np.flip(full_state)
+    #     # padd zero if nto full length 
+    #     # Pad with zeros if not full length
+    #     if len(full_state) < self.full_state_length:
+    #         padding = np.zeros(self.full_state_length - len(full_state))
+    #         full_state = np.concatenate((full_state, padding))
                 
-        return full_state.reshape(-1,1)
+    #     return full_state.reshape(-1,1)
     def full_state_to_obs_y(self, state):
         return np.array([state.flatten()[0]])
     

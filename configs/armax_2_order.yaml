@@ -9,7 +9,7 @@ dB: sim_data.db
 apply_disturbance: true
 disturbance: 50
 controller: lqr
-L: [[-1.2]] # 2.7 x optimal F
+L: [[-1.0521]]
 Q: [[0.9, 0.0], [0.0, 0.9]] # state x state
 R: [[0.5]] # input x input
 reference: [square]
