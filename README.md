@@ -4,6 +4,8 @@ Masters Capstone project: Learning of dynamical systems from a finite number of 
 
 Controlling complex systems—such as robots, power grids, or autonomous vehicles—requires designing controllers that ensure stability and accurate tracking of desired states. Traditional model-based control methods depend on precise knowledge of the system’s equations, but real-world systems often experience parameter variations and unmodeled dynamics, making exact modeling impractical. This project explores a data-driven approach using the Sign-Perturbed Sums (SPS) algorithm to estimate system dynamics with finite closed-loop data. The SPS method provides a set of possible system models with exact probabilistic guarantees that the true system lies within this set. By continuously refining this set with new data, the approach enables adaptive control strategies that improve robustness and resilience to uncertainties. This work contributes to more reliable and flexible control systems by reducing dependence on prior knowledge while ensuring performance guarantees, making it valuable for applications in robotics, automation, and engineering systems where adaptability is crucial.
 
+The full report: [Report](./E_21_WERI_009.pdf)
+
 ---
 
 ## How to run
