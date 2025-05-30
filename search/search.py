@@ -274,14 +274,15 @@ class SPSSearch:
             # axes[idx].title("Tested points after %s" % epoch_label)
             axes[idx].set_xlabel("a")
             axes[idx].set_ylabel("b")
-            axes[idx].set_title(epoch_label)
+            axes[idx].set_title(epoch_label, fontsize=15)
 
         # Shared Legend
         handles, labels = axes[0].get_legend_handles_labels()
-        fig.legend(handles=handles, labels=labels, loc="lower right")
+        fig.legend(handles=handles, labels=labels, loc="lower left", ncols=4, fontsize=14)
         
-        fig.suptitle("KNN Search Process")
+        fig.suptitle("KNN Search Process", fontsize=18)
         fig.tight_layout()
+        fig.subplots_adjust(bottom=0.25)
 
         if is_save:
             plt.savefig("figures/knn_search.png")
