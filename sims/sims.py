@@ -105,7 +105,6 @@ class Sim:
         self.r_c =r_c
         self.i=0
 
-        keyboard.add_hotkey("p", self.toggle_pause  )
 
         # tuner = LTuner(self.controller)
         # tuner.start()  # opens the slider window
