@@ -35,6 +35,7 @@ The full report: [Report](./E_21_WERI_009.pdf)
 ---
 
 ## How to run
+Requirements: Docker, Mosek optimiser (Free academic License)
 
 0. Run Docker if not running
 1. Start the redis container for pub sub communicatio
